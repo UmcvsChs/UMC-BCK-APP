@@ -265,17 +265,10 @@ export default function Cart() {
               )}
             </div>
 
-            <label className="flex items-start gap-2 mt-3 text-xs text-ink/70">
-              <input
-                type="checkbox"
-                checked={!!termsAccepted[sellerId]}
-                onChange={(e) =>
-                  setTermsAccepted((prev) => ({ ...prev, [sellerId]: e.target.checked }))
-                }
-                className="accent-indigo mt-0.5"
-              />
-              I accept the delivery terms for this order.
-            </label>
+            <DeliveryTermsGate
+              accepted={!!termsAccepted[sellerId]}
+              onAccept={() => setTermsAccepted((prev) => ({ ...prev, [sellerId]: true }))}
+            />
 
             <button
               onClick={() => handleCheckout(sellerId, subtotal)}
@@ -287,6 +280,88 @@ export default function Cart() {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+function DeliveryTermsGate({ accepted, onAccept }) {
+  const [open, setOpen] = useState(false)
+  const [scrolledToBottom, setScrolledToBottom] = useState(false)
+  const [scrollProgress, setScrollProgress] = useState(0)
+
+  function handleScroll(e) {
+    const { scrollTop, scrollHeight, clientHeight } = e.target
+    const progress = Math.min(100, Math.round((scrollTop / (scrollHeight - clientHeight)) * 100))
+    setScrollProgress(progress)
+    if (progress >= 98) setScrolledToBottom(true)
+  }
+
+  if (accepted) {
+    return <p className="text-xs text-market-green mt-3">✓ Delivery terms accepted for this order.</p>
+  }
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="text-xs text-indigo underline"
+      >
+        {open ? 'Hide delivery terms' : 'Read delivery terms to continue'}
+      </button>
+
+      {open && (
+        <div className="mt-2 rounded border border-ink/20 bg-white">
+          <div
+            onScroll={handleScroll}
+            className="h-40 overflow-y-auto px-3 py-2 text-xs text-ink/70 leading-relaxed"
+          >
+            <p className="font-medium mb-1">Delivery Address</p>
+            <p className="mb-3">
+              Your delivery address must be accurate and complete before confirming your order. Once an order is in
+              transit, the delivery address cannot be changed under any circumstances — attempting to redirect a
+              delivery in transit is treated as a failed delivery, and a re-delivery fee applies with no refund of
+              the original delivery charge. Your address must be accessible by motorbike or vehicle; if not
+              directly accessible, provide the nearest bus stop, junction, or motorable landmark.
+            </p>
+            <p className="font-medium mb-1">Delivery Agents Are Not Loaders</p>
+            <p className="mb-3">
+              Delivery agents transport goods from the seller to your delivery point only. Carrying goods up
+              staircases or through narrow paths beyond the vehicle drop-off point is not part of their duty. It is
+              your responsibility to arrange porterage from the drop-off point if needed.
+            </p>
+            <p className="font-medium mb-1">Waiting Time Policy</p>
+            <p className="mb-3">
+              The first 10 minutes after the agent marks arrival are free. After that, ₦50/minute is deducted from
+              your wallet, capped at ₦1,000. This charge can only be made if your wallet has sufficient balance —
+              UMC-BCK does not extend credit or track a debt.
+            </p>
+            <p className="font-medium mb-1">Delivery Confirmation</p>
+            <p className="mb-3">
+              You must confirm receipt before the agent departs. Once confirmed, the order is marked delivered and
+              payment is released to the seller from escrow.
+            </p>
+            <p className="font-medium mb-1">Failed Delivery</p>
+            <p>
+              If delivery cannot be completed due to an inaccessible address, an unreachable buyer, or a refused
+              delivery, this is logged as a failed delivery and may affect any refund available for that order.
+            </p>
+          </div>
+          <div className="h-1 bg-ink/10">
+            <div className="h-1 bg-indigo transition-all" style={{ width: `${scrollProgress}%` }} />
+          </div>
+          <div className="p-2">
+            <button
+              type="button"
+              onClick={onAccept}
+              disabled={!scrolledToBottom}
+              className="w-full text-xs bg-indigo text-white rounded py-2 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {scrolledToBottom ? 'I accept the delivery terms' : `Scroll to read (${scrollProgress}%)`}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

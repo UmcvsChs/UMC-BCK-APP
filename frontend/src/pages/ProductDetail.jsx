@@ -19,6 +19,8 @@ export default function ProductDetail() {
   const [added, setAdded] = useState(false)
   const [isWatched, setIsWatched] = useState(false)
   const [watchLoading, setWatchLoading] = useState(false)
+  const [comparisons, setComparisons] = useState(null)
+  const [showComparisons, setShowComparisons] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -68,6 +70,16 @@ export default function ProductDetail() {
     }
     setWatchLoading(false)
     setIsWatched((prev) => !prev)
+  }
+
+  async function comparePrices() {
+    setShowComparisons(true)
+    // Real search against the same full-text index everything else uses —
+    // not a fake "similar items" algorithm, the same search_products() the
+    // hub search bars call.
+    const { data } = await supabase.rpc('search_products', { p_query: product.name })
+    const others = (data || []).filter((p) => p.id !== product.id && p.seller_id !== product.seller_id)
+    setComparisons(others)
   }
 
   async function handleAddToCart() {
@@ -151,7 +163,25 @@ export default function ProductDetail() {
           </span>
         )}
       </div>
-      {product.description && <p className="text-sm text-ink/70 mb-4">{product.description}</p>}
+      {product.description && <p className="text-sm text-ink/70 mb-2">{product.description}</p>}
+
+      <button onClick={comparePrices} className="text-xs text-indigo underline mb-4">
+        Compare prices from other sellers
+      </button>
+      {showComparisons && (
+        <div className="mb-4 space-y-1">
+          {comparisons === null && <p className="text-xs text-ink/50">Searching…</p>}
+          {comparisons?.length === 0 && (
+            <p className="text-xs text-ink/50">No similar listings found from other sellers.</p>
+          )}
+          {comparisons?.map((p) => (
+            <div key={p.id} className="flex justify-between text-xs rounded border border-ink/10 bg-white px-2 py-1.5">
+              <span>{p.name}</span>
+              {p.price != null && <span className="font-mono text-indigo">₦{Number(p.price).toLocaleString()}</span>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {variants.length > 0 && (
         <div className="mb-4">

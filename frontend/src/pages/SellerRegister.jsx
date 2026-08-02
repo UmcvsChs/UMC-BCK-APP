@@ -23,6 +23,25 @@ export default function SellerRegister() {
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
+  const [tcAccepted, setTcAccepted] = useState(false)
+  const [quizAnswers, setQuizAnswers] = useState({ q1: '', q2: '', q3: '' })
+  const [quizError, setQuizError] = useState(null)
+
+  const QUIZ = [
+    { key: 'q1', q: 'When can you withdraw a buyer\u2019s payment?', options: ['Immediately at checkout', 'Only after the order is confirmed and delivered', 'Whenever I want'], correct: 'Only after the order is confirmed and delivered' },
+    { key: 'q2', q: 'Can you accept cash or bank transfer directly from a buyer?', options: ['Yes, if they ask', 'No — UMC-BCK is wallet-only', 'Only for large orders'], correct: 'No — UMC-BCK is wallet-only' },
+    { key: 'q3', q: 'What happens if a buyer raises a dispute?', options: ['I lose automatically', 'Admin reviews it and can resolve in favor of either side', 'It gets ignored'], correct: 'Admin reviews it and can resolve in favor of either side' },
+  ]
+
+  function checkQuiz() {
+    const allCorrect = QUIZ.every((item) => quizAnswers[item.key] === item.correct)
+    if (!allCorrect) {
+      setQuizError('One or more answers isn\u2019t correct — please review and try again.')
+      return false
+    }
+    setQuizError(null)
+    return true
+  }
 
   useEffect(() => {
     // Kaduna only, matching the actual launch state — states.is_launched is
@@ -41,6 +60,13 @@ export default function SellerRegister() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
+
+    if (!tcAccepted) {
+      setError('Please confirm you have read the Terms & Conditions.')
+      return
+    }
+    if (!checkQuiz()) return
+
     setSubmitting(true)
 
     const {
@@ -174,6 +200,52 @@ export default function SellerRegister() {
             onChange={(e) => setStallNumber(e.target.value)}
             className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
           />
+        </div>
+
+        <div className="pt-4 border-t border-ink/10">
+          <p className="text-sm font-medium mb-2">Before you register</p>
+          <details className="mb-3 rounded bg-ink/5 px-3 py-2 text-xs text-ink/70">
+            <summary className="cursor-pointer font-medium text-indigo">Read the Terms & Conditions</summary>
+            <p className="mt-2">
+              UMC-BCK is wallet-only — payments are held in escrow and only released once an order is confirmed and
+              delivered. There is no cash or bank transfer accepted directly from a buyer. Admin reviews disputes and
+              can resolve in favor of either party. Full terms cover 12 sections (A–L), governed under Kaduna State
+              courts jurisdiction.
+            </p>
+          </details>
+
+          <label className="flex items-start gap-2 text-sm mb-3">
+            <input
+              type="checkbox"
+              checked={tcAccepted}
+              onChange={(e) => setTcAccepted(e.target.checked)}
+              className="accent-indigo mt-0.5"
+            />
+            I have read and understood the Terms & Conditions.
+          </label>
+
+          {tcAccepted && (
+            <div className="space-y-3">
+              {QUIZ.map((item) => (
+                <div key={item.key}>
+                  <p className="text-sm font-medium mb-1">{item.q}</p>
+                  {item.options.map((opt) => (
+                    <label key={opt} className="flex items-center gap-2 text-xs mb-1">
+                      <input
+                        type="radio"
+                        name={item.key}
+                        checked={quizAnswers[item.key] === opt}
+                        onChange={() => setQuizAnswers((prev) => ({ ...prev, [item.key]: opt }))}
+                        className="accent-indigo"
+                      />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              ))}
+              {quizError && <p className="text-xs text-market-red">{quizError}</p>}
+            </div>
+          )}
         </div>
 
         {error && (

@@ -35,6 +35,7 @@ export default function Pharma() {
         title="Pharma & Medical"
         accentClass="bg-hub-pharma"
         categories={PHARMA_CATEGORIES}
+        demandNote="Equipment and bulk medication requests only — controlled or prescription medication can never be requested this way. Use the prescription request form above instead."
       />
     </div>
   )

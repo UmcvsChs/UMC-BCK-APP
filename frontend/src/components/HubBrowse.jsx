@@ -6,7 +6,7 @@ import DemandRequest from './DemandRequest'
 // Shared by Marketplace and Canteen (and every future hub) — the only real
 // difference between hubs is which primary_hub they filter to, and whether
 // category pills make sense for that hub's kind of browsing.
-export default function HubBrowse({ hub, title, accentClass, categories = null }) {
+export default function HubBrowse({ hub, title, accentClass, categories = null, demandNote = null }) {
   const [products, setProducts] = useState([])
   const [activeCategory, setActiveCategory] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -148,7 +148,7 @@ export default function HubBrowse({ hub, title, accentClass, categories = null }
         ))}
       </div>
 
-      <DemandRequest hub={hub} accentClass={accentClass} />
+      <DemandRequest hub={hub} accentClass={accentClass} note={demandNote} />
     </div>
   )
 }

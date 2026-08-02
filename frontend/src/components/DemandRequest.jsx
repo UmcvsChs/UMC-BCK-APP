@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 // only the hub value and accent color change. Built once, matching the
 // backend's own demand_requests table, which was built generically for
 // exactly this reason.
-export default function DemandRequest({ hub, accentClass = 'bg-indigo' }) {
+export default function DemandRequest({ hub, accentClass = 'bg-indigo', note = null }) {
   const [description, setDescription] = useState('')
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -52,6 +52,7 @@ export default function DemandRequest({ hub, accentClass = 'bg-indigo' }) {
       <p className="text-xs text-ink/50 mb-3">
         Describe it — any seller in this hub who might carry it can see your request.
       </p>
+      {note && <p className="text-xs text-market-red mb-3">{note}</p>}
 
       <form onSubmit={handleSubmit} className="flex gap-2 mb-3">
         <input

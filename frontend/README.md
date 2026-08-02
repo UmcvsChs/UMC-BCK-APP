@@ -200,6 +200,40 @@ Sellers with 2+ disputes against their orders, and buyers who've raised 2+ dispu
 
 `delivery_agents` had no way to distinguish a fleet/company operator from an individual rider. Added `is_company` and `company_name` via a real migration (with a check constraint requiring the name when `is_company` is true), then built a real toggle at the top of registration — individual rider and fleet/company sit side by side, so the company path isn't buried or missed.
 
+## T&C Comprehension Quiz — a real read-first gate on Seller registration
+
+Not a checkbox pretending to mean something. The seller has to expand and read the actual terms, then answer three real comprehension questions correctly before submission is even possible — wrong answers block the form with a clear message, not a silent failure.
+
+## Compare Prices — real search, not a fake matching algorithm
+
+Uses the exact same `search_products()` full-text search every hub's search bar already calls — no separate "similarity" logic invented for this. Filters out the current listing and its own seller, so it only shows genuinely different options.
+
+## Pharma's "Can't Find It" now carries an honest compliance note
+
+Built a reusable `demandNote` prop through `HubBrowse` → `DemandRequest`, so any hub can carry a specific guardrail message going forward. Pharma's says plainly that this is for equipment and bulk medication only — this is a UI reminder, not real content enforcement, since actually blocking controlled-substance requests by text would need real content moderation this platform doesn't have. Said honestly rather than implied to be more than it is.
+
+## Waiting-Time Fine Policy — real infrastructure, not just a UI note
+
+This needed genuine new backend first — no wait-time tracking existed anywhere. Added `delivery_assignments.arrived_at`, set only when the agent genuinely records their own arrival (never inferred or estimated). The fine is calculated from real elapsed time: 10 minutes free, ₦50/minute after, capped at ₦1,000 (30 minutes total wait), 70% credited to the agent, the rest retained by the platform. The agent dashboard now has real "I've arrived" and "Assess fine" actions, plus a plain-language explanation of the policy itself.
+
+## Sample Delivery Walkthrough — three real features, not one vague item
+
+**Hausa quick-status labels** — "Na isa" (I've arrived) and "Na kai" (mark delivered) sit right on the real action buttons, alongside the English. This is a handful of specific phrases, not a claim about full app translation — the honest distinction made plain back in the Settings work still holds.
+
+**Voice-to-text incident reporting** — uses the browser's real Web Speech API, no server round-trip. Not supported in every browser (notably not Firefox), so it's offered as an addition to typing, never a replacement — if it's unsupported, the agent gets a clear message and can still type the report.
+
+**Proof-of-delivery photo capture** — a real upload to a new `delivery-proof` bucket, tied to the actual assignment via `record_proof_photo()`, restricted so only the assigned agent can upload to their own folder.
+
+Both incident reports and proof photos needed genuinely new backend — `incident_reports` table and `delivery_assignments.proof_photo_url` didn't exist before this round.
+
+## Delivery Terms scroll-to-accept — the real literal UX, not just structural enforcement
+
+`place_order()` already refused to create an order without terms acceptance — that was real, enforced server-side. What was missing was the actual scroll-to-bottom UX: a real progress bar tracking genuine scroll position, and the accept button staying disabled until the buyer has actually scrolled through the real delivery terms text (address rules, agent limitations, waiting-time policy, confirmation, failed delivery) — not a checkbox someone could tick without reading anything.
+
+## A round of stale-entry corrections, verified before touching any code
+
+Delivery type selection, order tracking, and group ordering's contributor field were all already fully built in earlier sessions — verified directly against the running code before marking anything, not assumed from memory.
+
 ## Cleaned up
 
 `HubPlaceholder.jsx` was removed — once all six hubs had real pages, it was dead code, not a real screen anyone would see.

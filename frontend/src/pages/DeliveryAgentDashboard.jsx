@@ -8,6 +8,11 @@ export default function DeliveryAgentDashboard() {
   const [togglingOnline, setTogglingOnline] = useState(false)
   const [assignments, setAssignments] = useState([])
   const [earnings, setEarnings] = useState(null)
+  const [reportingFor, setReportingFor] = useState(null)
+  const [incidentText, setIncidentText] = useState('')
+  const [listening, setListening] = useState(false)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [uploadingPhotoFor, setUploadingPhotoFor] = useState(null)
 
   async function loadAgent() {
     const {
@@ -25,7 +30,7 @@ export default function DeliveryAgentDashboard() {
     // not a stored number that could drift out of sync.
     const { data } = await supabase
       .from('delivery_assignments')
-      .select('id, status, assigned_at, sla_deadline, orders(id, delivery_address, total_amount, delivery_type, status)')
+      .select('id, status, assigned_at, sla_deadline, arrived_at, proof_photo_url, orders(id, delivery_address, total_amount, delivery_type, status)')
       .eq('delivery_agent_id', agentId)
       .eq('status', 'assigned')
       .order('assigned_at', { ascending: true })
@@ -69,6 +74,60 @@ export default function DeliveryAgentDashboard() {
   async function handleMarkDelivered(orderId, assignmentId) {
     const { error } = await supabase.rpc('mark_order_delivered', { p_order_id: orderId })
     if (!error) loadAssignments(agent.id)
+  }
+
+  async function handleRecordArrival(assignmentId) {
+    await supabase.rpc('record_agent_arrival', { p_assignment_id: assignmentId })
+    loadAssignments(agent.id)
+  }
+
+  async function handleAssessFine(assignmentId) {
+    const { data, error } = await supabase.rpc('assess_waiting_fine', { p_assignment_id: assignmentId })
+    if (!error) {
+      alert(data > 0 ? `₦${Number(data).toLocaleString()} waiting fine charged.` : 'Still within the 10-minute free window — no fine yet.')
+      loadAssignments(agent.id)
+      loadEarnings(agent.id)
+    }
+  }
+
+  function startVoiceInput() {
+    // Real browser Web Speech API — no server round-trip, purely client-side.
+    // Not supported in every browser (notably not in Firefox), so this is
+    // offered as an addition to typing, never a replacement for it.
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      alert('Voice input isn\u2019t supported in this browser — please type the report instead.')
+      return
+    }
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'en-NG'
+    recognition.onstart = () => setListening(true)
+    recognition.onend = () => setListening(false)
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript
+      setIncidentText((prev) => (prev ? `${prev} ${transcript}` : transcript))
+    }
+    recognition.start()
+  }
+
+  async function submitIncidentReport(assignmentId) {
+    if (!incidentText.trim()) return
+    await supabase.rpc('file_incident_report', { p_assignment_id: assignmentId, p_description: incidentText })
+    setReportingFor(null)
+    setIncidentText('')
+  }
+
+  async function uploadProofPhoto(assignmentId) {
+    if (!photoFile || !agent) return
+    setUploadingPhotoFor(assignmentId)
+    const path = `${agent.id}/${assignmentId}-${Date.now()}.${photoFile.name.split('.').pop()}`
+    const { error: uploadError } = await supabase.storage.from('delivery-proof').upload(path, photoFile)
+    if (!uploadError) {
+      const { data: urlData } = supabase.storage.from('delivery-proof').getPublicUrl(path)
+      await supabase.rpc('record_proof_photo', { p_assignment_id: assignmentId, p_photo_url: urlData.publicUrl })
+    }
+    setUploadingPhotoFor(null)
+    setPhotoFile(null)
   }
 
   if (loading) return <div className="p-4 text-ink/50">Loading…</div>
@@ -140,6 +199,14 @@ export default function DeliveryAgentDashboard() {
       )}
 
       <h2 className="text-sm font-display font-semibold text-ink/70 mb-2">Active deliveries</h2>
+      <details className="mb-3 rounded bg-ink/5 px-3 py-2 text-xs text-ink/60">
+        <summary className="cursor-pointer font-medium">Waiting-time fine policy</summary>
+        <p className="mt-1">
+          First 10 minutes of waiting are free. After that, ₦50/minute, capped at ₦1,000 (30 minutes total wait).
+          70% goes to you, the rest is retained by the platform. Only assess a fine after you've genuinely recorded
+          your arrival — this is based on real elapsed time, not an estimate.
+        </p>
+      </details>
       {assignments.length === 0 && <p className="text-sm text-ink/50">No active deliveries right now.</p>}
 
       <div className="space-y-2">
@@ -150,11 +217,83 @@ export default function DeliveryAgentDashboard() {
             <p className="font-mono text-sm text-indigo mt-1">
               ₦{a.orders?.total_amount != null ? Number(a.orders.total_amount).toLocaleString() : '—'}
             </p>
+
+            {!a.arrived_at ? (
+              <button
+                onClick={() => handleRecordArrival(a.id)}
+                className="w-full mt-2 text-xs bg-gold text-ink rounded py-1.5"
+              >
+                Na isa — I've arrived, start wait timer
+              </button>
+            ) : (
+              <button
+                onClick={() => handleAssessFine(a.id)}
+                className="w-full mt-2 text-xs bg-market-red/10 text-market-red rounded py-1.5"
+              >
+                Waiting since {new Date(a.arrived_at).toLocaleTimeString()} — assess fine
+              </button>
+            )}
+
+            <div className="mt-2">
+              {a.proof_photo_url ? (
+                <p className="text-xs text-market-green">✓ Proof photo attached</p>
+              ) : (
+                <div className="flex gap-1">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                    className="flex-1 text-xs"
+                  />
+                  <button
+                    onClick={() => uploadProofPhoto(a.id)}
+                    disabled={!photoFile || uploadingPhotoFor === a.id}
+                    className="text-xs bg-indigo text-white rounded px-2 disabled:opacity-60"
+                  >
+                    {uploadingPhotoFor === a.id ? '…' : 'Attach proof'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {reportingFor === a.id ? (
+              <div className="mt-2 space-y-1">
+                <textarea
+                  value={incidentText}
+                  onChange={(e) => setIncidentText(e.target.value)}
+                  placeholder="Describe the issue — wrong address, buyer unreachable, unsafe area…"
+                  rows={2}
+                  className="w-full text-xs rounded border border-ink/20 px-2 py-1"
+                />
+                <div className="flex gap-1">
+                  <button
+                    onClick={startVoiceInput}
+                    className={`text-xs rounded px-2 py-1 ${listening ? 'bg-market-red text-white' : 'bg-ink/10 text-ink/70'}`}
+                  >
+                    {listening ? '● Listening…' : '🎙 Voice'}
+                  </button>
+                  <button
+                    onClick={() => submitIncidentReport(a.id)}
+                    className="flex-1 text-xs bg-indigo text-white rounded py-1"
+                  >
+                    File report
+                  </button>
+                  <button onClick={() => setReportingFor(null)} className="text-xs text-ink/50 px-2">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setReportingFor(a.id)} className="text-xs text-market-red underline mt-2 block">
+                Report an incident
+              </button>
+            )}
+
             <button
               onClick={() => handleMarkDelivered(a.orders.id, a.id)}
               className="w-full mt-2 text-xs bg-market-green text-white rounded py-1.5"
             >
-              Mark delivered — buyer confirmed receipt
+              Na kai — mark delivered, buyer confirmed receipt
             </button>
           </div>
         ))}
