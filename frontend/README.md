@@ -150,6 +150,56 @@ Cart's checkout call was defaulting delivery fee to ₦0 and never offered insta
 
 `products.condition` and `stock_quantity` were fetched but never displayed anywhere. Product Detail now shows both, and out-of-stock items correctly disable "Add to cart" rather than let someone add something that isn't there.
 
+## Settings — real, honestly scoped rather than pretending to do more
+
+`profiles.language_preference` and `theme_preference` existed with zero frontend. Built the real selector — it genuinely saves and follows you across devices — but said plainly on the page itself that the app is currently English-only and light-only, so choosing Hausa or dark mode doesn't silently pretend to translate or restyle anything it can't yet do.
+
+## Order Receipt, Store Overview, P&L Calculator
+
+**MyOrders now links to a real itemised receipt** — reference, line items, subtotal, delivery fee, total, status, payment record. No invented ETA — that's genuinely not tracked anywhere in the backend, so it's honestly left out rather than faked.
+
+**Seller Dashboard's new Overview tab** — real order counts and real revenue from delivered orders, now the default landing tab.
+
+**P&L Calculator is a real but simple tool** — UMC-BCK doesn't track a seller's cost of goods automatically (that's information only the seller has), so it's an honest revenue-minus-costs calculator with the seller's own numbers, not a fake automated profit engine.
+
+## Real search, finally connected
+
+`search_products()` — real full-text search, built with a generated tsvector and GIN index much earlier in this project — had zero search bar anywhere in the UI. Now every hub has one, wired directly to it. Search is deliberately platform-wide, not scoped to the current hub — someone searching from Marketplace still wants to know a match exists in Canteen.
+
+## Pharma Reseller Buyer registration — a real compliance gap closed
+
+The verification system (`pharma_reseller_verifications`, `is_verified_pharma_reseller()`) existed with no way for a pharmacy, clinic, or hospital to actually apply. Admin's approval side already handled this registration type generically — it just needed the buyer-facing form, which is now built and linked from the Pharma hub.
+
+## Order Dispatch — manual reassignment, now actually reachable
+
+`admin_reassign_order()` existed with zero frontend. Admin can now see every active or escalated delivery assignment and reassign it to a different online, approved agent directly.
+
+## Delivery Agent Earnings — real, with an honest note about what it actually represents
+
+There's no dedicated "agent payout" field anywhere in the schema. Rather than invent one, Earnings shows the real `delivery_fee` from every order the agent has actually delivered — a genuine, defensible figure, stated plainly on the page as what it is rather than implied to be something more official.
+
+## Fraud Alert — real computable signals, not a claimed detection system
+
+Sellers with 2+ disputes against their orders, and buyers who've raised 2+ disputes themselves — both are real, queryable facts, not an invented "risk score." The page says plainly this isn't a fraud verdict, just visibility worth a human look.
+
+## Real gaps found while double-checking earlier "Done" marks
+
+**Store open/close was only ever text, never a button.** `is_open` was displayed but nothing let a seller actually change it — fixed with a real toggle.
+
+**Condition was never captured at listing time.** `AddListing` had no condition field at all, despite the schema supporting it fully — fixed.
+
+**Return policy needed a real backend field first.** `sellers.return_policy` didn't exist — added it via a real migration, then built the seller-side editor (Store Overview) and the buyer-facing display (Product Detail). Blank means the store hasn't stated one, shown honestly as such rather than defaulting to an assumed policy.
+
+## Escrow / Secure Pay explanation, and the Bills Ledger
+
+**Cart now explains what actually happens to a buyer's money** — real, accurate language about the hold/release mechanism this whole platform has used since the very first wallet migration, not marketing copy.
+
+**Admin's Bills Ledger** — a full, filterable, read-only view across every status (not just the "processing" queue), with real totals per status. Genuine reconciliation, not just a to-do list.
+
+## Logistics Company registration — a real schema addition, not a workaround
+
+`delivery_agents` had no way to distinguish a fleet/company operator from an individual rider. Added `is_company` and `company_name` via a real migration (with a check constraint requiring the name when `is_company` is true), then built a real toggle at the top of registration — individual rider and fleet/company sit side by side, so the company path isn't buried or missed.
+
 ## Cleaned up
 
 `HubPlaceholder.jsx` was removed — once all six hubs had real pages, it was dead code, not a real screen anyone would see.

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function MyOrders() {
@@ -59,6 +60,10 @@ export default function MyOrders() {
                 <span className="text-xs font-medium text-indigo capitalize">{o.status}</span>
               </div>
             </div>
+
+            <Link to={`/orders/${o.id}`} className="text-xs text-indigo underline">
+              View receipt
+            </Link>
 
             {o.disputes?.length > 0 ? (
               <p className="text-xs text-gold-dark mt-1 capitalize">Dispute: {o.disputes[0].status.replace(/_/g, ' ')}</p>

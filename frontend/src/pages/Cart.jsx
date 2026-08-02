@@ -134,7 +134,17 @@ export default function Cart() {
 
   return (
     <div className="p-4 max-w-lg mx-auto">
-      <h1 className="text-xl font-display font-semibold text-indigo mb-4">Cart</h1>
+      <h1 className="text-xl font-display font-semibold text-indigo mb-2">Cart</h1>
+
+      <details className="mb-4 rounded bg-indigo/5 px-3 py-2 text-xs text-ink/70">
+        <summary className="cursor-pointer font-medium text-indigo">How does UMC-BCK Secure Pay work?</summary>
+        <p className="mt-2">
+          When you check out, your payment is held in escrow — deducted from your wallet immediately, but not yet
+          released to the seller. It only reaches them once the order is confirmed and delivered. If an order is
+          rejected or a dispute is resolved in your favor, the held amount is returned to your wallet in full. This
+          is real money movement inside UMC-BCK's own ledger, not a manual promise.
+        </p>
+      </details>
 
       {orderPlaced && (
         <p className="rounded bg-market-green/10 text-market-green text-sm px-3 py-2 mb-4">

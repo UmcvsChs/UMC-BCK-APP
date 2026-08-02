@@ -7,6 +7,8 @@ export default function DeliveryAgentRegister() {
   const [lgas, setLgas] = useState([])
   const [lgaId, setLgaId] = useState('')
   const [vehicleType, setVehicleType] = useState('motorcycle')
+  const [isCompany, setIsCompany] = useState(false)
+  const [companyName, setCompanyName] = useState('')
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
@@ -36,6 +38,8 @@ export default function DeliveryAgentRegister() {
       user_id: user.id,
       lga_id: lgaId,
       vehicle_type: vehicleType,
+      is_company: isCompany,
+      company_name: isCompany ? companyName : null,
     })
 
     setSubmitting(false)
@@ -67,7 +71,38 @@ export default function DeliveryAgentRegister() {
         Orders are assigned based on your LGA and your track record of following through — every registration is reviewed first.
       </p>
 
+      <div className="flex gap-1 mb-6 rounded border border-ink/10 p-1">
+        <button
+          type="button"
+          onClick={() => setIsCompany(false)}
+          className={`flex-1 text-sm rounded px-3 py-2 font-medium ${!isCompany ? 'bg-indigo text-white' : 'text-ink/60'}`}
+        >
+          Individual rider
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsCompany(true)}
+          className={`flex-1 text-sm rounded px-3 py-2 font-medium ${isCompany ? 'bg-indigo text-white' : 'text-ink/60'}`}
+        >
+          Fleet / logistics company
+        </button>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
+        {isCompany && (
+          <div>
+            <label htmlFor="companyName" className="block text-sm font-medium mb-1">
+              Company name
+            </label>
+            <input
+              id="companyName"
+              required
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            />
+          </div>
+        )}
         <div>
           <label htmlFor="lga" className="block text-sm font-medium mb-1">
             Your home LGA

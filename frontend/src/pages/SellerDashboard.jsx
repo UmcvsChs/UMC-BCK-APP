@@ -15,30 +15,39 @@ export default function SellerDashboard() {
   const [stores, setStores] = useState([])
   const [selectedStoreId, setSelectedStoreId] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('listings')
+  const [tab, setTab] = useState('overview')
+  const [togglingOpen, setTogglingOpen] = useState(false)
+
+  async function loadStores() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+
+    // A user can genuinely own more than one store (the Director role) —
+    // sellers.user_id lost its unique constraint specifically to make this
+    // possible. Load all of them, not just the first.
+    const { data } = await supabase
+      .from('sellers')
+      .select('*, primary_hub')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true })
+
+    setStores(data || [])
+    if (data?.length > 0 && !selectedStoreId) setSelectedStoreId(data[0].id)
+    setLoading(false)
+  }
 
   useEffect(() => {
-    async function loadStores() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-
-      // A user can genuinely own more than one store (the Director role) —
-      // sellers.user_id lost its unique constraint specifically to make this
-      // possible. Load all of them, not just the first.
-      const { data } = await supabase
-        .from('sellers')
-        .select('*, primary_hub')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true })
-
-      setStores(data || [])
-      if (data?.length > 0) setSelectedStoreId(data[0].id)
-      setLoading(false)
-    }
     loadStores()
   }, [])
+
+  async function toggleStoreOpen(storeId, currentlyOpen) {
+    setTogglingOpen(true)
+    await supabase.from('sellers').update({ is_open: !currentlyOpen }).eq('id', storeId)
+    setTogglingOpen(false)
+    loadStores()
+  }
 
   if (loading) return <div className="p-4 text-ink/50">Loading…</div>
 
@@ -94,12 +103,23 @@ export default function SellerDashboard() {
         {store.verification_status === 'approved' && (store.is_open ? 'Open for orders' : 'Closed')}
         {store.verification_status === 'rejected' && 'This registration was not approved.'}
       </p>
+      {store.verification_status === 'approved' && (
+        <button
+          onClick={() => toggleStoreOpen(store.id, store.is_open)}
+          disabled={togglingOpen}
+          className={`text-xs font-medium rounded px-3 py-1.5 mb-1 transition-colors disabled:opacity-60 ${
+            store.is_open ? 'bg-market-red/10 text-market-red' : 'bg-market-green/10 text-market-green'
+          }`}
+        >
+          {togglingOpen ? 'Updating…' : store.is_open ? 'Close store' : 'Open store'}
+        </button>
+      )}
       <Link to="/seller/register" className="text-xs text-indigo font-medium block mb-5">
         + Register another store
       </Link>
 
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
-        {['listings', 'add', 'orders', 'tradeins', 'attendants'].map((t) => (
+        {['overview', 'listings', 'add', 'orders', 'tradeins', 'attendants', 'pl'].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -107,11 +127,12 @@ export default function SellerDashboard() {
               tab === t ? 'text-indigo border-b-2 border-indigo' : 'text-ink/50'
             }`}
           >
-            {t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : 'Incoming orders'}
+            {t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : 'Incoming orders'}
           </button>
         ))}
       </div>
 
+      {tab === 'overview' && <StoreOverview key={store.id} sellerId={store.id} />}
       {tab === 'listings' && <MyListings key={store.id} sellerId={store.id} />}
       {tab === 'add' && (
         <AddListing key={store.id} sellerId={store.id} hub={store.primary_hub} approved={store.verification_status === 'approved'} />
@@ -119,6 +140,7 @@ export default function SellerDashboard() {
       {tab === 'orders' && <IncomingOrders key={store.id} sellerId={store.id} />}
       {tab === 'tradeins' && <TradeInOffers key={store.id} sellerId={store.id} />}
       {tab === 'attendants' && <Attendants key={store.id} sellerId={store.id} />}
+      {tab === 'pl' && <ProfitLossCalculator />}
     </div>
   )
 }
@@ -291,6 +313,7 @@ function AddListing({ sellerId, hub, approved }) {
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState(categories[0])
   const [price, setPrice] = useState('')
+  const [condition, setCondition] = useState('new')
   const [imageFile, setImageFile] = useState(null)
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -333,6 +356,7 @@ function AddListing({ sellerId, hub, approved }) {
       description,
       category,
       price: Number(price),
+      condition,
       product_type: 'standard',
       image_urls: imageUrls,
     })
@@ -409,6 +433,24 @@ function AddListing({ sellerId, hub, approved }) {
           onChange={(e) => setPrice(e.target.value)}
           className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono"
         />
+      </div>
+
+      <div>
+        <label htmlFor="condition" className="block text-sm font-medium mb-1">
+          Condition
+        </label>
+        <select
+          id="condition"
+          value={condition}
+          onChange={(e) => setCondition(e.target.value)}
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+        >
+          <option value="new">New</option>
+          <option value="fairly_used">Fairly used</option>
+          <option value="nigerian_used">Nigerian used</option>
+          <option value="foreign_used_tokunbo">Foreign used (Tokunbo)</option>
+          <option value="refurbished">Refurbished</option>
+        </select>
       </div>
 
       <div>
@@ -721,6 +763,138 @@ function Attendants({ sellerId }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function StoreOverview({ sellerId }) {
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [returnPolicy, setReturnPolicy] = useState('')
+  const [savingPolicy, setSavingPolicy] = useState(false)
+  const [policySaved, setPolicySaved] = useState(false)
+
+  useEffect(() => {
+    async function loadPolicy() {
+      const { data } = await supabase.from('sellers').select('return_policy').eq('id', sellerId).single()
+      setReturnPolicy(data?.return_policy || '')
+    }
+    loadPolicy()
+  }, [sellerId])
+
+  async function savePolicy() {
+    setSavingPolicy(true)
+    await supabase.from('sellers').update({ return_policy: returnPolicy || null }).eq('id', sellerId)
+    setSavingPolicy(false)
+    setPolicySaved(true)
+    setTimeout(() => setPolicySaved(false), 2000)
+  }
+
+  useEffect(() => {
+    async function load() {
+      const [{ data: orders }, { count: listingCount }] = await Promise.all([
+        supabase.from('orders').select('status, total_amount').eq('seller_id', sellerId),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('seller_id', sellerId),
+      ])
+
+      const delivered = (orders || []).filter((o) => o.status === 'delivered')
+      const totalRevenue = delivered.reduce((sum, o) => sum + Number(o.total_amount), 0)
+
+      setStats({
+        totalOrders: (orders || []).length,
+        deliveredOrders: delivered.length,
+        totalRevenue,
+        totalListings: listingCount || 0,
+      })
+      setLoading(false)
+    }
+    load()
+  }, [sellerId])
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+  if (!stats) return null
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="rounded border border-ink/10 bg-white px-3 py-2">
+        <p className="text-xs text-ink/50">Total orders</p>
+        <p className="text-lg font-display font-semibold text-indigo">{stats.totalOrders}</p>
+      </div>
+      <div className="rounded border border-ink/10 bg-white px-3 py-2">
+        <p className="text-xs text-ink/50">Delivered</p>
+        <p className="text-lg font-display font-semibold text-market-green">{stats.deliveredOrders}</p>
+      </div>
+      <div className="rounded border border-ink/10 bg-white px-3 py-2 col-span-2">
+        <p className="text-xs text-ink/50">Revenue from delivered orders</p>
+        <p className="font-mono text-xl text-indigo">₦{stats.totalRevenue.toLocaleString()}</p>
+      </div>
+      <div className="rounded border border-ink/10 bg-white px-3 py-2 col-span-2">
+        <p className="text-xs text-ink/50">Total listings</p>
+        <p className="text-lg font-display font-semibold text-indigo">{stats.totalListings}</p>
+      </div>
+      <p className="text-xs text-ink/40 col-span-2">
+        Revenue here is your store's gross total from delivered orders — it doesn't subtract any costs. Use the
+        P&L tab to work out actual profit.
+      </p>
+
+      <div className="col-span-2 pt-3 border-t border-ink/10">
+        <label className="block text-sm font-medium mb-1">Return policy</label>
+        <p className="text-xs text-ink/50 mb-2">Shown to buyers on your listings. Leave blank if you don't have one.</p>
+        <textarea
+          value={returnPolicy}
+          onChange={(e) => setReturnPolicy(e.target.value)}
+          rows={3}
+          className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+        />
+        <button
+          onClick={savePolicy}
+          disabled={savingPolicy}
+          className="mt-2 text-sm bg-indigo text-white rounded px-4 py-2 disabled:opacity-60"
+        >
+          {savingPolicy ? 'Saving…' : policySaved ? 'Saved ✓' : 'Save return policy'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ProfitLossCalculator() {
+  const [revenue, setRevenue] = useState('')
+  const [costs, setCosts] = useState('')
+
+  const profit = revenue && costs ? Number(revenue) - Number(costs) : null
+
+  return (
+    <div className="max-w-sm">
+      <p className="text-xs text-ink/50 mb-3">
+        A simple calculator — enter your own figures. UMC-BCK doesn't track your cost of goods automatically, since
+        that's information only you have.
+      </p>
+      <div className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium mb-1">Revenue (₦)</label>
+          <input
+            type="number"
+            value={revenue}
+            onChange={(e) => setRevenue(e.target.value)}
+            className="w-full text-sm rounded border border-ink/20 px-3 py-2 font-mono"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Costs (₦)</label>
+          <input
+            type="number"
+            value={costs}
+            onChange={(e) => setCosts(e.target.value)}
+            className="w-full text-sm rounded border border-ink/20 px-3 py-2 font-mono"
+          />
+        </div>
+        {profit != null && (
+          <p className={`text-lg font-display font-semibold ${profit >= 0 ? 'text-market-green' : 'text-market-red'}`}>
+            {profit >= 0 ? 'Profit' : 'Loss'}: ₦{Math.abs(profit).toLocaleString()}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

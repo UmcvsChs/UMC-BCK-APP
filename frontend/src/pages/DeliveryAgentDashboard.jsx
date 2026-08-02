@@ -7,6 +7,7 @@ export default function DeliveryAgentDashboard() {
   const [loading, setLoading] = useState(true)
   const [togglingOnline, setTogglingOnline] = useState(false)
   const [assignments, setAssignments] = useState([])
+  const [earnings, setEarnings] = useState(null)
 
   async function loadAgent() {
     const {
@@ -31,12 +32,28 @@ export default function DeliveryAgentDashboard() {
     setAssignments(data || [])
   }
 
+  async function loadEarnings(agentId) {
+    // There is no dedicated "agent payout" field anywhere in the schema —
+    // the honest, real mapping is the delivery_fee of every order this
+    // agent actually delivered, not an invented number.
+    const { data } = await supabase
+      .from('delivery_assignments')
+      .select('resolved_at, orders(delivery_fee)')
+      .eq('delivery_agent_id', agentId)
+      .eq('status', 'delivered')
+    const total = (data || []).reduce((sum, a) => sum + Number(a.orders?.delivery_fee || 0), 0)
+    setEarnings({ total, count: (data || []).length })
+  }
+
   useEffect(() => {
     loadAgent()
   }, [])
 
   useEffect(() => {
-    if (agent?.id) loadAssignments(agent.id)
+    if (agent?.id) {
+      loadAssignments(agent.id)
+      loadEarnings(agent.id)
+    }
   }, [agent])
 
   async function toggleOnline() {
@@ -91,6 +108,17 @@ export default function DeliveryAgentDashboard() {
         <p className="text-sm text-ink/50 mb-4">
           {agent.total_fulfilled} of {agent.total_assignments} completed · {acceptanceRate}% follow-through
         </p>
+      )}
+
+      {earnings && (
+        <div className="rounded bg-market-green/10 px-4 py-3 mb-4">
+          <p className="text-xs text-ink/50">Earnings from {earnings.count} completed {earnings.count === 1 ? 'delivery' : 'deliveries'}</p>
+          <p className="font-mono text-xl text-market-green">₦{earnings.total.toLocaleString()}</p>
+          <p className="text-xs text-ink/40 mt-1">
+            The delivery fee from each order you've actually delivered — there's no separate payout field, this is
+            the real figure.
+          </p>
+        </div>
       )}
 
       {agent.verification_status === 'approved' ? (

@@ -10,12 +10,24 @@ const PHARMA_CATEGORIES = ['Equipment', 'Personal Care']
 export default function Pharma() {
   return (
     <div>
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-4 space-y-2">
         <Link
           to="/pharma/prescription-request"
           className="block rounded bg-hub-pharma/10 border border-hub-pharma/30 px-3 py-2 text-sm text-hub-pharma font-medium"
         >
           Need a controlled or prescription medication? Request it here — pharmacist review required →
+        </Link>
+        <Link
+          to="/pharma/reseller-register"
+          className="block rounded bg-hub-pharma/10 border border-hub-pharma/30 px-3 py-2 text-sm text-hub-pharma font-medium"
+        >
+          Pharmacy, clinic, or hospital? Register for bulk medication access →
+        </Link>
+        <Link
+          to="/verify"
+          className="block rounded bg-ink/5 border border-ink/10 px-3 py-2 text-sm text-ink/60 font-medium"
+        >
+          Verify a transaction →
         </Link>
       </div>
       <HubBrowse

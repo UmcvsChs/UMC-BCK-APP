@@ -29,7 +29,7 @@ export default function ProductDetail() {
       } = await supabase.auth.getUser()
 
       const [{ data: p, error: pErr }, { data: v }, { data: a }, { data: w }] = await Promise.all([
-        supabase.from('products').select('*').eq('id', productId).single(),
+        supabase.from('products').select('*, sellers(return_policy)').eq('id', productId).single(),
         supabase.from('product_variants').select('*').eq('product_id', productId),
         supabase.from('product_addons').select('*').eq('product_id', productId),
         user
@@ -247,6 +247,13 @@ export default function ProductDetail() {
         <p role="alert" className="text-sm text-market-red mb-3">
           {error}
         </p>
+      )}
+
+      {product.sellers?.return_policy && (
+        <div className="rounded bg-ink/5 px-3 py-2 mb-3 text-xs text-ink/60">
+          <span className="font-medium">Return policy: </span>
+          {product.sellers.return_policy}
+        </div>
       )}
 
       <button

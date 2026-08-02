@@ -16,9 +16,12 @@ import TradeIn from './pages/TradeIn'
 import Automobile from './pages/Automobile'
 import Pharma from './pages/Pharma'
 import PrescriptionRequest from './pages/PrescriptionRequest'
+import PharmaResellerRegister from './pages/PharmaResellerRegister'
 import ProductDetail from './pages/ProductDetail'
 import Cart from './pages/Cart'
 import MyOrders from './pages/MyOrders'
+import OrderReceipt from './pages/OrderReceipt'
+import Settings from './pages/Settings'
 import Wallet from './pages/Wallet'
 import SellerRegister from './pages/SellerRegister'
 import SellerDashboard from './pages/SellerDashboard'
@@ -81,6 +84,9 @@ function ProtectedLayout({ children }) {
         <Link to="/orders" className="text-xs font-medium text-indigo hover:text-indigo-light">
           Orders
         </Link>
+        <Link to="/settings" className="text-xs font-medium text-ink/60 hover:text-indigo">
+          Settings
+        </Link>
         <button
           onClick={() => supabase.auth.signOut()}
           className="text-xs text-ink/50 hover:text-market-red"
@@ -130,6 +136,22 @@ export default function App() {
           element={
             <ProtectedLayout>
               <MyOrders />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/orders/:orderId"
+          element={
+            <ProtectedLayout>
+              <OrderReceipt />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedLayout>
+              <Settings />
             </ProtectedLayout>
           }
         />
@@ -290,6 +312,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <PrescriptionRequest />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/pharma/reseller-register"
+          element={
+            <ProtectedLayout>
+              <PharmaResellerRegister />
             </ProtectedLayout>
           }
         />

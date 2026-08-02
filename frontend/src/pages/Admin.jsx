@@ -12,7 +12,7 @@ export default function Admin() {
       </p>
 
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
-        {['analytics', 'registrations', 'listings', 'prescriptions', 'bills', 'disputes', 'promocodes', 'accesslog', 'deliveryfees'].map((t) => (
+        {['analytics', 'registrations', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -26,13 +26,19 @@ export default function Admin() {
                 ? 'Prescription requests'
                 : t === 'bills'
                   ? 'Bill payments'
-                  : t === 'promocodes'
-                    ? 'Promo codes'
-                    : t === 'accesslog'
-                      ? 'Access log'
-                      : t === 'deliveryfees'
-                        ? 'Delivery fees'
-                        : `Pending ${t}`}
+                  : t === 'ledger'
+                    ? 'Bills ledger'
+                    : t === 'promocodes'
+                      ? 'Promo codes'
+                      : t === 'accesslog'
+                        ? 'Access log'
+                        : t === 'deliveryfees'
+                          ? 'Delivery fees'
+                          : t === 'dispatch'
+                            ? 'Order dispatch'
+                            : t === 'fraud'
+                              ? 'Fraud alert'
+                              : `Pending ${t}`}
           </button>
         ))}
       </div>
@@ -42,10 +48,13 @@ export default function Admin() {
       {tab === 'listings' && <PendingListings />}
       {tab === 'prescriptions' && <PendingPrescriptions />}
       {tab === 'bills' && <PendingBills />}
+      {tab === 'ledger' && <BillsLedger />}
       {tab === 'disputes' && <OpenDisputes />}
       {tab === 'promocodes' && <PromoCodes />}
       {tab === 'accesslog' && <AccessLog />}
       {tab === 'deliveryfees' && <DeliveryFees />}
+      {tab === 'dispatch' && <OrderDispatch />}
+      {tab === 'fraud' && <FraudAlert />}
     </div>
   )
 }
@@ -726,6 +735,228 @@ function DeliveryFees() {
             <span className="font-mono">₦{Number(fees[l.id]).toLocaleString()}</span>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+function OrderDispatch() {
+  const [assignments, setAssignments] = useState([])
+  const [agents, setAgents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [reassigning, setReassigning] = useState(null)
+  const [newAgentId, setNewAgentId] = useState({})
+
+  async function load() {
+    const [{ data: a }, { data: ag }] = await Promise.all([
+      supabase
+        .from('delivery_assignments')
+        .select('id, status, assigned_at, sla_deadline, orders(id, delivery_address), delivery_agents(id, user_id)')
+        .in('status', ['assigned', 'escalated'])
+        .order('assigned_at', { ascending: true }),
+      supabase.from('delivery_agents_with_rate').select('id, lga_id, acceptance_rate').eq('is_online', true).eq('verification_status', 'approved'),
+    ])
+    setAssignments(a || [])
+    setAgents(ag || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function reassign(orderId) {
+    setReassigning(orderId)
+    await supabase.rpc('admin_reassign_order', { p_order_id: orderId, p_new_agent_id: newAgentId[orderId] })
+    setReassigning(null)
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+  if (assignments.length === 0) return <p className="text-ink/50">No active or escalated deliveries.</p>
+
+  return (
+    <div className="space-y-2">
+      {assignments.map((a) => (
+        <div key={a.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <p className="text-sm font-medium">{a.orders?.delivery_address || 'No address'}</p>
+          <p className="text-xs text-ink/50">
+            Assigned {new Date(a.assigned_at).toLocaleTimeString()} · SLA {new Date(a.sla_deadline).toLocaleTimeString()}
+          </p>
+          <span className={`text-xs font-medium capitalize ${a.status === 'escalated' ? 'text-market-red' : 'text-market-green'}`}>
+            {a.status}
+          </span>
+
+          <div className="flex gap-2 mt-2">
+            <select
+              value={newAgentId[a.orders.id] || ''}
+              onChange={(e) => setNewAgentId((prev) => ({ ...prev, [a.orders.id]: e.target.value }))}
+              className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
+            >
+              <option value="">Reassign to…</option>
+              {agents.map((ag) => (
+                <option key={ag.id} value={ag.id}>
+                  Agent {ag.id.slice(0, 8)} — {ag.acceptance_rate != null ? `${ag.acceptance_rate}%` : 'new'}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => reassign(a.orders.id)}
+              disabled={reassigning === a.orders.id || !newAgentId[a.orders.id]}
+              className="text-xs bg-indigo text-white rounded px-3 disabled:opacity-60"
+            >
+              Reassign
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function FraudAlert() {
+  const [sellerFlags, setSellerFlags] = useState([])
+  const [buyerFlags, setBuyerFlags] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      // Real, computable signals only — no invented "risk score." A seller
+      // with multiple disputes against their orders, or a buyer who raises
+      // disputes unusually often, are the two honest flags this data
+      // actually supports.
+      const { data: disputes } = await supabase
+        .from('disputes')
+        .select('raised_by, orders(seller_id, sellers(store_name))')
+
+      const sellerCounts = {}
+      const buyerCounts = {}
+      ;(disputes || []).forEach((d) => {
+        const sellerId = d.orders?.seller_id
+        const storeName = d.orders?.sellers?.store_name
+        if (sellerId) {
+          sellerCounts[sellerId] = sellerCounts[sellerId] || { count: 0, storeName }
+          sellerCounts[sellerId].count += 1
+        }
+        if (d.raised_by) {
+          buyerCounts[d.raised_by] = (buyerCounts[d.raised_by] || 0) + 1
+        }
+      })
+
+      setSellerFlags(
+        Object.entries(sellerCounts)
+          .filter(([, v]) => v.count >= 2)
+          .map(([id, v]) => ({ id, ...v }))
+      )
+      setBuyerFlags(
+        Object.entries(buyerCounts)
+          .filter(([, count]) => count >= 2)
+          .map(([id, count]) => ({ id, count }))
+      )
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-ink/50">
+        Real, computable signals only — sellers with 2+ disputes against their orders, or buyers who've raised 2+
+        disputes. This isn't a fraud verdict, just visibility worth a human look.
+      </p>
+
+      <div>
+        <p className="text-xs font-medium text-ink/60 mb-2">Sellers flagged</p>
+        {sellerFlags.length === 0 && <p className="text-xs text-ink/40">None currently.</p>}
+        {sellerFlags.map((f) => (
+          <div key={f.id} className="flex justify-between text-sm rounded border border-ink/10 bg-white px-3 py-2 mb-1">
+            <span>{f.storeName}</span>
+            <span className="text-market-red font-medium">{f.count} disputes</span>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <p className="text-xs font-medium text-ink/60 mb-2">Buyers flagged</p>
+        {buyerFlags.length === 0 && <p className="text-xs text-ink/40">None currently.</p>}
+        {buyerFlags.map((f) => (
+          <div key={f.id} className="flex justify-between text-sm rounded border border-ink/10 bg-white px-3 py-2 mb-1">
+            <span className="font-mono text-xs">{f.id.slice(0, 8)}</span>
+            <span className="text-market-red font-medium">{f.count} disputes raised</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function BillsLedger() {
+  const [bills, setBills] = useState([])
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [loading, setLoading] = useState(true)
+
+  async function load() {
+    let query = supabase
+      .from('bill_payments')
+      .select('id, category, provider, amount, status, created_at, completed_at')
+      .order('created_at', { ascending: false })
+      .limit(100)
+
+    if (categoryFilter !== 'all') query = query.eq('category', categoryFilter)
+
+    const { data } = await query
+    setBills(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [categoryFilter])
+
+  const categories = ['all', 'airtime', 'data', 'electricity', 'dstv', 'gotv', 'showmax', 'internet', 'betting', 'waec', 'neco']
+  const totalsByStatus = bills.reduce((acc, b) => {
+    acc[b.status] = (acc[b.status] || 0) + Number(b.amount)
+    return acc
+  }, {})
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+
+  return (
+    <div>
+      <select
+        value={categoryFilter}
+        onChange={(e) => setCategoryFilter(e.target.value)}
+        className="w-full text-sm rounded border border-ink/20 px-3 py-2 mb-3"
+      >
+        {categories.map((c) => (
+          <option key={c} value={c}>
+            {c === 'all' ? 'All categories' : c}
+          </option>
+        ))}
+      </select>
+
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {Object.entries(totalsByStatus).map(([status, total]) => (
+          <div key={status} className="rounded border border-ink/10 bg-white px-3 py-2">
+            <p className="text-xs text-ink/50 capitalize">{status}</p>
+            <p className="font-mono text-sm">₦{total.toLocaleString()}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-1">
+        {bills.map((b) => (
+          <div key={b.id} className="flex justify-between text-xs rounded border border-ink/10 bg-white px-3 py-2">
+            <span className="capitalize">{b.category} · {b.provider}</span>
+            <div className="text-right">
+              <p className="font-mono">₦{Number(b.amount).toLocaleString()}</p>
+              <p className="capitalize text-ink/40">{b.status}</p>
+            </div>
+          </div>
+        ))}
+        {bills.length === 0 && <p className="text-ink/50 text-sm">No bill payments in this category yet.</p>}
       </div>
     </div>
   )
