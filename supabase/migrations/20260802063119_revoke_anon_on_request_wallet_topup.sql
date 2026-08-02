@@ -1,0 +1,1 @@
+revoke execute on function public.request_wallet_topup(uuid, numeric, text) from public, anon;
