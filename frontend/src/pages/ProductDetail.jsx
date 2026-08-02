@@ -17,15 +17,24 @@ export default function ProductDetail() {
   const [error, setError] = useState(null)
   const [adding, setAdding] = useState(false)
   const [added, setAdded] = useState(false)
+  const [isWatched, setIsWatched] = useState(false)
+  const [watchLoading, setWatchLoading] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
-      const [{ data: p, error: pErr }, { data: v }, { data: a }] = await Promise.all([
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      const [{ data: p, error: pErr }, { data: v }, { data: a }, { data: w }] = await Promise.all([
         supabase.from('products').select('*').eq('id', productId).single(),
         supabase.from('product_variants').select('*').eq('product_id', productId),
         supabase.from('product_addons').select('*').eq('product_id', productId),
+        user
+          ? supabase.from('price_watches').select('id').eq('product_id', productId).eq('watcher_id', user.id).maybeSingle()
+          : Promise.resolve({ data: null }),
       ])
 
       if (cancelled) return
@@ -35,6 +44,7 @@ export default function ProductDetail() {
         setProduct(p)
         setVariants(v || [])
         setAddons(a || [])
+        setIsWatched(!!w)
       }
       setLoading(false)
     }
@@ -47,6 +57,17 @@ export default function ProductDetail() {
 
   function toggleAddon(id) {
     setSelectedAddonIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  async function toggleWatch() {
+    setWatchLoading(true)
+    if (isWatched) {
+      await supabase.rpc('remove_price_watch', { p_product_id: productId })
+    } else {
+      await supabase.rpc('add_price_watch', { p_product_id: productId })
+    }
+    setWatchLoading(false)
+    setIsWatched((prev) => !prev)
   }
 
   async function handleAddToCart() {
@@ -97,7 +118,39 @@ export default function ProductDetail() {
       )}
 
       <p className="text-xs text-hub-marketplace font-medium mb-1">{product.category}</p>
-      <h1 className="text-xl font-display font-semibold mb-2">{product.name}</h1>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <h1 className="text-xl font-display font-semibold">{product.name}</h1>
+        <button
+          onClick={toggleWatch}
+          disabled={watchLoading}
+          className={`shrink-0 text-xs font-medium rounded-full px-3 py-1 border ${
+            isWatched ? 'bg-gold text-ink border-gold' : 'border-ink/20 text-ink/60'
+          } disabled:opacity-60`}
+        >
+          {isWatched ? '★ Watching price' : '☆ Watch price'}
+        </button>
+      </div>
+
+      <div className="flex gap-2 mb-3">
+        {product.condition && (
+          <span className="text-xs font-medium bg-indigo/10 text-indigo rounded-full px-2 py-0.5 capitalize">
+            {product.condition.replace(/_/g, ' ')}
+          </span>
+        )}
+        {product.stock_quantity != null && (
+          <span
+            className={`text-xs font-medium rounded-full px-2 py-0.5 ${
+              product.stock_quantity === 0
+                ? 'bg-market-red/10 text-market-red'
+                : product.stock_quantity <= 3
+                  ? 'bg-gold/10 text-gold-dark'
+                  : 'bg-market-green/10 text-market-green'
+            }`}
+          >
+            {product.stock_quantity === 0 ? 'Out of stock' : `${product.stock_quantity} in stock`}
+          </span>
+        )}
+      </div>
       {product.description && <p className="text-sm text-ink/70 mb-4">{product.description}</p>}
 
       {variants.length > 0 && (
@@ -198,10 +251,10 @@ export default function ProductDetail() {
 
       <button
         onClick={handleAddToCart}
-        disabled={adding || (variants.length > 0 && !selectedVariant)}
+        disabled={adding || (variants.length > 0 && !selectedVariant) || product.stock_quantity === 0}
         className="w-full rounded bg-indigo text-paper font-display font-medium py-2.5 hover:bg-indigo-light transition-colors disabled:opacity-60"
       >
-        {added ? 'Added to cart ✓' : adding ? 'Adding…' : 'Add to cart'}
+        {product.stock_quantity === 0 ? 'Out of stock' : added ? 'Added to cart ✓' : adding ? 'Adding…' : 'Add to cart'}
       </button>
     </div>
   )

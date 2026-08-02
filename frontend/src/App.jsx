@@ -18,11 +18,17 @@ import Pharma from './pages/Pharma'
 import PrescriptionRequest from './pages/PrescriptionRequest'
 import ProductDetail from './pages/ProductDetail'
 import Cart from './pages/Cart'
+import MyOrders from './pages/MyOrders'
 import Wallet from './pages/Wallet'
 import SellerRegister from './pages/SellerRegister'
 import SellerDashboard from './pages/SellerDashboard'
+import JoinAsAttendant from './pages/JoinAsAttendant'
 import DeliveryAgentRegister from './pages/DeliveryAgentRegister'
 import DeliveryAgentDashboard from './pages/DeliveryAgentDashboard'
+import UsedItems from './pages/UsedItems'
+import PriceWatches from './pages/PriceWatches'
+import Bills from './pages/Bills'
+import Verify from './pages/Verify'
 import Admin from './pages/Admin'
 
 function ProtectedLayout({ children }) {
@@ -43,8 +49,23 @@ function ProtectedLayout({ children }) {
         <Link to="/seller" className="text-xs font-medium text-ink/60 hover:text-indigo">
           Seller
         </Link>
+        <Link to="/join-attendant" className="text-xs font-medium text-ink/60 hover:text-indigo">
+          Join as Attendant
+        </Link>
         <Link to="/delivery" className="text-xs font-medium text-ink/60 hover:text-indigo">
           Delivery
+        </Link>
+        <Link to="/used-items" className="text-xs font-medium text-ink/60 hover:text-indigo">
+          Used Items
+        </Link>
+        <Link to="/price-watches" className="text-xs font-medium text-ink/60 hover:text-indigo">
+          Price Watch
+        </Link>
+        <Link to="/bills" className="text-xs font-medium text-ink/60 hover:text-indigo">
+          Bills
+        </Link>
+        <Link to="/verify" className="text-xs font-medium text-ink/60 hover:text-indigo">
+          Verify
         </Link>
         {profile?.primary_role === 'admin' && (
           <Link to="/admin" className="text-xs font-medium text-ink/60 hover:text-indigo">
@@ -56,6 +77,9 @@ function ProtectedLayout({ children }) {
         </Link>
         <Link to="/cart" className="text-xs font-medium text-indigo hover:text-indigo-light">
           Cart
+        </Link>
+        <Link to="/orders" className="text-xs font-medium text-indigo hover:text-indigo-light">
+          Orders
         </Link>
         <button
           onClick={() => supabase.auth.signOut()}
@@ -75,6 +99,7 @@ export default function App() {
       <Routes>
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/verify" element={<Verify />} />
 
         <Route
           path="/marketplace"
@@ -97,6 +122,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <Cart />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedLayout>
+              <MyOrders />
             </ProtectedLayout>
           }
         />
@@ -125,6 +158,14 @@ export default function App() {
           }
         />
         <Route
+          path="/join-attendant"
+          element={
+            <ProtectedLayout>
+              <JoinAsAttendant />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/delivery/register"
           element={
             <ProtectedLayout>
@@ -137,6 +178,30 @@ export default function App() {
           element={
             <ProtectedLayout>
               <DeliveryAgentDashboard />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/used-items"
+          element={
+            <ProtectedLayout>
+              <UsedItems />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/price-watches"
+          element={
+            <ProtectedLayout>
+              <PriceWatches />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/bills"
+          element={
+            <ProtectedLayout>
+              <Bills />
             </ProtectedLayout>
           }
         />

@@ -12,29 +12,37 @@ const CATEGORIES_BY_HUB = {
 }
 
 export default function SellerDashboard() {
-  const [store, setStore] = useState(null)
+  const [stores, setStores] = useState([])
+  const [selectedStoreId, setSelectedStoreId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('listings')
 
   useEffect(() => {
-    async function loadStore() {
+    async function loadStores() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) return
 
-      // A user can own more than one store (Director role) — this picks the
-      // first for now; a real multi-store switcher is a follow-on piece.
-      const { data } = await supabase.from('sellers').select('*, primary_hub').eq('user_id', user.id).limit(1).maybeSingle()
-      setStore(data)
+      // A user can genuinely own more than one store (the Director role) —
+      // sellers.user_id lost its unique constraint specifically to make this
+      // possible. Load all of them, not just the first.
+      const { data } = await supabase
+        .from('sellers')
+        .select('*, primary_hub')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+
+      setStores(data || [])
+      if (data?.length > 0) setSelectedStoreId(data[0].id)
       setLoading(false)
     }
-    loadStore()
+    loadStores()
   }, [])
 
   if (loading) return <div className="p-4 text-ink/50">Loading…</div>
 
-  if (!store) {
+  if (stores.length === 0) {
     return (
       <div className="p-4 text-center py-16">
         <p className="text-ink/60 mb-3">You don't have a store yet.</p>
@@ -45,8 +53,28 @@ export default function SellerDashboard() {
     )
   }
 
+  const store = stores.find((s) => s.id === selectedStoreId) || stores[0]
+
   return (
     <div className="p-4 max-w-2xl mx-auto">
+      {stores.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto mb-4 pb-1">
+          {stores.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSelectedStoreId(s.id)}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium border ${
+                s.id === selectedStoreId
+                  ? 'bg-indigo text-white border-indigo'
+                  : 'border-ink/20 text-ink/60'
+              }`}
+            >
+              {s.store_name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-xl font-display font-semibold text-indigo">{store.store_name}</h1>
         <span
@@ -61,32 +89,36 @@ export default function SellerDashboard() {
           {store.verification_status}
         </span>
       </div>
-      <p className="text-sm text-ink/50 mb-6">
+      <p className="text-sm text-ink/50 mb-1">
         {store.verification_status === 'pending' && 'Your store is awaiting admin review.'}
         {store.verification_status === 'approved' && (store.is_open ? 'Open for orders' : 'Closed')}
         {store.verification_status === 'rejected' && 'This registration was not approved.'}
       </p>
+      <Link to="/seller/register" className="text-xs text-indigo font-medium block mb-5">
+        + Register another store
+      </Link>
 
-      <div className="flex gap-1 border-b border-ink/10 mb-4">
-        {['listings', 'add', 'orders', 'tradeins'].map((t) => (
+      <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
+        {['listings', 'add', 'orders', 'tradeins', 'attendants'].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-2 text-sm font-medium capitalize ${
+            className={`shrink-0 px-3 py-2 text-sm font-medium capitalize ${
               tab === t ? 'text-indigo border-b-2 border-indigo' : 'text-ink/50'
             }`}
           >
-            {t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'tradeins' ? 'Trade-ins' : 'Incoming orders'}
+            {t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : 'Incoming orders'}
           </button>
         ))}
       </div>
 
-      {tab === 'listings' && <MyListings sellerId={store.id} />}
+      {tab === 'listings' && <MyListings key={store.id} sellerId={store.id} />}
       {tab === 'add' && (
-        <AddListing sellerId={store.id} hub={store.primary_hub} approved={store.verification_status === 'approved'} />
+        <AddListing key={store.id} sellerId={store.id} hub={store.primary_hub} approved={store.verification_status === 'approved'} />
       )}
-      {tab === 'orders' && <IncomingOrders sellerId={store.id} />}
-      {tab === 'tradeins' && <TradeInOffers sellerId={store.id} />}
+      {tab === 'orders' && <IncomingOrders key={store.id} sellerId={store.id} />}
+      {tab === 'tradeins' && <TradeInOffers key={store.id} sellerId={store.id} />}
+      {tab === 'attendants' && <Attendants key={store.id} sellerId={store.id} />}
     </div>
   )
 }
@@ -414,11 +446,13 @@ function IncomingOrders({ sellerId }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [actioning, setActioning] = useState(null)
+  const [expanded, setExpanded] = useState(null)
+  const [imeiInputs, setImeiInputs] = useState({})
 
   async function load() {
     const { data } = await supabase
       .from('orders')
-      .select('id, status, total_amount, delivery_type, created_at')
+      .select('id, status, total_amount, delivery_type, created_at, order_items(id, product_id, imei, products(name, category))')
       .eq('seller_id', sellerId)
       .order('created_at', { ascending: false })
     setOrders(data || [])
@@ -443,6 +477,11 @@ function IncomingOrders({ sellerId }) {
     load()
   }
 
+  async function saveImei(orderItemId) {
+    await supabase.rpc('record_item_imei', { p_order_item_id: orderItemId, p_imei: imeiInputs[orderItemId] })
+    load()
+  }
+
   if (loading) return <p className="text-ink/50">Loading…</p>
   if (orders.length === 0) return <p className="text-ink/50">No orders yet.</p>
 
@@ -450,13 +489,15 @@ function IncomingOrders({ sellerId }) {
     <div className="space-y-2">
       {orders.map((o) => (
         <div key={o.id} className="rounded border border-ink/10 bg-white px-3 py-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-mono text-xs text-ink/50">{o.id.slice(0, 8)}</p>
-              <p className="font-mono text-sm">₦{Number(o.total_amount).toLocaleString()}</p>
+          <button onClick={() => setExpanded(expanded === o.id ? null : o.id)} className="w-full">
+            <div className="flex items-center justify-between">
+              <div className="text-left">
+                <p className="font-mono text-xs text-ink/50">{o.id.slice(0, 8)}</p>
+                <p className="font-mono text-sm">₦{Number(o.total_amount).toLocaleString()}</p>
+              </div>
+              <span className="text-xs font-medium text-indigo capitalize">{o.status}</span>
             </div>
-            <span className="text-xs font-medium text-indigo capitalize">{o.status}</span>
-          </div>
+          </button>
 
           {o.status === 'new' && (
             <div className="flex gap-2 mt-2">
@@ -474,6 +515,34 @@ function IncomingOrders({ sellerId }) {
               >
                 Reject
               </button>
+            </div>
+          )}
+
+          {expanded === o.id && (
+            <div className="mt-2 pt-2 border-t border-ink/10 space-y-2">
+              {o.order_items?.map((item) => (
+                <div key={item.id} className="text-xs">
+                  <p className="font-medium">{item.products?.name}</p>
+                  {item.imei ? (
+                    <p className="text-ink/50 font-mono">IMEI: {item.imei}</p>
+                  ) : (
+                    <div className="flex gap-1 mt-1">
+                      <input
+                        placeholder="Record IMEI (phones/laptops)"
+                        value={imeiInputs[item.id] || ''}
+                        onChange={(e) => setImeiInputs((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                        className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
+                      />
+                      <button
+                        onClick={() => saveImei(item.id)}
+                        className="text-xs bg-indigo text-white rounded px-2"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -585,6 +654,73 @@ function TradeInOffers({ sellerId }) {
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+function Attendants({ sellerId }) {
+  const [attendants, setAttendants] = useState([])
+  const [invites, setInvites] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [newCode, setNewCode] = useState(null)
+
+  async function load() {
+    const [{ data: att }, { data: inv }] = await Promise.all([
+      supabase.from('attendants').select('id, is_active, created_at').eq('store_id', sellerId),
+      supabase.from('attendant_invites').select('id, code, used_by, created_at').eq('store_id', sellerId).order('created_at', { ascending: false }),
+    ])
+    setAttendants(att || [])
+    setInvites(inv || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [sellerId])
+
+  async function generateInvite() {
+    setGenerating(true)
+    const { data } = await supabase.rpc('create_attendant_invite', { p_store_id: sellerId })
+    setGenerating(false)
+    setNewCode(data)
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+
+  return (
+    <div>
+      <p className="text-sm text-ink/60 mb-3">
+        Generate a code and share it with your attendant — they enter it themselves once they have an account.
+      </p>
+
+      <button
+        onClick={generateInvite}
+        disabled={generating}
+        className="w-full mb-4 rounded bg-indigo text-paper font-display font-medium py-2.5 hover:bg-indigo-light transition-colors disabled:opacity-60"
+      >
+        {generating ? 'Generating…' : 'Generate invite code'}
+      </button>
+
+      {newCode && (
+        <p className="text-center font-mono text-lg text-indigo mb-4 bg-indigo/5 rounded py-2">{newCode}</p>
+      )}
+
+      <p className="text-xs font-medium text-ink/50 mb-2">Active attendants ({attendants.filter((a) => a.is_active).length})</p>
+
+      {invites.length > 0 && (
+        <div className="space-y-1">
+          {invites.map((i) => (
+            <div key={i.id} className="flex items-center justify-between text-xs rounded border border-ink/10 bg-white px-3 py-2">
+              <span className="font-mono">{i.code}</span>
+              <span className={i.used_by ? 'text-market-green' : 'text-gold-dark'}>
+                {i.used_by ? 'Redeemed' : 'Unused'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

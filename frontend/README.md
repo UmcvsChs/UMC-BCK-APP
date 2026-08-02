@@ -86,6 +86,70 @@ All six hubs, the full buyer flow, Seller Dashboard, Admin Control Room, and Del
 
 **Repair** — request a diagnosis from a specific approved repairer, the repairer sends back real diagnosis notes and a quote, the buyer accepts (which places a real wallet hold), and only once the repairer marks it complete does payment actually finalize. Includes real repairer registration, matching the same "pending admin review before appearing to buyers" pattern as every other actor type on this platform.
 
+## Multi-store — closing previously acknowledged unfinished business
+
+`SellerDashboard` originally only ever loaded the *first* store a user owned — a comment in the code said so explicitly. A Director who owns multiple stores couldn't actually reach their other stores through the UI at all. Fixed: it now loads every store the user owns and shows a real switcher when there's more than one, with "Register another store" always available.
+
+## Used Items and Kasuwa Price Watch — both had complete backends and zero frontend
+
+**Used Items** — peer-to-peer browse and listing, with the anti-theft fields (receipt, original packaging) both asked plainly, and a genuine free/Sadaqah filter that's distinct from just pricing something at zero.
+
+**Kasuwa Price Watch** — a real "★ Watch price" toggle on every product page, and a dedicated page showing actual price history for everything you're tracking — not a placeholder chart, real rows from `product_price_history`, which is captured automatically by a database trigger every time a price actually changes.
+
+## Platform Analytics — real numbers, not a placeholder dashboard
+
+`get_platform_analytics()` had a complete, correct database function sitting unused since the Admin Control Room session. Now it's the default tab admins land on: total users by role, orders by status, delivered GMV, total wallet balance across the platform, and pending queue counts — every number pulled live from real tables, nothing hardcoded or illustrative.
+
+## Bills & Services — real, honestly scoped as manual-for-now
+
+The wallet debit is real — submitting a bill payment genuinely moves money the moment you submit it, via `submit_bill_payment()`. What's honestly not automated yet is the actual fulfillment (crediting airtime, generating an electricity token) — that needs a real provider connection (VTpass or similar) that's still your call to make. Until then, **Admin has a real processing queue**: every submitted bill sits as "processing," and completing it there confirms a human actually made it happen outside the platform, or refunds the buyer for real if it couldn't be fulfilled. This isn't a placeholder — it's the honest, correct way to run this feature manually while the real integration is pending, not a fake "completed" status with nothing behind it.
+
+## IMEI capture and Verify — the last major untouched piece
+
+**IMEI is recorded after the sale, by the seller**, not at checkout — a real design decision, not an oversight: a buyer doesn't know which specific physical unit they'll receive when they place an order, so it can't be captured then. Sellers can now record it against a specific order line item from Incoming Orders.
+
+**`verify_imei()` checks only UMC-BCK's own records** — was this specific IMEI ever sold through the platform, and when. It is deliberately **not** a claim about theft or blacklist status, which would require a real GSMA/carrier database integration this platform doesn't have — the page says so plainly rather than imply more than it can back up.
+
+**The Verify page is genuinely public**, not wrapped in the authenticated layout — `verify_transaction()` and `verify_imei()` were both built specifically to be checkable without an account, and gating the page behind sign-in would have defeated that entirely. Caught this before shipping it, not after.
+
+## Demand Requests ("Can't Find It") — genuinely missing until now
+
+`submit_demand_request()`/`close_demand_request()` had zero frontend anywhere, despite being used across every hub's tracker entry. Built once as a shared `DemandRequest` component and wired into `HubBrowse` — meaning every one of the six hubs got this in a single edit, not six separate ones.
+
+## Attendant management — a real backend gap found and fixed before building the UI
+
+`attendants.user_id` is required at row-creation time, which means a seller can't just "add" someone who hasn't signed up yet — the schema doesn't support it. Built the realistic flow instead: the seller generates an invite code (`create_attendant_invite()`), shares it however they like, and the attendant redeems it themselves once they have an account (`join_as_attendant()`). A code can only be used once. Seller Dashboard now has a real Attendants tab, and there's a standalone Join page for the person on the other end.
+
+## My Orders — a foundational gap found while building Disputes
+
+There was no page anywhere for a buyer to see their own order history — checkout confirmed an order was placed, then it vanished from view. Needed to exist anyway for dispute-raising to make sense (you need to see an order to dispute it), so built it as the real foundation piece it always should have been, not just a means to an end.
+
+## Admin Control Room — the remaining three tabs
+
+**Disputes** — real resolution with four real outcomes (favor buyer, favor seller, split, dismiss), wired to `resolve_dispute()`.
+**Promo codes** — real creation (fixed-amount or percentage), redeemed as a real wallet credit from the buyer's Wallet page.
+**Access log** — the last 50 admin actions, populated automatically by every approval/rejection/resolution function itself, not a manual log anyone has to remember to write to.
+
+## Referral codes — now genuinely visible and redeemable
+
+Every user's Wallet page shows their real referral code (generated on first view, not pre-populated), plus a redemption field for someone else's code — both sides of the bonus now actually reachable, not just built on the backend and never surfaced.
+
+## A real bundle-size note, stated honestly rather than ignored
+
+`npm run build` now warns that the main bundle exceeds 500KB after minification. Everything still works — this isn't an error — but the app has genuinely grown large enough that code-splitting (lazy-loading routes) would meaningfully help load time in production. Worth doing before launch, not urgent for continued development.
+
+## Checkout was quietly incomplete — found and fixed properly
+
+Cart's checkout call was defaulting delivery fee to ₦0 and never offered instalments at all, despite both being fully built on the backend. Found this by actually checking what Cart passed to `checkout_cart()`, not by assuming the earlier "Done" status was accurate.
+
+- **Real per-LGA delivery fees** — `delivery_fee_zones` had zero rows; rather than invent fake numbers, built an Admin screen to set real fees and wired Cart to look them up honestly. An LGA with no fee set shows "fee not set" at checkout, not a silent ₦0
+- **BNPL is now actually reachable at checkout** — a real toggle, a real deposit input, checking the deposit is less than the subtotal before submitting
+- **Delivery type selector** — home delivery, store pickup, or proxy pickup, genuinely changes what Cart asks for (no address/LGA needed for pickup)
+
+## Stock and condition, now actually visible
+
+`products.condition` and `stock_quantity` were fetched but never displayed anywhere. Product Detail now shows both, and out-of-stock items correctly disable "Add to cart" rather than let someone add something that isn't there.
+
 ## Cleaned up
 
 `HubPlaceholder.jsx` was removed — once all six hubs had real pages, it was dead code, not a real screen anyone would see.

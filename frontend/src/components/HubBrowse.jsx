@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import DemandRequest from './DemandRequest'
 
 // Shared by Marketplace and Canteen (and every future hub) — the only real
 // difference between hubs is which primary_hub they filter to, and whether
@@ -78,7 +79,7 @@ export default function HubBrowse({ hub, title, accentClass, categories = null }
         <p className="text-ink/50">No live listings here yet — this is real, current data from the database.</p>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
         {products.map((p) => (
           <Link
             key={p.id}
@@ -102,6 +103,8 @@ export default function HubBrowse({ hub, title, accentClass, categories = null }
           </Link>
         ))}
       </div>
+
+      <DemandRequest hub={hub} accentClass={accentClass} />
     </div>
   )
 }

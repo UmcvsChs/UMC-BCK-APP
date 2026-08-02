@@ -8,6 +8,11 @@ export default function Wallet() {
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState(null)
   const [error, setError] = useState(null)
+  const [referralCode, setReferralCode] = useState(null)
+  const [promoInput, setPromoInput] = useState('')
+  const [referralInput, setReferralInput] = useState('')
+  const [promoMessage, setPromoMessage] = useState(null)
+  const [referralMessage, setReferralMessage] = useState(null)
 
   async function loadWallet() {
     const {
@@ -28,7 +33,39 @@ export default function Wallet() {
 
   useEffect(() => {
     loadWallet()
+    loadReferralCode()
   }, [])
+
+  async function loadReferralCode() {
+    const { data } = await supabase.rpc('get_or_create_my_referral_code')
+    setReferralCode(data)
+  }
+
+  async function handleRedeemPromo(e) {
+    e.preventDefault()
+    setPromoMessage(null)
+    const { data, error } = await supabase.rpc('redeem_promo_code', { p_code: promoInput.toUpperCase() })
+    if (error) {
+      setPromoMessage({ type: 'error', text: error.message })
+    } else {
+      setPromoMessage({ type: 'success', text: `₦${Number(data).toLocaleString()} credited to your wallet.` })
+      setPromoInput('')
+      loadWallet()
+    }
+  }
+
+  async function handleRedeemReferral(e) {
+    e.preventDefault()
+    setReferralMessage(null)
+    const { error } = await supabase.rpc('redeem_referral_code', { p_code: referralInput.toUpperCase() })
+    if (error) {
+      setReferralMessage({ type: 'error', text: error.message })
+    } else {
+      setReferralMessage({ type: 'success', text: 'Referral bonus credited to both of you.' })
+      setReferralInput('')
+      loadWallet()
+    }
+  }
 
   async function handleTopupRequest(e) {
     e.preventDefault()
@@ -100,6 +137,48 @@ export default function Wallet() {
           Fund your wallet here first, then shop.
         </p>
       </form>
+
+      <div className="mt-8 pt-6 border-t border-ink/10">
+        <p className="text-sm font-medium mb-1">Your referral code</p>
+        <p className="text-xs text-ink/50 mb-2">Share it — you both get a wallet bonus when someone joins with it.</p>
+        <p className="font-mono text-lg text-gold-dark bg-gold/10 rounded px-3 py-2 text-center">
+          {referralCode || '…'}
+        </p>
+      </div>
+
+      <form onSubmit={handleRedeemReferral} className="mt-4 flex gap-2">
+        <input
+          placeholder="Got a referral code?"
+          value={referralInput}
+          onChange={(e) => setReferralInput(e.target.value)}
+          className="flex-1 text-sm rounded border border-ink/20 px-3 py-2 font-mono uppercase"
+        />
+        <button type="submit" className="text-sm bg-gold text-ink rounded px-4 py-2 font-medium">
+          Redeem
+        </button>
+      </form>
+      {referralMessage && (
+        <p className={`text-xs mt-1 ${referralMessage.type === 'error' ? 'text-market-red' : 'text-market-green'}`}>
+          {referralMessage.text}
+        </p>
+      )}
+
+      <form onSubmit={handleRedeemPromo} className="mt-4 flex gap-2">
+        <input
+          placeholder="Promo code"
+          value={promoInput}
+          onChange={(e) => setPromoInput(e.target.value)}
+          className="flex-1 text-sm rounded border border-ink/20 px-3 py-2 font-mono uppercase"
+        />
+        <button type="submit" className="text-sm bg-indigo text-white rounded px-4 py-2 font-medium">
+          Redeem
+        </button>
+      </form>
+      {promoMessage && (
+        <p className={`text-xs mt-1 ${promoMessage.type === 'error' ? 'text-market-red' : 'text-market-green'}`}>
+          {promoMessage.text}
+        </p>
+      )}
     </div>
   )
 }
