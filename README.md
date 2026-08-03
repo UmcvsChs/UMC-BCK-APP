@@ -1,34 +1,21 @@
-# UMC-BCK — Update Batch 3
+# UMC-BCK — Update Batch 4
 
 Same process as before — extract, drag `frontend`, `supabase`, `documents`, and this `README.md` in together, one commit.
 
-## Structure
+## What's genuinely new since Batch 3 — 7 rounds
 
-```
-umc-bck-complete/
-├── supabase/migrations/     99 real .sql files, current as of this export
-├── frontend/                 the full React app, builds clean (112 modules)
-└── documents/
-    ├── UMC_BCK_Terms_and_Conditions_v2.4.docx      corrected + Pharma & Medical Hub addendum added
-    ├── UMC_BCK_Complete_User_Guide_Edition4.1.docx  corrected against real overclaims
-    └── UMC_BCK_Migration_Tracker.xlsx               full feature-by-feature status
-```
+**1. PWA fixes** — real manifest, generated icons using the actual brand colors, and a service worker deliberately scoped to cache only the static shell, never API calls (this is a real-time financial app; caching a stale wallet balance would be a dangerous bug, not a cosmetic one).
 
-## What's genuinely new since the last upload
+**2. Real Paystack payment gateway** — the biggest gap in the whole project, closed. Genuine checkout, server-side webhook verification with an independent re-check against Paystack's own API before crediting anything, and a database function locked so only the Edge Function's service role can call it.
 
-- **Bills & Services, Verify Device, Order Dispatch, Fraud Alert, Delivery Fees, Reseller Buyer registration** — several backend capabilities that existed with zero frontend all got real UI this batch
-- **Real bugs found and fixed by double-checking earlier "Done" marks** — store open/close was only ever text, the listing form never asked for condition, checkout was silently defaulting delivery fee to ₦0 and never offered instalments
-- **Waiting-time fine policy and Sample Delivery Walkthrough** — genuine new backend (wait-time tracking, incident reports, proof-of-delivery photos) plus the frontend
-- **Both legal/reference documents corrected** — both were written during the prototype phase and contained real overclaims (a fabricated paid IMEI verification service, Bills categories claimed live that don't exist, a Pharma & Medical Hub with zero T&C coverage). Corrected and verified against the live platform; the T&C's Pharma gap is now genuinely closed
+**3–5. Two document-correction passes plus a real Pharma & Medical Hub addendum** — both the User Guide and T&C were written during the prototype phase and contained real overclaims (a fabricated paid IMEI verification service, Bills categories claimed live that don't exist, and — most significantly — full commission and subscription-tier numbers presented as real when nothing was implemented in code). All corrected against the live platform.
 
-## The most important thing not in this package
+**6. The commission correction reversed itself into something bigger.** What looked at first like fabricated numbers turned out to be a real, deliberate revenue model from this project's very first session — lost in the migration to the real backend, not invented. Implemented for real: Phones & Tech 5%, Gold & Jewelry 3%, Automobile 4%, Canteen 10%, Kankara Swap ₦1,000 + 5%, Repair 15%. **Found a far more serious bug while building this:** `mark_order_delivered()` had never actually credited a seller for a regular order, in the real database, for any order — fixed in the same round. No real damage occurred; zero real orders existed yet.
 
-**Wallet top-ups are entirely manual right now** — a buyer transfers by bank, an admin manually confirms it, and only then is the wallet credited. There is no Paystack, Flutterwave, or card payment integration anywhere. This is the actual bottleneck for real usage at any scale, more foundational than the Bills & Services provider decision. Worth deciding before anything else.
+**7. Three new revenue streams, researched against real global benchmarks before any number was proposed.** Featured Placement (₦5,000/10,000/15,000 monthly tiers, validated against Jumia Nigeria's own real Sponsored Products pricing, with genuine recurring billing and a real effect on search ranking). Supermarket accounts (genuinely negotiated per-account commission and retainer, never automated, with real computable eligibility triggers). Caught and fixed a real ERROR-level security issue along the way — a SECURITY DEFINER view that bypassed RLS — before it shipped.
 
-## Still open
+## Still genuinely open
 
-- Wallet top-up payment gateway (see above)
-- Bills & Services provider for the working categories, and separate solutions for the 7 that don't exist yet (water, JAMB, NABTEB, school fees, NIN, transport, flights/hotels)
-- Real seed data for Gold & Precious Metals — deliberately never invented
-- Bundle size — still over 500KB after minification, worth code-splitting before real production traffic
-- Beyond-Kaduna expansion — the other 36 states' LGA data was deferred early on
+- Kasuwa Price Watch data monetization (selling aggregated market data to government/statistics bodies) — needs a real aggregated export mechanism, intentionally not folded into this batch
+- The 7 Bills categories still waiting on a provider decision
+- Bundle size — still worth code-splitting before real production traffic
