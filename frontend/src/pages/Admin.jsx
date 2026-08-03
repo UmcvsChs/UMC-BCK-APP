@@ -12,7 +12,7 @@ export default function Admin() {
       </p>
 
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
-        {['analytics', 'registrations', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
+        {['analytics', 'revenue', 'supermarket', 'registrations', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -22,28 +22,34 @@ export default function Admin() {
           >
             {t === 'analytics'
               ? 'Analytics'
-              : t === 'prescriptions'
-                ? 'Prescription requests'
-                : t === 'bills'
-                  ? 'Bill payments'
-                  : t === 'ledger'
-                    ? 'Bills ledger'
-                    : t === 'promocodes'
-                      ? 'Promo codes'
-                      : t === 'accesslog'
-                        ? 'Access log'
-                        : t === 'deliveryfees'
-                          ? 'Delivery fees'
-                          : t === 'dispatch'
-                            ? 'Order dispatch'
-                            : t === 'fraud'
-                              ? 'Fraud alert'
-                              : `Pending ${t}`}
+              : t === 'revenue'
+                ? 'Platform Revenue'
+                : t === 'supermarket'
+                  ? 'Supermarket Accounts'
+                  : t === 'prescriptions'
+                    ? 'Prescription requests'
+                    : t === 'bills'
+                      ? 'Bill payments'
+                      : t === 'ledger'
+                        ? 'Bills ledger'
+                        : t === 'promocodes'
+                          ? 'Promo codes'
+                          : t === 'accesslog'
+                            ? 'Access log'
+                            : t === 'deliveryfees'
+                              ? 'Delivery fees'
+                              : t === 'dispatch'
+                                ? 'Order dispatch'
+                                : t === 'fraud'
+                                  ? 'Fraud alert'
+                                  : `Pending ${t}`}
           </button>
         ))}
       </div>
 
       {tab === 'analytics' && <PlatformAnalytics />}
+      {tab === 'revenue' && <PlatformRevenue />}
+      {tab === 'supermarket' && <SupermarketAccounts />}
       {tab === 'registrations' && <PendingRegistrations />}
       {tab === 'listings' && <PendingListings />}
       {tab === 'prescriptions' && <PendingPrescriptions />}
@@ -957,6 +963,147 @@ function BillsLedger() {
           </div>
         ))}
         {bills.length === 0 && <p className="text-ink/50 text-sm">No bill payments in this category yet.</p>}
+      </div>
+    </div>
+  )
+}
+
+function PlatformRevenue() {
+  const [entries, setEntries] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from('platform_revenue_ledger')
+        .select('id, source_type, amount, description, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100)
+      setEntries(data || [])
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  const total = entries.reduce((sum, e) => sum + Number(e.amount), 0)
+  const bySource = entries.reduce((acc, e) => {
+    acc[e.source_type] = (acc[e.source_type] || 0) + Number(e.amount)
+    return acc
+  }, {})
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+
+  return (
+    <div>
+      <p className="text-xs text-ink/50 mb-3">
+        Real commission and fees actually collected — rates explicitly decided in this project's original business
+        consulting: Phones & Tech 5%, Gold & Jewelry 3% (Trade-In: flat ₦2,000), Automobile 4%, Canteen 10%,
+        Kankara Swap ₦1,000 flat + 5% on cash adjustment, Repair 15%. General Marketplace and Pharma & Medical
+        have no confirmed rate, so they stay at 0% rather than have one invented.
+      </p>
+
+      <div className="rounded bg-indigo text-paper p-4 mb-3">
+        <p className="text-xs opacity-70">Total platform revenue</p>
+        <p className="font-mono text-2xl">₦{total.toLocaleString()}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {Object.entries(bySource).map(([source, amount]) => (
+          <div key={source} className="rounded border border-ink/10 bg-white px-3 py-2">
+            <p className="text-xs text-ink/50 capitalize">{source.replace(/_/g, ' ')}</p>
+            <p className="font-mono text-sm text-indigo">₦{amount.toLocaleString()}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-1">
+        {entries.map((e) => (
+          <div key={e.id} className="text-xs rounded border border-ink/10 bg-white px-3 py-2 flex justify-between">
+            <span className="text-ink/70">{e.description}</span>
+            <span className="font-mono text-indigo shrink-0 ml-2">₦{Number(e.amount).toLocaleString()}</span>
+          </div>
+        ))}
+        {entries.length === 0 && <p className="text-ink/50 text-sm">No revenue collected yet.</p>}
+      </div>
+    </div>
+  )
+}
+
+function SupermarketAccounts() {
+  const [candidates, setCandidates] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [terms, setTerms] = useState({})
+  const [saving, setSaving] = useState(null)
+
+  async function load() {
+    const { data } = await supabase.rpc('get_supermarket_tier_candidates')
+    setCandidates(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function setSupermarketTerms(sellerId) {
+    const t = terms[sellerId] || {}
+    if (!t.commission || !t.retainer) {
+      alert('Enter both a commission % and a monthly retainer before saving.')
+      return
+    }
+    setSaving(sellerId)
+    await supabase.rpc('admin_set_supermarket_terms', {
+      p_seller_id: sellerId,
+      p_commission_pct: Number(t.commission),
+      p_monthly_retainer: Number(t.retainer),
+    })
+    setSaving(null)
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+
+  return (
+    <div>
+      <p className="text-xs text-ink/50 mb-3">
+        Real, computable candidates — multi-store sellers or those with over ₦1M in live stock value. These are
+        never charged automatically; enter the real negotiated terms after an actual conversation with the account.
+      </p>
+      {candidates.length === 0 && <p className="text-ink/50 text-sm">No candidates right now.</p>}
+      <div className="space-y-2">
+        {candidates.map((c) => (
+          <div key={c.seller_id} className="rounded border border-ink/10 bg-white px-3 py-2">
+            <p className="text-sm font-medium">{c.store_name}</p>
+            <p className="text-xs text-ink/50">
+              {c.store_count > 1 && `${c.store_count} stores`}
+              {c.store_count > 1 && c.total_stock_value > 1000000 && ' · '}
+              {c.total_stock_value > 1000000 && `₦${Number(c.total_stock_value).toLocaleString()} in stock`}
+            </p>
+            <div className="flex gap-2 mt-2">
+              <input
+                type="number"
+                placeholder="Commission %"
+                value={terms[c.seller_id]?.commission || ''}
+                onChange={(e) => setTerms((prev) => ({ ...prev, [c.seller_id]: { ...prev[c.seller_id], commission: e.target.value } }))}
+                className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
+              />
+              <input
+                type="number"
+                placeholder="Retainer ₦/month"
+                value={terms[c.seller_id]?.retainer || ''}
+                onChange={(e) => setTerms((prev) => ({ ...prev, [c.seller_id]: { ...prev[c.seller_id], retainer: e.target.value } }))}
+                className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
+              />
+              <button
+                onClick={() => setSupermarketTerms(c.seller_id)}
+                disabled={saving === c.seller_id}
+                className="text-xs bg-indigo text-white rounded px-3 disabled:opacity-60"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

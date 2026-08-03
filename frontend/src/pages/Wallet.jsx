@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+// Public key only — safe to be visible in frontend code. It can open a
+// checkout, but it cannot move money or verify a payment on its own; that
+// only happens server-side, in the paystack-webhook Edge Function, using
+// the secret key the project owner set directly in Supabase.
+const PAYSTACK_PUBLIC_KEY = 'pk_test_a16b6e74a539f04d7ea5b5e22d4565977e3bd642'
+
 export default function Wallet() {
   const [wallet, setWallet] = useState(null)
   const [amount, setAmount] = useState('')
@@ -89,6 +95,48 @@ export default function Wallet() {
     setAmount('')
   }
 
+  async function handlePaystackPay() {
+    setError(null)
+    setMessage(null)
+
+    if (!amount || Number(amount) <= 0) {
+      setError('Enter an amount before paying.')
+      return
+    }
+    if (!window.PaystackPop) {
+      setError('Payment could not load — check your connection and try again.')
+      return
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    // metadata.user_id is what the webhook uses to know whose wallet to
+    // credit — the reference alone isn't enough, since Paystack has no
+    // concept of a UMC-BCK user.
+    const handler = window.PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: user.email,
+      amount: Math.round(Number(amount) * 100), // Paystack takes kobo
+      currency: 'NGN',
+      metadata: { user_id: user.id },
+      callback: () => {
+        // This only confirms the popup completed — the wallet is actually
+        // credited by the webhook independently verifying with Paystack's
+        // own API, not by trusting this callback. Reload after a short
+        // delay to give the webhook a moment to land.
+        setMessage('Payment received — your wallet will update in a few seconds.')
+        setAmount('')
+        setTimeout(loadWallet, 3000)
+      },
+      onClose: () => {
+        setMessage(null)
+      },
+    })
+    handler.openIframe()
+  }
+
   if (loading) return <div className="p-4 text-ink/50">Loading…</div>
 
   return (
@@ -102,9 +150,9 @@ export default function Wallet() {
         </p>
       </div>
 
-      <form onSubmit={handleTopupRequest} className="space-y-3">
+      <div className="space-y-3">
         <label htmlFor="amount" className="block text-sm font-medium">
-          Request a top-up
+          Fund your wallet
         </label>
         <input
           id="amount"
@@ -125,18 +173,34 @@ export default function Wallet() {
         )}
 
         <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded bg-gold text-ink font-display font-medium py-2.5 hover:bg-gold-light transition-colors disabled:opacity-60"
+          type="button"
+          onClick={handlePaystackPay}
+          className="w-full rounded bg-indigo text-paper font-display font-medium py-2.5 hover:bg-indigo-light transition-colors"
         >
-          {submitting ? 'Submitting…' : 'Request top-up'}
+          Pay with card / bank — instant
         </button>
 
-        <p className="text-xs text-ink/50">
-          UMC-BCK is wallet-only — there's no pay-on-delivery, and no bank transfer accepted directly at checkout.
-          Fund your wallet here first, then shop.
-        </p>
-      </form>
+        <details className="text-xs text-ink/50">
+          <summary className="cursor-pointer">Prefer a manual bank transfer instead?</summary>
+          <form onSubmit={handleTopupRequest} className="mt-2">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded border border-ink/20 text-ink/70 font-medium py-2 text-xs disabled:opacity-60"
+            >
+              {submitting ? 'Submitting…' : 'Request manual bank transfer top-up'}
+            </button>
+            <p className="text-ink/40 mt-1">
+              This route requires admin confirmation and can take longer — card/bank payment above is instant.
+            </p>
+          </form>
+        </details>
+      </div>
+
+      <p className="text-xs text-ink/50 mt-3">
+        UMC-BCK is wallet-only — there's no pay-on-delivery, and no bank transfer accepted directly at checkout.
+        Fund your wallet here first, then shop.
+      </p>
 
       <div className="mt-8 pt-6 border-t border-ink/10">
         <p className="text-sm font-medium mb-1">Your referral code</p>

@@ -234,6 +234,12 @@ Both incident reports and proof photos needed genuinely new backend — `inciden
 
 Delivery type selection, order tracking, and group ordering's contributor field were all already fully built in earlier sessions — verified directly against the running code before marking anything, not assumed from memory.
 
+## Real payment gateway — Paystack, now genuinely wired
+
+Wallet funding was 100% manual before this — a bank transfer plus an admin manually confirming it happened. That's still available as a fallback, but the primary path is now real: a genuine Paystack checkout, verified server-side, with the actual wallet credit happening independently of anything the buyer's browser reports.
+
+**The trust boundary that matters here:** the public key (`pk_test_...`) lives safely in the frontend — it can open a checkout but can't move or verify money on its own. The secret key never touches this codebase or passes through Claude at any point; it's set directly in Supabase by the project owner as an Edge Function secret. The `paystack-webhook` Edge Function reads it at runtime, verifies every incoming webhook is genuinely from Paystack via HMAC-SHA512 signature checking, then **independently re-verifies the transaction with Paystack's own API** before crediting anything — it never trusts the webhook payload's amount or status on its own. `record_gateway_topup()` on the database side is only callable by the service_role key the Edge Function holds; a buyer's browser can never call it directly and credit their own wallet.
+
 ## Cleaned up
 
 `HubPlaceholder.jsx` was removed — once all six hubs had real pages, it was dead code, not a real screen anyone would see.

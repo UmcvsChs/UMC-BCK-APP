@@ -119,7 +119,7 @@ export default function SellerDashboard() {
       </Link>
 
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
-        {['overview', 'listings', 'add', 'orders', 'tradeins', 'attendants', 'pl'].map((t) => (
+        {['overview', 'listings', 'add', 'orders', 'tradeins', 'attendants', 'pl', 'featured'].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -127,7 +127,7 @@ export default function SellerDashboard() {
               tab === t ? 'text-indigo border-b-2 border-indigo' : 'text-ink/50'
             }`}
           >
-            {t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : 'Incoming orders'}
+            {t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : t === 'featured' ? 'Featured' : 'Incoming orders'}
           </button>
         ))}
       </div>
@@ -141,6 +141,7 @@ export default function SellerDashboard() {
       {tab === 'tradeins' && <TradeInOffers key={store.id} sellerId={store.id} />}
       {tab === 'attendants' && <Attendants key={store.id} sellerId={store.id} />}
       {tab === 'pl' && <ProfitLossCalculator />}
+      {tab === 'featured' && <FeaturedPlacement key={store.id} sellerId={store.id} />}
     </div>
   )
 }
@@ -894,6 +895,81 @@ function ProfitLossCalculator() {
             {profit >= 0 ? 'Profit' : 'Loss'}: ₦{Math.abs(profit).toLocaleString()}
           </p>
         )}
+      </div>
+    </div>
+  )
+}
+
+function FeaturedPlacement({ sellerId }) {
+  const [current, setCurrent] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [purchasing, setPurchasing] = useState(null)
+
+  const TIERS = [
+    { value: 'category', label: 'Category', price: 5000, desc: 'Top placement within your own hub' },
+    { value: 'cross_hub', label: 'Cross-hub', price: 10000, desc: 'Also appears in general "Recommended" sections' },
+    { value: 'platform_wide', label: 'Platform-wide', price: 15000, desc: 'Top placement across every relevant search' },
+  ]
+
+  async function load() {
+    const { data } = await supabase
+      .from('featured_placements')
+      .select('tier, monthly_price, current_period_end, status')
+      .eq('seller_id', sellerId)
+      .eq('status', 'active')
+      .maybeSingle()
+    setCurrent(data)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [sellerId])
+
+  async function purchase(tier) {
+    setPurchasing(tier)
+    const { error } = await supabase.rpc('purchase_featured_placement', { p_seller_id: sellerId, p_tier: tier })
+    setPurchasing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+
+  return (
+    <div>
+      <p className="text-xs text-ink/50 mb-3">
+        Real monthly subscription, billed automatically from your wallet every 30 days. Rates researched against
+        comparable Nigerian marketplace pricing (Jumia's own Sponsored Products package) and global practice, then
+        brought back for ratification.
+      </p>
+
+      {current && (
+        <div className="rounded bg-market-green/10 px-3 py-2 mb-4">
+          <p className="text-sm font-medium capitalize">Active: {current.tier.replace('_', ' ')} — ₦{Number(current.monthly_price).toLocaleString()}/month</p>
+          <p className="text-xs text-ink/50">Renews {new Date(current.current_period_end).toLocaleDateString()}</p>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {TIERS.map((t) => (
+          <div key={t.value} className="rounded border border-ink/10 bg-white px-3 py-2 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">{t.label} — ₦{t.price.toLocaleString()}/month</p>
+              <p className="text-xs text-ink/50">{t.desc}</p>
+            </div>
+            <button
+              onClick={() => purchase(t.value)}
+              disabled={purchasing === t.value || current?.tier === t.value}
+              className="text-xs bg-indigo text-white rounded px-3 py-1.5 disabled:opacity-60"
+            >
+              {current?.tier === t.value ? 'Active' : purchasing === t.value ? '…' : 'Activate'}
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   )
