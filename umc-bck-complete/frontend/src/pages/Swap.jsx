@@ -268,8 +268,12 @@ function MyListingsAndOffers() {
 
   async function respond(offerId, action) {
     setActing(offerId)
-    await supabase.rpc('respond_to_swap_offer', { p_offer_id: offerId, p_action: action })
+    const { error } = await supabase.rpc('respond_to_swap_offer', { p_offer_id: offerId, p_action: action })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 

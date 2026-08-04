@@ -165,8 +165,12 @@ function MyBookings() {
 
   async function acceptQuote(bookingId) {
     setActing(bookingId)
-    await supabase.rpc('accept_repair_quote', { p_booking_id: bookingId })
+    const { error } = await supabase.rpc('accept_repair_quote', { p_booking_id: bookingId })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -234,19 +238,27 @@ function RepairerBookings() {
 
   async function submitDiagnosis(bookingId) {
     setActing(bookingId)
-    await supabase.rpc('provide_repair_diagnosis', {
+    const { error } = await supabase.rpc('provide_repair_diagnosis', {
       p_booking_id: bookingId,
       p_diagnosis_notes: notes[bookingId] || '',
       p_quoted_price: Number(quotes[bookingId]),
     })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
   async function complete(bookingId) {
     setActing(bookingId)
-    await supabase.rpc('mark_repair_completed', { p_booking_id: bookingId })
+    const { error } = await supabase.rpc('mark_repair_completed', { p_booking_id: bookingId })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 

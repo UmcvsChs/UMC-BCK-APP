@@ -508,20 +508,32 @@ function IncomingOrders({ sellerId }) {
 
   async function handleConfirm(orderId) {
     setActioning(orderId)
-    await supabase.rpc('confirm_order', { p_order_id: orderId })
+    const { error } = await supabase.rpc('confirm_order', { p_order_id: orderId })
     setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
   async function handleReject(orderId) {
     setActioning(orderId)
-    await supabase.rpc('reject_order', { p_order_id: orderId, p_reason: 'Declined by seller' })
+    const { error } = await supabase.rpc('reject_order', { p_order_id: orderId, p_reason: 'Declined by seller' })
     setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
   async function saveImei(orderItemId) {
-    await supabase.rpc('record_item_imei', { p_order_item_id: orderItemId, p_imei: imeiInputs[orderItemId] })
+    const { error } = await supabase.rpc('record_item_imei', { p_order_item_id: orderItemId, p_imei: imeiInputs[orderItemId] })
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -616,19 +628,27 @@ function TradeInOffers({ sellerId }) {
 
   async function respond(offerId, action) {
     setActing(offerId)
-    await supabase.rpc('respond_to_trade_in_offer', {
+    const { error } = await supabase.rpc('respond_to_trade_in_offer', {
       p_offer_id: offerId,
       p_action: action,
       p_seller_offer_price: counterPrices[offerId] ? Number(counterPrices[offerId]) : null,
     })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
   async function completeBuyback(offerId) {
     setActing(offerId)
-    await supabase.rpc('complete_trade_in_cash_buyback', { p_offer_id: offerId })
+    const { error } = await supabase.rpc('complete_trade_in_cash_buyback', { p_offer_id: offerId })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -724,8 +744,12 @@ function Attendants({ sellerId }) {
 
   async function generateInvite() {
     setGenerating(true)
-    const { data } = await supabase.rpc('create_attendant_invite', { p_store_id: sellerId })
+    const { data, error } = await supabase.rpc('create_attendant_invite', { p_store_id: sellerId })
     setGenerating(false)
+    if (error) {
+      alert(error.message)
+      return
+    }
     setNewCode(data)
     load()
   }

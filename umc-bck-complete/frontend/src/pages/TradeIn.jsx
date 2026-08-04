@@ -66,8 +66,12 @@ export default function TradeIn() {
 
   async function acceptCounter(offerId) {
     setActing(offerId)
-    await supabase.rpc('accept_trade_in_counter', { p_offer_id: offerId })
+    const { error } = await supabase.rpc('accept_trade_in_counter', { p_offer_id: offerId })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     loadMyOffers()
   }
 

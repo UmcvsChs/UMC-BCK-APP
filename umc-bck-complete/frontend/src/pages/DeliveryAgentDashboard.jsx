@@ -73,11 +73,19 @@ export default function DeliveryAgentDashboard() {
 
   async function handleMarkDelivered(orderId, assignmentId) {
     const { error } = await supabase.rpc('mark_order_delivered', { p_order_id: orderId })
-    if (!error) loadAssignments(agent.id)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    loadAssignments(agent.id)
   }
 
   async function handleRecordArrival(assignmentId) {
-    await supabase.rpc('record_agent_arrival', { p_assignment_id: assignmentId })
+    const { error } = await supabase.rpc('record_agent_arrival', { p_assignment_id: assignmentId })
+    if (error) {
+      alert(error.message)
+      return
+    }
     loadAssignments(agent.id)
   }
 
@@ -112,7 +120,11 @@ export default function DeliveryAgentDashboard() {
 
   async function submitIncidentReport(assignmentId) {
     if (!incidentText.trim()) return
-    await supabase.rpc('file_incident_report', { p_assignment_id: assignmentId, p_description: incidentText })
+    const { error } = await supabase.rpc('file_incident_report', { p_assignment_id: assignmentId, p_description: incidentText })
+    if (error) {
+      alert(error.message)
+      return
+    }
     setReportingFor(null)
     setIncidentText('')
   }
@@ -122,9 +134,17 @@ export default function DeliveryAgentDashboard() {
     setUploadingPhotoFor(assignmentId)
     const path = `${agent.id}/${assignmentId}-${Date.now()}.${photoFile.name.split('.').pop()}`
     const { error: uploadError } = await supabase.storage.from('delivery-proof').upload(path, photoFile)
-    if (!uploadError) {
-      const { data: urlData } = supabase.storage.from('delivery-proof').getPublicUrl(path)
-      await supabase.rpc('record_proof_photo', { p_assignment_id: assignmentId, p_photo_url: urlData.publicUrl })
+    if (uploadError) {
+      setUploadingPhotoFor(null)
+      alert(uploadError.message)
+      return
+    }
+    const { data: urlData } = supabase.storage.from('delivery-proof').getPublicUrl(path)
+    const { error: rpcError } = await supabase.rpc('record_proof_photo', { p_assignment_id: assignmentId, p_photo_url: urlData.publicUrl })
+    if (rpcError) {
+      setUploadingPhotoFor(null)
+      alert(rpcError.message)
+      return
     }
     setUploadingPhotoFor(null)
     setPhotoFile(null)

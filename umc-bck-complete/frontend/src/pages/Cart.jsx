@@ -56,12 +56,20 @@ export default function Cart() {
   }, [])
 
   async function updateQuantity(cartItemId, newQty) {
-    await supabase.rpc('update_cart_quantity', { p_cart_item_id: cartItemId, p_quantity: newQty })
+    const { error } = await supabase.rpc('update_cart_quantity', { p_cart_item_id: cartItemId, p_quantity: newQty })
+    if (error) {
+      setError(error.message)
+      return
+    }
     loadCart()
   }
 
   async function removeItem(cartItemId) {
-    await supabase.rpc('remove_from_cart', { p_cart_item_id: cartItemId })
+    const { error } = await supabase.rpc('remove_from_cart', { p_cart_item_id: cartItemId })
+    if (error) {
+      setError(error.message)
+      return
+    }
     loadCart()
   }
 

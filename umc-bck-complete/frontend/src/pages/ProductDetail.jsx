@@ -63,12 +63,14 @@ export default function ProductDetail() {
 
   async function toggleWatch() {
     setWatchLoading(true)
-    if (isWatched) {
-      await supabase.rpc('remove_price_watch', { p_product_id: productId })
-    } else {
-      await supabase.rpc('add_price_watch', { p_product_id: productId })
-    }
+    const { error } = isWatched
+      ? await supabase.rpc('remove_price_watch', { p_product_id: productId })
+      : await supabase.rpc('add_price_watch', { p_product_id: productId })
     setWatchLoading(false)
+    if (error) {
+      alert(error.message)
+      return
+    }
     setIsWatched((prev) => !prev)
   }
 

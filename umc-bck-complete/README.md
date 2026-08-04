@@ -1,20 +1,24 @@
-# UMC-BCK — Update Batch 5
+# UMC-BCK — Update Batch 7
 
-**This batch's migrations come as two separate zips** (see `supabase/README.md` for exactly how to upload them into one folder). Everything else — `frontend`, `documents`, this `README.md` — uploads the same way as always.
+Migrations ship as two separate zips this time (see `supabase/README.md`). Everything else — `frontend`, `documents`, this `README.md` — uploads the same way as always.
 
-## What's genuinely new since Batch 4 — 7 rounds
+## What's genuinely new since Batch 6 — 7 rounds, all deep verification work, not new features
 
-**1. Kasuwa Price Watch data licensing — the 4th and final revenue stream from the original consulting.** Real API access for government/statistics bodies, with a genuine anonymization threshold (3+ distinct sellers required per data point, or it's withheld) so no external buyer can ever see a single seller's real pricing.
+This batch is entirely a systematic correctness audit across the codebase, requested explicitly to check nothing was left out. It found real, significant issues — read this before assuming everything was already fine.
 
-**2. T&C v2.6 and User Guide 4.3 — the new revenue features finally documented.** Built real money-moving features (Featured Placement, Supermarket Accounts, Market Data Licensing) without updating the legal document that should describe them — caught that gap myself and fixed it before moving on, with the exact real rates, not simplified.
+**1. Agents could be double-booked, in both the automatic and manual assignment paths.** Fixed both — automatic assignment now excludes busy agents from the matching pool; manual reassignment raises a clear error instead, since that's a human decision. Also found the frontend was silently swallowing the resulting error.
 
-**3. Bundle size, actually fixed this time.** All 32 page components converted to `React.lazy()` + `Suspense`. Main bundle: 553KB → 393.8KB. This had been flagged as a note every round for a while — done now instead of noted again.
+**2. A genuine recurrence of the closed-store leak bug, in a different function.** `search_products()` bypasses RLS and only checked `status='live'`, missing the `is_open` check the real visibility policy requires — meaning search could surface products from a closed store that direct browsing correctly hides.
 
-**4. Real database hygiene pass.** 4 genuinely unindexed foreign keys fixed. The much longer "unused index" list was deliberately left alone — those are real indexes correctly placed for real future traffic, flagged as unused only because zero real orders exist yet.
+**3. A systemic frontend gap — 24 instances across 8 files of silently swallowed RPC errors**, found by checking one admin function's row-count logic and then searching the entire frontend for the same pattern rather than fixing one call site at a time.
 
-**5. A real confusion risk found and fixed.** A seller could select "Supermarket" as their business type at registration with zero explanation — but that label alone changes nothing; it's disconnected from the real negotiated commission/retainer mechanism. Added an honest clarifying note right at the point of selection.
+**4. Storage buckets checked, including catching a false alarm before reporting it** — an initial narrow search suggested the prescriptions bucket had no read policy at all; a broader check found the real policy existed under a different name.
 
-**6. Real transaction history added to Wallet — a genuinely significant gap.** Every wallet-moving function this whole session wrote a rich, descriptive record (commission-adjusted settlements, Featured Placement charges, retainer billing, waiting-time fines) — none of it was ever shown to the actual user. Fixed.
+**5. THE MOST SIGNIFICANT FINDING OF THE WHOLE PROJECT: disputes had zero financial teeth.** `raise_dispute()` never checks order status, so disputes can be raised on already-delivered orders where the seller has already been paid. Resolving "in favor of the buyer" only ever changed a status label — no refund, ever. Fixed with a real claw-back from the seller's wallet, honestly marked `failed_insufficient_funds` if the seller can't cover it rather than faked as successful.
+
+**6. A real security regression caught mid-fix, before it shipped.** Changing `resolve_dispute()`'s return type required dropping and recreating it, which silently reset its permissions — briefly making it callable by anyone, signed in or not. Caught by re-running the security advisor after the change, the same discipline held after every single edit this session, and fixed within the same round.
+
+**7. Core order-lifecycle functions (`confirm_order`, `reject_order`) checked given the severity of the dispute finding** — both confirmed clean.
 
 ## Still genuinely open
 

@@ -97,11 +97,15 @@ function PendingPrescriptions() {
 
   async function handleDecision(requestId, approve) {
     setActioning(requestId)
-    await supabase.rpc('review_prescription_request', {
+    const { error } = await supabase.rpc('review_prescription_request', {
       p_request_id: requestId,
       p_decision: approve ? 'approved' : 'declined',
     })
     setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -176,8 +180,12 @@ function PendingRegistrations() {
   async function handleDecision(row, approve) {
     setActioning(row.id)
     const fn = approve ? 'admin_approve_registration' : 'admin_reject_registration'
-    await supabase.rpc(fn, { p_registration_type: row.registration_type, p_id: row.id })
+    const { error } = await supabase.rpc(fn, { p_registration_type: row.registration_type, p_id: row.id })
     setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -234,8 +242,12 @@ function PendingListings() {
   async function handleDecision(productId, approve) {
     setActioning(productId)
     const fn = approve ? 'admin_approve_listing' : 'admin_reject_listing'
-    await supabase.rpc(fn, { p_product_id: productId })
+    const { error } = await supabase.rpc(fn, { p_product_id: productId })
     setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -374,20 +386,29 @@ function PendingBills() {
 
   async function complete(billId) {
     setActing(billId)
-    await supabase.rpc('complete_bill_payment', {
+    const { error } = await supabase.rpc('complete_bill_payment', {
       p_bill_payment_id: billId,
       p_provider_reference: refs[billId] || 'manual',
     })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
   async function fail(billId) {
     setActing(billId)
-    await supabase.rpc('fail_bill_payment', {
+    const { error } = await supabase.rpc('fail_bill_payment', {
       p_bill_payment_id: billId,
       p_reason: 'Could not be fulfilled — refunded to wallet',
     })
+    if (error) {
+      setActing(null)
+      alert(error.message)
+      return
+    }
     setActing(null)
     load()
   }
@@ -455,12 +476,21 @@ function OpenDisputes() {
 
   async function resolve(disputeId, status) {
     setActing(disputeId)
-    await supabase.rpc('resolve_dispute', {
+    const { data: refundStatus, error } = await supabase.rpc('resolve_dispute', {
       p_dispute_id: disputeId,
       p_status: status,
       p_resolution_notes: notes[disputeId] || '',
     })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    if (refundStatus === 'refunded') {
+      alert('Resolved — the buyer has been refunded from the seller\u2019s wallet.')
+    } else if (refundStatus === 'failed_insufficient_funds') {
+      alert('Resolved, but the refund could NOT be completed — the seller\u2019s wallet has insufficient funds. Real collection from this seller needs a different path (direct negotiation, offsetting future earnings, etc.).')
+    }
     load()
   }
 
@@ -776,8 +806,12 @@ function OrderDispatch() {
 
   async function reassign(orderId) {
     setReassigning(orderId)
-    await supabase.rpc('admin_reassign_order', { p_order_id: orderId, p_new_agent_id: newAgentId[orderId] })
+    const { error } = await supabase.rpc('admin_reassign_order', { p_order_id: orderId, p_new_agent_id: newAgentId[orderId] })
     setReassigning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -1055,12 +1089,16 @@ function SupermarketAccounts() {
       return
     }
     setSaving(sellerId)
-    await supabase.rpc('admin_set_supermarket_terms', {
+    const { error } = await supabase.rpc('admin_set_supermarket_terms', {
       p_seller_id: sellerId,
       p_commission_pct: Number(t.commission),
       p_monthly_retainer: Number(t.retainer),
     })
     setSaving(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -1155,7 +1193,11 @@ function MarketDataClients() {
   }
 
   async function revoke(clientId) {
-    await supabase.rpc('admin_revoke_data_access_client', { p_client_id: clientId })
+    const { error } = await supabase.rpc('admin_revoke_data_access_client', { p_client_id: clientId })
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
