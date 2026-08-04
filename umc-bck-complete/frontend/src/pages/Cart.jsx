@@ -263,13 +263,24 @@ export default function Cart() {
                 Pay in instalments (deposit now, balance later)
               </label>
               {isInstalment[sellerId] && (
-                <input
-                  type="number"
-                  placeholder={`Deposit (must be less than ₦${subtotal.toLocaleString()})`}
-                  value={depositAmount[sellerId] || ''}
-                  onChange={(e) => setDepositAmount((prev) => ({ ...prev, [sellerId]: e.target.value }))}
-                  className="w-full text-sm rounded border border-ink/20 px-3 py-2 font-mono"
-                />
+                <>
+                  <input
+                    type="number"
+                    placeholder={`Deposit (must be less than ₦${subtotal.toLocaleString()})`}
+                    value={depositAmount[sellerId] || ''}
+                    onChange={(e) => setDepositAmount((prev) => ({ ...prev, [sellerId]: e.target.value }))}
+                    className="w-full text-sm rounded border border-ink/20 px-3 py-2 font-mono"
+                  />
+                  <div className="mt-2 rounded bg-gold/10 px-3 py-2 text-xs text-ink/70 leading-relaxed">
+                    <p className="font-medium mb-1">Cancellation policy for instalment orders</p>
+                    <p>
+                      Cancel within <strong>7 days</strong> — full refund. Cancel between day 7 and day 90 — a{' '}
+                      <strong>20% fee applies</strong> (10% to the seller, 10% to UMC-BCK), the rest refunded. After{' '}
+                      <strong>90 days</strong>, the deposit is non-refundable but may be transferred to a different
+                      item from the same seller.
+                    </p>
+                  </div>
+                </>
               )}
             </div>
 

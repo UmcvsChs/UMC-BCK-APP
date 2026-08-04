@@ -315,6 +315,14 @@ function AddListing({ sellerId, hub, approved }) {
   const [category, setCategory] = useState(categories[0])
   const [price, setPrice] = useState('')
   const [condition, setCondition] = useState('new')
+  const [unit, setUnit] = useState('')
+  const [bulkPrice, setBulkPrice] = useState('')
+  const [bulkMinQuantity, setBulkMinQuantity] = useState('')
+  const [sizeType, setSizeType] = useState('')
+  const [availableSizes, setAvailableSizes] = useState('')
+  const [availableColours, setAvailableColours] = useState([])
+  const isFashion = category?.toLowerCase().includes('fashion') || category?.toLowerCase().includes('footwear')
+  const STANDARD_COLOURS = ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Brown', 'Grey', 'Pink', 'Purple', 'Orange', 'Beige', 'Mixed/Multicolour']
   const [imageFile, setImageFile] = useState(null)
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -351,6 +359,12 @@ function AddListing({ sellerId, hub, approved }) {
       imageUrls = [publicUrl.publicUrl]
     }
 
+    if (bulkPrice && Number(bulkPrice) >= Number(price)) {
+      setError('Bulk price must be lower than the retail price.')
+      setSubmitting(false)
+      return
+    }
+
     const { error } = await supabase.from('products').insert({
       seller_id: sellerId,
       name,
@@ -358,6 +372,12 @@ function AddListing({ sellerId, hub, approved }) {
       category,
       price: Number(price),
       condition,
+      unit: unit || null,
+      bulk_price: bulkPrice ? Number(bulkPrice) : null,
+      bulk_min_quantity: bulkPrice ? Number(bulkMinQuantity) : null,
+      size_type: isFashion && sizeType ? sizeType : null,
+      available_sizes: isFashion && availableSizes ? availableSizes.split(',').map((s) => s.trim()) : null,
+      available_colours: isFashion && availableColours.length ? availableColours : null,
       product_type: 'standard',
       image_urls: imageUrls,
     })
@@ -371,6 +391,12 @@ function AddListing({ sellerId, hub, approved }) {
     setName('')
     setDescription('')
     setPrice('')
+    setUnit('')
+    setBulkPrice('')
+    setBulkMinQuantity('')
+    setSizeType('')
+    setAvailableSizes('')
+    setAvailableColours([])
     setImageFile(null)
     setTimeout(() => setSuccess(false), 3000)
   }
@@ -453,6 +479,81 @@ function AddListing({ sellerId, hub, approved }) {
           <option value="refurbished">Refurbished</option>
         </select>
       </div>
+
+      <div>
+        <label htmlFor="unit" className="block text-sm font-medium mb-1">
+          Unit of sale (optional — e.g. per bag, per kg, per crate)
+        </label>
+        <input
+          id="unit"
+          value={unit}
+          onChange={(e) => setUnit(e.target.value)}
+          placeholder="per piece"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+        />
+      </div>
+
+      <div className="rounded border border-ink/10 bg-paper/50 p-3">
+        <p className="text-xs font-medium mb-2">Bulk pricing (optional)</p>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="number"
+            value={bulkPrice}
+            onChange={(e) => setBulkPrice(e.target.value)}
+            placeholder="Bulk price/unit (₦)"
+            className="rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono text-sm"
+          />
+          <input
+            type="number"
+            value={bulkMinQuantity}
+            onChange={(e) => setBulkMinQuantity(e.target.value)}
+            placeholder="Minimum quantity"
+            className="rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono text-sm"
+          />
+        </div>
+        <p className="text-xs text-ink/40 mt-1">Must be genuinely lower than your retail price — checked on save.</p>
+      </div>
+
+      {isFashion && (
+        <div className="rounded border border-ink/10 bg-paper/50 p-3 space-y-2">
+          <p className="text-xs font-medium">Fashion & footwear sizing</p>
+          <select
+            value={sizeType}
+            onChange={(e) => setSizeType(e.target.value)}
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-white text-sm"
+          >
+            <option value="">Select size type</option>
+            <option value="kids_shoes_20_35">Kids shoes (20–35)</option>
+            <option value="adult_shoes_36_48">Adult shoes (36–48)</option>
+            <option value="kids_clothing_2_16yrs">Kids clothing (2–16yrs)</option>
+            <option value="adult_clothing_xs_5xl">Adult clothing (XS–5XL)</option>
+            <option value="numeric_28_48">Numeric (28–48)</option>
+            <option value="free_size">Free size</option>
+          </select>
+          <input
+            value={availableSizes}
+            onChange={(e) => setAvailableSizes(e.target.value)}
+            placeholder="Available sizes, comma-separated (e.g. 38, 40, 42)"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-white text-sm"
+          />
+          <div className="flex flex-wrap gap-1">
+            {STANDARD_COLOURS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() =>
+                  setAvailableColours((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))
+                }
+                className={`text-xs rounded-full px-2 py-1 border ${
+                  availableColours.includes(c) ? 'bg-indigo text-white border-indigo' : 'border-ink/20 text-ink/60'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <label htmlFor="image" className="block text-sm font-medium mb-1">
@@ -883,41 +984,105 @@ function StoreOverview({ sellerId }) {
   )
 }
 
-function ProfitLossCalculator() {
-  const [revenue, setRevenue] = useState('')
-  const [costs, setCosts] = useState('')
+// Reusable calculation function, matching the original spec's explicit
+// requirement that this not be hardcoded to one screen — real reporting
+// or analytics work can reuse the same logic later.
+function calculateProfitLoss({ costPrice, sellingPrice, quantitySold, totalExpenses }) {
+  const totalRevenue = sellingPrice * quantitySold
+  const totalCost = costPrice * quantitySold + totalExpenses
+  const netProfit = totalRevenue - totalCost
+  const profitMarginPct = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
 
-  const profit = revenue && costs ? Number(revenue) - Number(costs) : null
+  let verdict
+  if (netProfit < 0) verdict = 'Loss'
+  else if (netProfit === 0) verdict = 'Break even'
+  else if (profitMarginPct < 10) verdict = 'Low margin'
+  else verdict = 'Healthy profit'
+
+  return { totalRevenue, totalCost, netProfit, profitMarginPct, verdict }
+}
+
+function ProfitLossCalculator() {
+  const [costPrice, setCostPrice] = useState('')
+  const [sellingPrice, setSellingPrice] = useState('')
+  const [quantitySold, setQuantitySold] = useState('')
+  const [totalExpenses, setTotalExpenses] = useState('')
+
+  const ready = costPrice && sellingPrice && quantitySold
+  const result = ready
+    ? calculateProfitLoss({
+        costPrice: Number(costPrice),
+        sellingPrice: Number(sellingPrice),
+        quantitySold: Number(quantitySold),
+        totalExpenses: Number(totalExpenses) || 0,
+      })
+    : null
+
+  const verdictColor = {
+    Loss: 'text-market-red',
+    'Break even': 'text-ink/60',
+    'Low margin': 'text-gold-dark',
+    'Healthy profit': 'text-market-green',
+  }
 
   return (
     <div className="max-w-sm">
       <p className="text-xs text-ink/50 mb-3">
-        A simple calculator — enter your own figures. UMC-BCK doesn't track your cost of goods automatically, since
-        that's information only you have.
+        Enter your own figures — UMC-BCK doesn't track your cost of goods automatically, since that's information
+        only you have.
       </p>
       <div className="space-y-3">
         <div>
-          <label className="block text-sm font-medium mb-1">Revenue (₦)</label>
+          <label className="block text-sm font-medium mb-1">Cost price per unit (₦)</label>
           <input
             type="number"
-            value={revenue}
-            onChange={(e) => setRevenue(e.target.value)}
+            value={costPrice}
+            onChange={(e) => setCostPrice(e.target.value)}
             className="w-full text-sm rounded border border-ink/20 px-3 py-2 font-mono"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Costs (₦)</label>
+          <label className="block text-sm font-medium mb-1">Selling price per unit (₦)</label>
           <input
             type="number"
-            value={costs}
-            onChange={(e) => setCosts(e.target.value)}
+            value={sellingPrice}
+            onChange={(e) => setSellingPrice(e.target.value)}
             className="w-full text-sm rounded border border-ink/20 px-3 py-2 font-mono"
           />
         </div>
-        {profit != null && (
-          <p className={`text-lg font-display font-semibold ${profit >= 0 ? 'text-market-green' : 'text-market-red'}`}>
-            {profit >= 0 ? 'Profit' : 'Loss'}: ₦{Math.abs(profit).toLocaleString()}
-          </p>
+        <div>
+          <label className="block text-sm font-medium mb-1">Quantity sold</label>
+          <input
+            type="number"
+            value={quantitySold}
+            onChange={(e) => setQuantitySold(e.target.value)}
+            className="w-full text-sm rounded border border-ink/20 px-3 py-2 font-mono"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Total expenses (₦, optional)</label>
+          <input
+            type="number"
+            value={totalExpenses}
+            onChange={(e) => setTotalExpenses(e.target.value)}
+            className="w-full text-sm rounded border border-ink/20 px-3 py-2 font-mono"
+          />
+        </div>
+
+        {result && (
+          <div className="rounded border border-ink/10 bg-white p-3 space-y-1">
+            <p className="text-xs text-ink/50">
+              Total revenue: <span className="font-mono text-ink">₦{result.totalRevenue.toLocaleString()}</span>
+            </p>
+            <p className="text-xs text-ink/50">
+              Total cost: <span className="font-mono text-ink">₦{result.totalCost.toLocaleString()}</span>
+            </p>
+            <p className={`text-lg font-display font-semibold ${result.netProfit >= 0 ? 'text-market-green' : 'text-market-red'}`}>
+              {result.netProfit >= 0 ? 'Profit' : 'Loss'}: ₦{Math.abs(result.netProfit).toLocaleString()}
+            </p>
+            <p className="text-xs text-ink/50">Profit margin: {result.profitMarginPct.toFixed(1)}%</p>
+            <p className={`text-sm font-medium ${verdictColor[result.verdict]}`}>{result.verdict}</p>
+          </div>
         )}
       </div>
     </div>

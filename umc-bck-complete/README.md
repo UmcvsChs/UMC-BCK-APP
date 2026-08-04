@@ -1,26 +1,34 @@
-# UMC-BCK — Update Batch 7
+# UMC-BCK — Update Batch 8
 
 Migrations ship as two separate zips this time (see `supabase/README.md`). Everything else — `frontend`, `documents`, this `README.md` — uploads the same way as always.
 
-## What's genuinely new since Batch 6 — 7 rounds, all deep verification work, not new features
+**A note on this batch's size:** the batch-count tracking lapsed during this stretch of work — a deep audit against a real formal handover document ran long, and the running "update X of 7" count wasn't kept up. Caught when asked directly. This batch is grounded in fact instead: 12 new migrations accumulated since Batch 7's last one, confirmed by direct comparison against the live database, not reconstructed from memory.
 
-This batch is entirely a systematic correctness audit across the codebase, requested explicitly to check nothing was left out. It found real, significant issues — read this before assuming everything was already fine.
+## What's genuinely new since Batch 7
 
-**1. Agents could be double-booked, in both the automatic and manual assignment paths.** Fixed both — automatic assignment now excludes busy agents from the matching pool; manual reassignment raises a clear error instead, since that's a human decision. Also found the frontend was silently swallowing the resulting error.
+**A verification pass that found nothing new, worth stating plainly:** both wallet funding paths (`confirm_wallet_topup`, `request_wallet_topup`) checked directly and confirmed clean.
 
-**2. A genuine recurrence of the closed-store leak bug, in a different function.** `search_products()` bypasses RLS and only checked `status='live'`, missing the `is_open` check the real visibility policy requires — meaning search could surface products from a closed store that direct browsing correctly hides.
+**Real bugs in delivery dispatch, found together in one pass:** agents could be double-booked in both the automatic and manual assignment paths — fixed both, differently, since one is an automated system and one is a human decision that deserves a clear error instead of a silent failure. A genuine recurrence of the closed-store leak bug, in `search_products()` this time, found by checking a different function than where the original fix happened.
 
-**3. A systemic frontend gap — 24 instances across 8 files of silently swallowed RPC errors**, found by checking one admin function's row-count logic and then searching the entire frontend for the same pattern rather than fixing one call site at a time.
+**Real audit-log integrity gaps, closed across every admin approval function:** none of them checked whether their action actually affected a row — fixed with a real row-count check on all four.
 
-**4. Storage buckets checked, including catching a false alarm before reporting it** — an initial narrow search suggested the prescriptions bucket had no read policy at all; a broader check found the real policy existed under a different name.
+**The most significant finding of the whole project:** disputes had zero financial teeth — resolving one "in favor of the buyer" never actually refunded anyone, even on already-delivered orders where the seller had been paid. Fixed with a real claw-back that's honest about the one case it can't fully solve (a seller who's already spent the money). **A real security regression was introduced and caught within the same round** — changing the function's return type silently reset its permissions to public; caught by re-running the security advisor immediately after, the same discipline held after every change this session.
 
-**5. THE MOST SIGNIFICANT FINDING OF THE WHOLE PROJECT: disputes had zero financial teeth.** `raise_dispute()` never checks order status, so disputes can be raised on already-delivered orders where the seller has already been paid. Resolving "in favor of the buyer" only ever changed a status label — no refund, ever. Fixed with a real claw-back from the seller's wallet, honestly marked `failed_insufficient_funds` if the seller can't cover it rather than faked as successful.
+**Two major architecture questions, resolved with real evidence rather than my own judgment:** whether checkout should combine multiple sellers into one order with split settlement, and whether commission should use subscription tiers instead of flat rates. Both were found, in the actual code's own comments, to be deliberate decisions made consciously after seeing the alternative — not oversights. Confirmed with you: both stay as they are.
 
-**6. A real security regression caught mid-fix, before it shipped.** Changing `resolve_dispute()`'s return type required dropping and recreating it, which silently reset its permissions — briefly making it callable by anyone, signed in or not. Caught by re-running the security advisor after the change, the same discipline held after every single edit this session, and fixed within the same round.
+**Real gaps found and closed in Product Upload's full field set:** unit of sale (the column existed, the form never set it), bulk pricing (didn't exist as a concept at all — built with a real server-side constraint that it's genuinely below retail), the `category_brands` lookup table (seeded with the real brand lists the original spec document provided, not invented), and fashion/footwear sizing (zero fields existed anywhere).
 
-**7. Core order-lifecycle functions (`confirm_order`, `reject_order`) checked given the severity of the dispute finding** — both confirmed clean.
+**A real gap in Kasuwa Price Watch:** it only ever tracked a buyer's own watched item — the original spec envisioned a market-wide commodity comparison across every seller. Built as a real live aggregation, not static data.
+
+**The P&L Calculator was upgraded** to match a much more detailed original specification found in the same audit — cost price, selling price, quantity, expenses, producing real revenue, cost, margin %, and a plain verdict.
+
+**Feature #144 added to the tracker:** the Sales Register / walk-in POS system discussed in conversation, with the full real scope captured — this was checked and found genuinely missing from the tracker before being logged, exactly the kind of gap this whole audit exists to prevent.
 
 ## Still genuinely open
 
+- 12 of 18 sections of the original handover document now audited; 6 remain (Used Items, Canteen, Bills & Services, T&C, Fraud & Security Notes, and the remainder of Director Dashboard/Kasuwa Price Watch)
+- The credit_requests / restock_requests attendant-approval workflow — real gap, confirmed absent, earmarked to fold into Feature #144's build
+- Supabase Realtime for instant store open/close — zero tables currently enabled
+- A persistent, RLS-protected `cost_price` field — doesn't exist yet, only a one-time P&L Calculator input
 - The 7 Bills categories still waiting on your provider decision
 - Pure Gold & Precious Metals — deliberately no seed data invented

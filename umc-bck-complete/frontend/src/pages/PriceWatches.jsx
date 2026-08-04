@@ -78,6 +78,72 @@ export default function PriceWatches() {
           )
         })}
       </div>
+
+      <MarketOverview />
+    </div>
+  )
+}
+
+function MarketOverview() {
+  const [category, setCategory] = useState('')
+  const [overview, setOverview] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  async function check() {
+    if (!category.trim()) return
+    setLoading(true)
+    const { data } = await supabase.rpc('get_market_price_overview', { p_category: category.trim() })
+    setOverview(data?.[0] || null)
+    setLoading(false)
+  }
+
+  return (
+    <div className="mt-8 pt-6 border-t border-ink/10">
+      <p className="text-sm font-medium mb-1">Market-wide price check</p>
+      <p className="text-xs text-ink/50 mb-3">
+        Real, live prices across every open store right now — not your watch list, the whole market for a category.
+      </p>
+      <div className="flex gap-2 mb-3">
+        <input
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder="e.g. Rice, Cooking Oil"
+          className="flex-1 rounded border border-ink/20 px-3 py-2 text-sm"
+        />
+        <button onClick={check} disabled={loading} className="text-sm bg-indigo text-white rounded px-4 disabled:opacity-60">
+          {loading ? '…' : 'Check'}
+        </button>
+      </div>
+
+      {overview && (
+        <div className="rounded border border-ink/10 bg-white p-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <p className="text-xs text-ink/50">Lowest</p>
+              <p className="font-mono text-market-green">₦{Number(overview.lowest_price).toLocaleString()}</p>
+              <p className="text-xs text-ink/40">{overview.lowest_price_seller}</p>
+            </div>
+            <div>
+              <p className="text-xs text-ink/50">Average</p>
+              <p className="font-mono">₦{Number(overview.average_price).toLocaleString()}</p>
+              <p className="text-xs text-ink/40">across {overview.seller_count} seller{overview.seller_count === 1 ? '' : 's'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-ink/50">Highest</p>
+              <p className="font-mono text-market-red">₦{Number(overview.highest_price).toLocaleString()}</p>
+              <p className="text-xs text-ink/40">{overview.highest_price_seller}</p>
+            </div>
+          </div>
+          {overview.best_deal_savings > 0 && (
+            <p className="text-xs text-gold-dark font-medium">
+              Best deal saves you ₦{Number(overview.best_deal_savings).toLocaleString()} ({overview.best_deal_savings_pct}%) versus the average.
+            </p>
+          )}
+        </div>
+      )}
+      {overview === null && category && !loading && (
+        <p className="text-xs text-ink/50">No live listings found for that category right now.</p>
+      )}
     </div>
   )
 }
