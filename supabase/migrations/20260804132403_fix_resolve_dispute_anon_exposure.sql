@@ -1,0 +1,1 @@
+revoke execute on function public.resolve_dispute(uuid, public.dispute_status, text) from public, anon;
