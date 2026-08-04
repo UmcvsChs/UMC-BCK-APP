@@ -1,0 +1,1 @@
+create index idx_bill_payments_wallet_transaction_id on public.bill_payments(wallet_transaction_id);

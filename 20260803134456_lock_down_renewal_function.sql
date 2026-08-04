@@ -1,0 +1,1 @@
+revoke execute on function public.process_featured_placement_renewals() from public, anon, authenticated;

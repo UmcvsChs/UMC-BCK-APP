@@ -1,0 +1,3 @@
+create index idx_pharma_reseller_verifications_verified_by on public.pharma_reseller_verifications(verified_by);
+create index idx_pharma_seller_details_license_verified_by on public.pharma_seller_details(license_verified_by);
+create index idx_prescription_requests_reviewed_by on public.prescription_requests(reviewed_by);
