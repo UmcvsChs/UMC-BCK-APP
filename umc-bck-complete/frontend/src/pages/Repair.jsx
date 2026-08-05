@@ -87,7 +87,7 @@ function RequestDiagnosis() {
           required
           value={repairerId}
           onChange={(e) => setRepairerId(e.target.value)}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-phones focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-phones focus:outline-none"
         >
           <option value="">Select a repairer</option>
           {repairers.map((r) => (
@@ -109,7 +109,7 @@ function RequestDiagnosis() {
           value={deviceDescription}
           onChange={(e) => setDeviceDescription(e.target.value)}
           placeholder="e.g. Tecno Spark 10"
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-phones focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-phones focus:outline-none"
         />
       </div>
 
@@ -123,7 +123,7 @@ function RequestDiagnosis() {
           rows={3}
           value={issueDescription}
           onChange={(e) => setIssueDescription(e.target.value)}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-phones focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-phones focus:outline-none"
         />
       </div>
 
@@ -180,7 +180,7 @@ function MyBookings() {
   return (
     <div className="space-y-2">
       {bookings.map((b) => (
-        <div key={b.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={b.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{b.device_description}</p>
           <p className="text-xs text-ink/50">{b.issue_description}</p>
           {b.diagnosis_notes && <p className="text-xs text-ink/60 mt-1">{b.diagnosis_notes}</p>}
@@ -280,7 +280,7 @@ function RepairerBookings() {
   return (
     <div className="space-y-2">
       {bookings.map((b) => (
-        <div key={b.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={b.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{b.device_description}</p>
           <p className="text-xs text-ink/50">{b.issue_description}</p>
           <p className="text-xs font-medium text-hub-phones capitalize mt-1">{b.status}</p>

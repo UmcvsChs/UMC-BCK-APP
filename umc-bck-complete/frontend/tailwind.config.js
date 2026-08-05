@@ -4,12 +4,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        paper: '#FBF8F2',
+        paper: '#F5F0E5',
+        surface: '#FCF9F2',
         ink: '#1C1B19',
         indigo: {
-          DEFAULT: '#223159',
-          light: '#2E4275',
-          dark: '#182342',
+          DEFAULT: '#0F4C3A',
+          light: '#186B52',
+          dark: '#0A362A',
         },
         gold: {
           DEFAULT: '#C89B3C',

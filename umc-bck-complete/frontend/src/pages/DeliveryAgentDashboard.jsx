@@ -231,7 +231,7 @@ export default function DeliveryAgentDashboard() {
 
       <div className="space-y-2">
         {assignments.map((a) => (
-          <div key={a.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={a.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <p className="text-sm font-medium">{a.orders?.delivery_address || 'No address on file'}</p>
             <p className="text-xs text-ink/50 capitalize">{a.orders?.delivery_type?.replace('_', ' ')}</p>
             <p className="font-mono text-sm text-indigo mt-1">

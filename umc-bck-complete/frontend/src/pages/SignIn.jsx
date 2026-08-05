@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { readableAuthError } from '../lib/authErrors'
 
 export default function SignIn() {
   const navigate = useNavigate()
@@ -18,7 +19,7 @@ export default function SignIn() {
 
     setLoading(false)
     if (error) {
-      setError(error.message)
+      setError(readableAuthError(error))
       return
     }
     navigate('/marketplace')
@@ -41,7 +42,7 @@ export default function SignIn() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
             />
           </div>
 
@@ -55,7 +56,7 @@ export default function SignIn() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
             />
           </div>
 

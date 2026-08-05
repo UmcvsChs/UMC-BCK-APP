@@ -92,7 +92,7 @@ export default function TradeIn() {
             required
             value={sellerId}
             onChange={(e) => setSellerId(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-gold focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-gold focus:outline-none"
           >
             <option value="">Select a store</option>
             {sellers.map((s) => (
@@ -113,7 +113,7 @@ export default function TradeIn() {
             rows={2}
             value={itemDescription}
             onChange={(e) => setItemDescription(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-gold focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-gold focus:outline-none"
           />
         </div>
 
@@ -127,7 +127,7 @@ export default function TradeIn() {
               value={karat}
               onChange={(e) => setKarat(e.target.value)}
               placeholder="e.g. 18k"
-              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-gold focus:outline-none"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-gold focus:outline-none"
             />
           </div>
           <div>
@@ -140,7 +140,7 @@ export default function TradeIn() {
               step="0.01"
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
-              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-gold focus:outline-none font-mono"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-gold focus:outline-none font-mono"
             />
           </div>
         </div>
@@ -153,7 +153,7 @@ export default function TradeIn() {
             id="outcome"
             value={outcome}
             onChange={(e) => setOutcome(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-gold focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-gold focus:outline-none"
           >
             <option value="cash_buyback">Cash buyback</option>
             <option value="exchange">Exchange for another piece</option>
@@ -169,7 +169,7 @@ export default function TradeIn() {
             type="number"
             value={askingPrice}
             onChange={(e) => setAskingPrice(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-gold focus:outline-none font-mono"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-gold focus:outline-none font-mono"
           />
         </div>
 
@@ -193,7 +193,7 @@ export default function TradeIn() {
 
       <div className="space-y-2">
         {myOffers.map((o) => (
-          <div key={o.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={o.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <p className="text-sm font-medium">{o.item_description}</p>
             <p className="text-xs text-ink/50">
               {o.sellers?.store_name} · {o.desired_outcome.replace('_', ' ')}

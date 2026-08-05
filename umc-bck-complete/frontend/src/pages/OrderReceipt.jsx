@@ -33,7 +33,7 @@ export default function OrderReceipt() {
         ← My Orders
       </Link>
 
-      <div className="rounded border border-ink/10 bg-white p-4">
+      <div className="rounded border border-ink/10 bg-surface p-4">
         <p className="text-xs text-ink/50 font-mono mb-1">Reference</p>
         <p className="font-mono text-sm mb-4">{order.id}</p>
 

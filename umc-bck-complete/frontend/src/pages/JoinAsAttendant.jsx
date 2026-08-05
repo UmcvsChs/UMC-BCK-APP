@@ -42,7 +42,7 @@ export default function JoinAsAttendant() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="Invite code"
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono text-center uppercase"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono text-center uppercase"
         />
 
         {error && (

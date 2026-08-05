@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase, SUPABASE_URL } from '../lib/supabase'
+import { queueSale, getQueuedSales, removeQueuedSale, markQueuedSaleFailed } from '../lib/offlineQueue'
 
 const CATEGORIES_BY_HUB = {
   general_marketplace: ['Groceries', 'Fashion', 'Electronics', 'Household', 'Beauty & Personal Care', 'Other'],
@@ -119,7 +120,7 @@ export default function SellerDashboard() {
       </Link>
 
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
-        {['overview', 'listings', 'add', 'orders', 'tradeins', 'attendants', 'pl', 'featured'].map((t) => (
+        {['overview', 'listings', 'add', 'orders', 'register', 'reports', 'restock', 'creditreqs', 'tradeins', 'attendants', 'pl', 'featured'].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -127,7 +128,7 @@ export default function SellerDashboard() {
               tab === t ? 'text-indigo border-b-2 border-indigo' : 'text-ink/50'
             }`}
           >
-            {t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : t === 'featured' ? 'Featured' : 'Incoming orders'}
+            {t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'register' ? 'Register' : t === 'reports' ? 'Reports' : t === 'restock' ? 'Restock' : t === 'creditreqs' ? 'Credit Requests' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : t === 'featured' ? 'Featured' : 'Incoming orders'}
           </button>
         ))}
       </div>
@@ -142,6 +143,10 @@ export default function SellerDashboard() {
       {tab === 'attendants' && <Attendants key={store.id} sellerId={store.id} />}
       {tab === 'pl' && <ProfitLossCalculator />}
       {tab === 'featured' && <FeaturedPlacement key={store.id} sellerId={store.id} />}
+      {tab === 'register' && <SalesRegister key={store.id} sellerId={store.id} />}
+      {tab === 'reports' && <SalesReports key={store.id} sellerId={store.id} />}
+      {tab === 'restock' && <RestockRequests key={store.id} sellerId={store.id} />}
+      {tab === 'creditreqs' && <CreditSaleRequests key={store.id} sellerId={store.id} />}
     </div>
   )
 }
@@ -171,7 +176,7 @@ function MyListings({ sellerId }) {
   return (
     <div className="space-y-2">
       {products.map((p) => (
-        <div key={p.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={p.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <button
             onClick={() => setExpanded(expanded === p.id ? null : p.id)}
             className="w-full flex items-center justify-between"
@@ -206,17 +211,40 @@ function ManageVariantsAndAddons({ productId }) {
   const [variants, setVariants] = useState([])
   const [addons, setAddons] = useState([])
   const [variantName, setVariantName] = useState('')
+  const [costPrice, setCostPrice] = useState('')
+  const [costPriceSaved, setCostPriceSaved] = useState(null)
+  const [savingCost, setSavingCost] = useState(false)
   const [variantPrice, setVariantPrice] = useState('')
   const [addonName, setAddonName] = useState('')
   const [addonPrice, setAddonPrice] = useState('')
 
   async function load() {
-    const [{ data: v }, { data: a }] = await Promise.all([
+    const [{ data: v }, { data: a }, costResult] = await Promise.all([
       supabase.from('product_variants').select('*').eq('product_id', productId),
       supabase.from('product_addons').select('*').eq('product_id', productId),
+      supabase.from('product_cost_prices').select('cost_price').eq('product_id', productId).maybeSingle(),
     ])
     setVariants(v || [])
     setAddons(a || [])
+    if (costResult.data) {
+      setCostPriceSaved(Number(costResult.data.cost_price))
+      setCostPrice(String(costResult.data.cost_price))
+    }
+  }
+
+  async function saveCostPrice() {
+    if (!costPrice || Number(costPrice) <= 0) return
+    setSavingCost(true)
+    const { error } = await supabase.rpc('set_product_cost_price', {
+      p_product_id: productId,
+      p_cost_price: Number(costPrice),
+    })
+    setSavingCost(false)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    setCostPriceSaved(Number(costPrice))
   }
 
   useEffect(() => {
@@ -251,6 +279,23 @@ function ManageVariantsAndAddons({ productId }) {
 
   return (
     <div className="mt-3 pt-3 border-t border-ink/10 space-y-4">
+      <div className="rounded bg-paper/50 border border-ink/10 p-2">
+        <p className="text-xs font-medium mb-1">Cost price (only you and admin can ever see this — never an attendant)</p>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            placeholder="₦ real cost per unit"
+            value={costPrice}
+            onChange={(e) => setCostPrice(e.target.value)}
+            className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
+          />
+          <button onClick={saveCostPrice} disabled={savingCost} className="text-xs bg-indigo text-white rounded px-3 disabled:opacity-60">
+            {savingCost ? '…' : 'Save'}
+          </button>
+        </div>
+        {costPriceSaved != null && <p className="text-xs text-market-green mt-1">Saved: ₦{costPriceSaved.toLocaleString()}</p>}
+      </div>
+
       <div>
         <p className="text-xs font-medium mb-2">Variants (e.g. sizes, options)</p>
         {variants.map((v) => (
@@ -316,6 +361,7 @@ function AddListing({ sellerId, hub, approved }) {
   const [price, setPrice] = useState('')
   const [condition, setCondition] = useState('new')
   const [unit, setUnit] = useState('')
+  const [barcode, setBarcode] = useState('')
   const [bulkPrice, setBulkPrice] = useState('')
   const [bulkMinQuantity, setBulkMinQuantity] = useState('')
   const [sizeType, setSizeType] = useState('')
@@ -373,6 +419,7 @@ function AddListing({ sellerId, hub, approved }) {
       price: Number(price),
       condition,
       unit: unit || null,
+      barcode: barcode.trim() || null,
       bulk_price: bulkPrice ? Number(bulkPrice) : null,
       bulk_min_quantity: bulkPrice ? Number(bulkMinQuantity) : null,
       size_type: isFashion && sizeType ? sizeType : null,
@@ -392,6 +439,7 @@ function AddListing({ sellerId, hub, approved }) {
     setDescription('')
     setPrice('')
     setUnit('')
+    setBarcode('')
     setBulkPrice('')
     setBulkMinQuantity('')
     setSizeType('')
@@ -412,7 +460,7 @@ function AddListing({ sellerId, hub, approved }) {
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
         />
       </div>
 
@@ -425,7 +473,7 @@ function AddListing({ sellerId, hub, approved }) {
           rows={3}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
         />
       </div>
 
@@ -437,7 +485,7 @@ function AddListing({ sellerId, hub, approved }) {
           id="category"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
         >
           {categories.map((c) => (
             <option key={c} value={c}>
@@ -458,7 +506,7 @@ function AddListing({ sellerId, hub, approved }) {
           required
           value={price}
           onChange={(e) => setPrice(e.target.value)}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono"
         />
       </div>
 
@@ -470,7 +518,7 @@ function AddListing({ sellerId, hub, approved }) {
           id="condition"
           value={condition}
           onChange={(e) => setCondition(e.target.value)}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
         >
           <option value="new">New</option>
           <option value="fairly_used">Fairly used</option>
@@ -489,7 +537,20 @@ function AddListing({ sellerId, hub, approved }) {
           value={unit}
           onChange={(e) => setUnit(e.target.value)}
           placeholder="per piece"
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="barcode" className="block text-sm font-medium mb-1">
+          Barcode (optional — lets you scan this item at the Register instead of searching)
+        </label>
+        <input
+          id="barcode"
+          value={barcode}
+          onChange={(e) => setBarcode(e.target.value)}
+          placeholder="Scan or type the real barcode"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono"
         />
       </div>
 
@@ -501,14 +562,14 @@ function AddListing({ sellerId, hub, approved }) {
             value={bulkPrice}
             onChange={(e) => setBulkPrice(e.target.value)}
             placeholder="Bulk price/unit (₦)"
-            className="rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono text-sm"
+            className="rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono text-sm"
           />
           <input
             type="number"
             value={bulkMinQuantity}
             onChange={(e) => setBulkMinQuantity(e.target.value)}
             placeholder="Minimum quantity"
-            className="rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono text-sm"
+            className="rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono text-sm"
           />
         </div>
         <p className="text-xs text-ink/40 mt-1">Must be genuinely lower than your retail price — checked on save.</p>
@@ -520,7 +581,7 @@ function AddListing({ sellerId, hub, approved }) {
           <select
             value={sizeType}
             onChange={(e) => setSizeType(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white text-sm"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface text-sm"
           >
             <option value="">Select size type</option>
             <option value="kids_shoes_20_35">Kids shoes (20–35)</option>
@@ -534,7 +595,7 @@ function AddListing({ sellerId, hub, approved }) {
             value={availableSizes}
             onChange={(e) => setAvailableSizes(e.target.value)}
             placeholder="Available sizes, comma-separated (e.g. 38, 40, 42)"
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white text-sm"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface text-sm"
           />
           <div className="flex flex-wrap gap-1">
             {STANDARD_COLOURS.map((c) => (
@@ -644,7 +705,7 @@ function IncomingOrders({ sellerId }) {
   return (
     <div className="space-y-2">
       {orders.map((o) => (
-        <div key={o.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={o.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <button onClick={() => setExpanded(expanded === o.id ? null : o.id)} className="w-full">
             <div className="flex items-center justify-between">
               <div className="text-left">
@@ -759,7 +820,7 @@ function TradeInOffers({ sellerId }) {
   return (
     <div className="space-y-2">
       {offers.map((o) => (
-        <div key={o.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={o.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{o.item_description}</p>
           <p className="text-xs text-ink/50">
             {o.estimated_karat && `${o.estimated_karat} · `}
@@ -880,7 +941,7 @@ function Attendants({ sellerId }) {
       {invites.length > 0 && (
         <div className="space-y-1">
           {invites.map((i) => (
-            <div key={i.id} className="flex items-center justify-between text-xs rounded border border-ink/10 bg-white px-3 py-2">
+            <div key={i.id} className="flex items-center justify-between text-xs rounded border border-ink/10 bg-surface px-3 py-2">
               <span className="font-mono">{i.code}</span>
               <span className={i.used_by ? 'text-market-green' : 'text-gold-dark'}>
                 {i.used_by ? 'Redeemed' : 'Unused'}
@@ -942,19 +1003,19 @@ function StoreOverview({ sellerId }) {
 
   return (
     <div className="grid grid-cols-2 gap-3">
-      <div className="rounded border border-ink/10 bg-white px-3 py-2">
+      <div className="rounded border border-ink/10 bg-surface px-3 py-2">
         <p className="text-xs text-ink/50">Total orders</p>
         <p className="text-lg font-display font-semibold text-indigo">{stats.totalOrders}</p>
       </div>
-      <div className="rounded border border-ink/10 bg-white px-3 py-2">
+      <div className="rounded border border-ink/10 bg-surface px-3 py-2">
         <p className="text-xs text-ink/50">Delivered</p>
         <p className="text-lg font-display font-semibold text-market-green">{stats.deliveredOrders}</p>
       </div>
-      <div className="rounded border border-ink/10 bg-white px-3 py-2 col-span-2">
+      <div className="rounded border border-ink/10 bg-surface px-3 py-2 col-span-2">
         <p className="text-xs text-ink/50">Revenue from delivered orders</p>
         <p className="font-mono text-xl text-indigo">₦{stats.totalRevenue.toLocaleString()}</p>
       </div>
-      <div className="rounded border border-ink/10 bg-white px-3 py-2 col-span-2">
+      <div className="rounded border border-ink/10 bg-surface px-3 py-2 col-span-2">
         <p className="text-xs text-ink/50">Total listings</p>
         <p className="text-lg font-display font-semibold text-indigo">{stats.totalListings}</p>
       </div>
@@ -1070,7 +1131,7 @@ function ProfitLossCalculator() {
         </div>
 
         {result && (
-          <div className="rounded border border-ink/10 bg-white p-3 space-y-1">
+          <div className="rounded border border-ink/10 bg-surface p-3 space-y-1">
             <p className="text-xs text-ink/50">
               Total revenue: <span className="font-mono text-ink">₦{result.totalRevenue.toLocaleString()}</span>
             </p>
@@ -1145,7 +1206,7 @@ function FeaturedPlacement({ sellerId }) {
 
       <div className="space-y-2">
         {TIERS.map((t) => (
-          <div key={t.value} className="rounded border border-ink/10 bg-white px-3 py-2 flex items-center justify-between">
+          <div key={t.value} className="rounded border border-ink/10 bg-surface px-3 py-2 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">{t.label} — ₦{t.price.toLocaleString()}/month</p>
               <p className="text-xs text-ink/50">{t.desc}</p>
@@ -1160,6 +1221,960 @@ function FeaturedPlacement({ sellerId }) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function SalesRegister({ sellerId }) {
+  const [cart, setCart] = useState([])
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scanError, setScanError] = useState(null)
+  const [manualSearch, setManualSearch] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [customName, setCustomName] = useState('')
+  const [customPrice, setCustomPrice] = useState('')
+  const [customQty, setCustomQty] = useState('1')
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [debtorName, setDebtorName] = useState('')
+  const [debtorPhone, setDebtorPhone] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [message, setMessage] = useState(null)
+  const [recentSales, setRecentSales] = useState([])
+  const [receivables, setReceivables] = useState([])
+  const [markingPaid, setMarkingPaid] = useState(null)
+  const [queuedSales, setQueuedSales] = useState([])
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [syncing, setSyncing] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [voiceTranscript, setVoiceTranscript] = useState('')
+  const [voiceParsing, setVoiceParsing] = useState(false)
+  const [voiceError, setVoiceError] = useState(null)
+  const [voicePendingItems, setVoicePendingItems] = useState([])
+  const [isOwner, setIsOwner] = useState(null)
+
+  useEffect(() => {
+    loadRecent()
+    refreshQueue()
+    checkOwnership()
+
+    function handleOnline() {
+      setIsOnline(true)
+      syncQueue()
+    }
+    function handleOffline() {
+      setIsOnline(false)
+    }
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [sellerId])
+
+  async function refreshQueue() {
+    const queued = await getQueuedSales().catch(() => [])
+    setQueuedSales(queued.filter((q) => q.sellerId === sellerId))
+  }
+
+  // Real ownership check — determines whether a credit sale goes straight
+  // through, or needs a real approval request first. Not assumed from
+  // context; checked directly against the real sellers row.
+  async function checkOwnership() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase.from('sellers').select('user_id').eq('id', sellerId).single()
+    setIsOwner(data?.user_id === user.id)
+  }
+
+  // Real sync — replays each queued sale through the exact same real RPC
+  // calls a normal, online sale uses. A genuine business-logic failure
+  // (like real insufficient stock, if something sold out online while this
+  // device was offline) is kept and marked failed for the seller to
+  // review, not silently dropped or silently retried forever.
+  async function syncQueue() {
+    const queued = await getQueuedSales().catch(() => [])
+    const mine = queued.filter((q) => q.sellerId === sellerId && q.status === 'pending')
+    if (mine.length === 0) return
+    setSyncing(true)
+    for (const q of mine) {
+      try {
+        const { error } =
+          q.paymentMethod === 'credit'
+            ? await supabase.rpc('record_credit_sale', {
+                p_seller_id: q.sellerId,
+                p_product_id: q.productId,
+                p_item_name: q.itemName,
+                p_quantity: q.quantity,
+                p_unit_price: q.unitPrice,
+                p_debtor_name: q.debtorName,
+                p_debtor_phone: q.debtorPhone,
+              })
+            : await supabase.rpc('record_walk_in_sale', {
+                p_seller_id: q.sellerId,
+                p_product_id: q.productId,
+                p_item_name: q.itemName,
+                p_quantity: q.quantity,
+                p_unit_price: q.unitPrice,
+                p_payment_method: q.paymentMethod,
+                p_scanned_by_barcode: q.scannedByBarcode,
+              })
+        if (error) {
+          await markQueuedSaleFailed(q.id, error.message)
+        } else {
+          await removeQueuedSale(q.id)
+        }
+      } catch {
+        // Genuine network failure mid-sync — leave it queued, try again
+        // next time connectivity returns.
+      }
+    }
+    setSyncing(false)
+    refreshQueue()
+    loadRecent()
+  }
+
+  async function loadRecent() {
+    const { data } = await supabase
+      .from('sales_register_entries')
+      .select('id, item_name, quantity, unit_price, line_total, payment_method, created_at')
+      .eq('seller_id', sellerId)
+      .order('created_at', { ascending: false })
+      .limit(10)
+    setRecentSales(data || [])
+
+    const { data: owed } = await supabase
+      .from('credit_sale_receivables')
+      .select('id, debtor_name, debtor_phone, amount_owed, created_at')
+      .eq('seller_id', sellerId)
+      .eq('is_paid', false)
+      .order('created_at', { ascending: false })
+    setReceivables(owed || [])
+  }
+
+  async function markPaid(receivableId) {
+    setMarkingPaid(receivableId)
+    const { error } = await supabase.rpc('mark_receivable_paid', { p_receivable_id: receivableId })
+    setMarkingPaid(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    loadRecent()
+  }
+
+  async function lookupBarcode(decodedText) {
+    setScanError(null)
+    const { data, error } = await supabase.rpc('find_product_by_barcode', { p_seller_id: sellerId, p_barcode: decodedText })
+    if (error || !data || data.length === 0) {
+      setScanError(`No product found for barcode ${decodedText} — add it manually below, or record its barcode on the listing first.`)
+      return
+    }
+    const product = data[0]
+    addToCart({
+      product_id: product.id,
+      item_name: product.name,
+      unit_price: Number(product.price),
+      quantity: 1,
+      scanned_by_barcode: true,
+    })
+  }
+
+  function addToCart(line) {
+    setCart((prev) => [...prev, { ...line, key: `${Date.now()}-${Math.random()}` }])
+  }
+
+  // Real browser Web Speech API — free, client-side, no server round-trip
+  // for transcription itself. Turning that raw speech into structured line
+  // items is a separate, real step that needs actual language
+  // understanding — handled by parseVoiceTranscript() below, which calls a
+  // real Edge Function.
+  function startVoiceInput() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      setVoiceError('Voice input isn\u2019t supported in this browser — add items manually instead.')
+      return
+    }
+    setVoiceError(null)
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'en-NG'
+    recognition.continuous = true
+    recognition.onstart = () => setListening(true)
+    recognition.onend = () => {
+      setListening(false)
+      if (voiceTranscript.trim()) parseVoiceTranscript()
+    }
+    recognition.onresult = (e) => {
+      let transcript = ''
+      for (let i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript + ' '
+      setVoiceTranscript(transcript.trim())
+    }
+    recognition.start()
+  }
+
+  // Real AI parsing — the natural-language step. Never adds anything
+  // straight to the cart on its own; results land in a review list first,
+  // since a cashier's voice getting misheard with real money on the line
+  // is a real risk, not a hypothetical one.
+  async function parseVoiceTranscript() {
+    setVoiceParsing(true)
+    setVoiceError(null)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/parse-voice-sale`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ transcript: voiceTranscript }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        setVoiceError(result.error || 'Could not parse that — try again or add items manually.')
+        return
+      }
+      setVoicePendingItems(
+        (result.items || []).map((it) => ({ ...it, key: `${Date.now()}-${Math.random()}`, unit_price: it.unit_price ?? '' }))
+      )
+    } catch (err) {
+      setVoiceError(`Could not reach the parsing service: ${err.message}`)
+    }
+    setVoiceParsing(false)
+  }
+
+  function confirmVoiceItem(item) {
+    if (!item.unit_price || Number(item.unit_price) <= 0) return
+    addToCart({
+      product_id: null,
+      item_name: item.item_name,
+      unit_price: Number(item.unit_price),
+      quantity: Number(item.quantity) || 1,
+      scanned_by_barcode: false,
+    })
+    setVoicePendingItems((prev) => prev.filter((i) => i.key !== item.key))
+  }
+
+  async function searchCatalog(q) {
+    setManualSearch(q)
+    if (!q.trim()) {
+      setSearchResults([])
+      return
+    }
+    const { data } = await supabase
+      .from('products')
+      .select('id, name, price, unit, stock_quantity')
+      .eq('seller_id', sellerId)
+      .eq('status', 'live')
+      .ilike('name', `%${q}%`)
+      .limit(8)
+    setSearchResults(data || [])
+  }
+
+  function addCustomItem() {
+    if (!customName.trim() || !customPrice || Number(customPrice) <= 0) return
+    addToCart({
+      product_id: null,
+      item_name: customName.trim(),
+      unit_price: Number(customPrice),
+      quantity: Number(customQty) || 1,
+      scanned_by_barcode: false,
+    })
+    setCustomName('')
+    setCustomPrice('')
+    setCustomQty('1')
+  }
+
+  function removeFromCart(key) {
+    setCart((prev) => prev.filter((l) => l.key !== key))
+  }
+
+  const cartTotal = cart.reduce((sum, l) => sum + l.unit_price * l.quantity, 0)
+
+  async function completeSale() {
+    if (cart.length === 0) return
+    if (paymentMethod === 'credit' && !debtorName.trim()) {
+      setMessage('Enter who owes this — a credit sale needs a real name to track.')
+      return
+    }
+    setSubmitting(true)
+    setMessage(null)
+
+    if (!navigator.onLine) {
+      // Genuinely offline — queue on-device, don't pretend the sale is
+      // confirmed with the platform yet. Syncs automatically the moment
+      // connectivity returns.
+      for (const line of cart) {
+        await queueSale({
+          sellerId,
+          productId: line.product_id,
+          itemName: line.item_name,
+          quantity: line.quantity,
+          unitPrice: line.unit_price,
+          paymentMethod,
+          scannedByBarcode: line.scanned_by_barcode,
+          debtorName: paymentMethod === 'credit' ? debtorName.trim() : null,
+          debtorPhone: paymentMethod === 'credit' ? debtorPhone.trim() || null : null,
+        })
+      }
+      setMessage(`No connection — queued ₦${cartTotal.toLocaleString()} to sync automatically once you're back online.`)
+      setCart([])
+      setDebtorName('')
+      setDebtorPhone('')
+      refreshQueue()
+      setSubmitting(false)
+      return
+    }
+
+    try {
+      for (const line of cart) {
+        const { error } =
+          paymentMethod === 'credit'
+            ? isOwner
+              ? await supabase.rpc('record_credit_sale', {
+                  p_seller_id: sellerId,
+                  p_product_id: line.product_id,
+                  p_item_name: line.item_name,
+                  p_quantity: line.quantity,
+                  p_unit_price: line.unit_price,
+                  p_debtor_name: debtorName.trim(),
+                  p_debtor_phone: debtorPhone.trim() || null,
+                })
+              : await supabase.rpc('submit_credit_sale_request', {
+                  p_seller_id: sellerId,
+                  p_product_id: line.product_id,
+                  p_item_name: line.item_name,
+                  p_quantity: line.quantity,
+                  p_unit_price: line.unit_price,
+                  p_debtor_name: debtorName.trim(),
+                  p_debtor_phone: debtorPhone.trim() || null,
+                })
+            : await supabase.rpc('record_walk_in_sale', {
+                p_seller_id: sellerId,
+                p_product_id: line.product_id,
+                p_item_name: line.item_name,
+                p_quantity: line.quantity,
+                p_unit_price: line.unit_price,
+                p_payment_method: paymentMethod,
+                p_scanned_by_barcode: line.scanned_by_barcode,
+              })
+        if (error) throw error
+      }
+      setMessage(
+        paymentMethod === 'credit'
+          ? isOwner
+            ? `Credit sale recorded — ₦${cartTotal.toLocaleString()} owed by ${debtorName.trim()}.`
+            : `Sent for approval — ₦${cartTotal.toLocaleString()} owed by ${debtorName.trim()}, pending the store owner's sign-off.`
+          : `Sale recorded — ₦${cartTotal.toLocaleString()} (${paymentMethod}).`
+      )
+      setCart([])
+      setDebtorName('')
+      setDebtorPhone('')
+      loadRecent()
+    } catch (err) {
+      setMessage(`Error: ${err.message}`)
+    }
+    setSubmitting(false)
+  }
+
+  useEffect(() => {
+    if (!scannerOpen) return
+    let html5QrCode
+    import('html5-qrcode').then(({ Html5Qrcode }) => {
+      html5QrCode = new Html5Qrcode('barcode-reader')
+      html5QrCode
+        .start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 150 } },
+          (decodedText) => {
+            lookupBarcode(decodedText)
+            html5QrCode.stop().catch(() => {})
+            setScannerOpen(false)
+          },
+          () => {}
+        )
+        .catch(() => setScanError('Could not access the camera — check permissions, or add the item manually below.'))
+    })
+    return () => {
+      if (html5QrCode) html5QrCode.stop().catch(() => {})
+    }
+  }, [scannerOpen])
+
+  return (
+    <div>
+      {!isOnline && (
+        <div className="mb-3 rounded bg-market-red/10 border border-market-red/30 px-3 py-2 text-xs text-market-red">
+          No connection right now — sales will be queued on this device and sync automatically once you're back
+          online. Don't go more than 24 hours without connecting, or queued sales stay unrecorded with UMC-BCK.
+        </div>
+      )}
+      {queuedSales.length > 0 && (
+        <div className="mb-3 rounded bg-gold/10 border border-gold/30 px-3 py-2 text-xs">
+          <p className="font-medium">
+            {syncing ? 'Syncing…' : `${queuedSales.filter((q) => q.status === 'pending').length} sale(s) waiting to sync`}
+          </p>
+          {queuedSales.some(
+            (q) => q.status === 'pending' && Date.now() - new Date(q.queued_at).getTime() > 24 * 60 * 60 * 1000
+          ) && (
+            <p className="text-market-red font-medium mt-1">
+              ⚠ Some queued sales are over 24 hours old — connect to the internet now to sync them.
+            </p>
+          )}
+          {queuedSales.some((q) => q.status === 'failed') && (
+            <div className="mt-1">
+              <p className="text-market-red font-medium">
+                {queuedSales.filter((q) => q.status === 'failed').length} queued sale(s) failed to sync and need review:
+              </p>
+              {queuedSales
+                .filter((q) => q.status === 'failed')
+                .map((q) => (
+                  <p key={q.id} className="text-ink/60">
+                    {q.itemName} × {q.quantity} — {q.failure_reason}
+                  </p>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <p className="text-xs text-ink/50 mb-3">
+        Record a real walk-in sale — cash or transfer, paid directly to you, not through the UMC-BCK wallet. Stock
+        decreases here exactly the same way it does for an online order.
+      </p>
+
+      <button
+        onClick={() => setScannerOpen((v) => !v)}
+        className="w-full mb-2 text-sm bg-indigo text-white rounded py-2.5"
+      >
+        {scannerOpen ? 'Close scanner' : '📷 Scan a barcode'}
+      </button>
+      {scannerOpen && <div id="barcode-reader" className="mb-3 rounded overflow-hidden" />}
+      {scanError && <p className="text-xs text-market-red mb-3">{scanError}</p>}
+
+      <button
+        onClick={startVoiceInput}
+        disabled={listening || voiceParsing}
+        className="w-full mb-2 text-sm bg-gold text-ink rounded py-2.5 disabled:opacity-60"
+      >
+        {listening ? '🎙️ Listening… tap when done' : voiceParsing ? 'Understanding what you said…' : '🎙️ Speak the sale'}
+      </button>
+      {voiceTranscript && !listening && (
+        <p className="text-xs text-ink/50 mb-2 italic">"{voiceTranscript}"</p>
+      )}
+      {voiceError && <p className="text-xs text-market-red mb-3">{voiceError}</p>}
+      {voicePendingItems.length > 0 && (
+        <div className="mb-3 rounded border border-gold/30 bg-gold/10 p-3">
+          <p className="text-xs font-medium mb-2">Confirm what was heard before adding to cart</p>
+          {voicePendingItems.map((item) => (
+            <div key={item.key} className="flex items-center gap-1 mb-1">
+              <span className="text-sm flex-1">{item.item_name}</span>
+              <input
+                type="number"
+                value={item.quantity}
+                onChange={(e) =>
+                  setVoicePendingItems((prev) => prev.map((i) => (i.key === item.key ? { ...i, quantity: e.target.value } : i)))
+                }
+                className="w-14 text-xs rounded border border-ink/20 px-1 py-1"
+              />
+              <input
+                type="number"
+                placeholder="₦ price"
+                value={item.unit_price}
+                onChange={(e) =>
+                  setVoicePendingItems((prev) => prev.map((i) => (i.key === item.key ? { ...i, unit_price: e.target.value } : i)))
+                }
+                className="w-20 text-xs rounded border border-ink/20 px-1 py-1"
+              />
+              <button onClick={() => confirmVoiceItem(item)} className="text-xs bg-market-green text-white rounded px-2 py-1">
+                Add
+              </button>
+              <button
+                onClick={() => setVoicePendingItems((prev) => prev.filter((i) => i.key !== item.key))}
+                className="text-xs text-market-red"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mb-3">
+        <input
+          value={manualSearch}
+          onChange={(e) => searchCatalog(e.target.value)}
+          placeholder="Search your catalog to add manually"
+          className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+        />
+        {searchResults.length > 0 && (
+          <div className="mt-1 rounded border border-ink/10 bg-surface divide-y divide-ink/5">
+            {searchResults.map((p) => (
+              <div key={p.id} className="flex items-center justify-between px-3 py-2 hover:bg-paper">
+                <button
+                  onClick={() => {
+                    addToCart({ product_id: p.id, item_name: p.name, unit_price: Number(p.price), quantity: 1, scanned_by_barcode: false })
+                    setManualSearch('')
+                    setSearchResults([])
+                  }}
+                  className="text-left text-sm flex-1"
+                >
+                  {p.name} — ₦{Number(p.price).toLocaleString()} <span className="text-xs text-ink/40">({p.stock_quantity} in stock)</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    const { error } = await supabase.rpc('submit_restock_request', { p_seller_id: sellerId, p_product_id: p.id })
+                    if (error) alert(error.message)
+                    else alert(`Flagged ${p.name} for restock.`)
+                  }}
+                  className="text-xs text-gold-dark shrink-0 ml-2"
+                  title="Flag low stock"
+                >
+                  ⚠ Flag
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded border border-ink/10 bg-surface p-3 mb-3">
+        <p className="text-xs font-medium mb-2">Not in your catalog? Add a custom item</p>
+        <div className="grid grid-cols-3 gap-2">
+          <input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Item" className="col-span-3 text-sm rounded border border-ink/20 px-2 py-1" />
+          <input type="number" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} placeholder="₦ price" className="text-sm rounded border border-ink/20 px-2 py-1" />
+          <input type="number" value={customQty} onChange={(e) => setCustomQty(e.target.value)} placeholder="Qty" className="text-sm rounded border border-ink/20 px-2 py-1" />
+          <button onClick={addCustomItem} className="text-xs bg-gold text-ink rounded px-2">Add</button>
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <p className="text-sm font-medium mb-1">Cart</p>
+        {cart.length === 0 && <p className="text-xs text-ink/50">Empty — scan, search, or add a custom item.</p>}
+        {cart.map((l) => (
+          <div key={l.key} className="flex items-center justify-between text-sm py-1 border-b border-ink/5">
+            <span>
+              {l.item_name} × {l.quantity} {l.scanned_by_barcode && '📷'}
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="font-mono">₦{(l.unit_price * l.quantity).toLocaleString()}</span>
+              <button onClick={() => removeFromCart(l.key)} className="text-xs text-market-red">✕</button>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {cart.length > 0 && (
+        <>
+          <div className="flex items-center justify-between font-medium mb-2">
+            <span>Total</span>
+            <span className="font-mono text-lg text-indigo">₦{cartTotal.toLocaleString()}</span>
+          </div>
+          <div className="flex gap-2 mb-3">
+            {['cash', 'transfer', 'credit'].map((m) => (
+              <button
+                key={m}
+                onClick={() => setPaymentMethod(m)}
+                className={`flex-1 text-sm rounded py-2 capitalize ${paymentMethod === m ? 'bg-indigo text-white' : 'bg-surface border border-ink/20'}`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+          {paymentMethod === 'credit' && (
+            <div className="mb-3 rounded border border-gold/30 bg-gold/10 p-3 space-y-2">
+              <p className="text-xs font-medium">Who owes this?</p>
+              {isOwner === false && (
+                <p className="text-xs text-ink/50">
+                  This will go to the store owner for approval before it's recorded — you don't have direct
+                  credit-sale authority.
+                </p>
+              )}
+              <input
+                value={debtorName}
+                onChange={(e) => setDebtorName(e.target.value)}
+                placeholder="Name (required)"
+                className="w-full text-sm rounded border border-ink/20 px-2 py-1"
+              />
+              <input
+                value={debtorPhone}
+                onChange={(e) => setDebtorPhone(e.target.value)}
+                placeholder="Phone (optional)"
+                className="w-full text-sm rounded border border-ink/20 px-2 py-1"
+              />
+            </div>
+          )}
+          <button onClick={completeSale} disabled={submitting} className="w-full text-sm bg-market-green text-white rounded py-2.5 disabled:opacity-60">
+            {submitting ? 'Recording…' : 'Complete sale'}
+          </button>
+        </>
+      )}
+
+      {message && <p className="text-xs mt-2 text-market-green">{message}</p>}
+
+      {receivables.length > 0 && (
+        <div className="mt-6">
+          <p className="text-sm font-medium mb-2">Outstanding credit (₦{receivables.reduce((s, r) => s + Number(r.amount_owed), 0).toLocaleString()} total)</p>
+          <div className="space-y-1">
+            {receivables.map((r) => (
+              <div key={r.id} className="flex items-center justify-between text-sm rounded border border-ink/10 bg-surface px-3 py-2">
+                <div>
+                  <p>{r.debtor_name}</p>
+                  {r.debtor_phone && <p className="text-xs text-ink/40">{r.debtor_phone}</p>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-market-red">₦{Number(r.amount_owed).toLocaleString()}</span>
+                  <button
+                    onClick={() => markPaid(r.id)}
+                    disabled={markingPaid === r.id}
+                    className="text-xs bg-market-green text-white rounded px-2 py-1 disabled:opacity-60"
+                  >
+                    {markingPaid === r.id ? '…' : 'Mark paid'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6">
+        <p className="text-sm font-medium mb-2">Recent walk-in sales</p>
+        {recentSales.length === 0 && <p className="text-xs text-ink/50">None recorded yet.</p>}
+        {recentSales.map((s) => (
+          <div key={s.id} className="text-xs text-ink/60 flex justify-between py-1 border-b border-ink/5">
+            <span>{s.item_name} × {s.quantity} ({s.payment_method})</span>
+            <span className="font-mono">₦{Number(s.line_total).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SalesReports({ sellerId }) {
+  const [range, setRange] = useState('today')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+  const [report, setReport] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [itemSearch, setItemSearch] = useState('')
+  const [itemResults, setItemResults] = useState([])
+  const [itemSummary, setItemSummary] = useState(null)
+
+  function getDateRange() {
+    const today = new Date()
+    const toStr = today.toISOString().slice(0, 10)
+    let from = new Date(today)
+    if (range === 'today') {
+      // from = today
+    } else if (range === '7d') {
+      from.setDate(from.getDate() - 7)
+    } else if (range === '30d') {
+      from.setDate(from.getDate() - 30)
+    } else if (range === 'quarter') {
+      from.setMonth(from.getMonth() - 3)
+    } else if (range === '6m') {
+      from.setMonth(from.getMonth() - 6)
+    } else if (range === 'year') {
+      from.setFullYear(from.getFullYear() - 1)
+    } else if (range === 'custom') {
+      return { from: customFrom, to: customTo }
+    }
+    return { from: from.toISOString().slice(0, 10), to: toStr }
+  }
+
+  async function runReport() {
+    const { from, to } = getDateRange()
+    if (!from || !to) return
+    setLoading(true)
+    const { data, error } = await supabase.rpc('get_sales_report', {
+      p_seller_id: sellerId,
+      p_from_date: from,
+      p_to_date: to,
+    })
+    setLoading(false)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    setReport(data?.[0] || null)
+  }
+
+  useEffect(() => {
+    if (range !== 'custom') runReport()
+  }, [range])
+
+  async function searchItems(q) {
+    setItemSearch(q)
+    setItemSummary(null)
+    if (!q.trim()) {
+      setItemResults([])
+      return
+    }
+    const { data } = await supabase
+      .from('products')
+      .select('id, name')
+      .eq('seller_id', sellerId)
+      .ilike('name', `%${q}%`)
+      .limit(8)
+    setItemResults(data || [])
+  }
+
+  async function checkItem(productId) {
+    const { from, to } = getDateRange()
+    const { data, error } = await supabase.rpc('get_item_sales_summary', {
+      p_seller_id: sellerId,
+      p_product_id: productId,
+      p_from_date: from,
+      p_to_date: to,
+    })
+    if (error) {
+      alert(error.message)
+      return
+    }
+    setItemSummary(data?.[0] || null)
+    setItemResults([])
+  }
+
+  const RANGES = [
+    { value: 'today', label: 'Today' },
+    { value: '7d', label: '7 days' },
+    { value: '30d', label: '30 days' },
+    { value: 'quarter', label: 'Quarter' },
+    { value: '6m', label: '6 months' },
+    { value: 'year', label: 'Year' },
+    { value: 'custom', label: 'Custom' },
+  ]
+
+  return (
+    <div>
+      <p className="text-xs text-ink/50 mb-3">
+        Real numbers, combining online orders and walk-in Register sales for this store — not two separate pictures.
+      </p>
+
+      <div className="flex flex-wrap gap-1 mb-3">
+        {RANGES.map((r) => (
+          <button
+            key={r.value}
+            onClick={() => setRange(r.value)}
+            className={`text-xs rounded px-2 py-1 ${range === r.value ? 'bg-indigo text-white' : 'bg-surface border border-ink/20'}`}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {range === 'custom' && (
+        <div className="flex gap-2 mb-3">
+          <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="flex-1 text-sm rounded border border-ink/20 px-2 py-1" />
+          <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="flex-1 text-sm rounded border border-ink/20 px-2 py-1" />
+          <button onClick={runReport} className="text-xs bg-indigo text-white rounded px-3">Run</button>
+        </div>
+      )}
+
+      {loading && <p className="text-xs text-ink/50">Loading…</p>}
+
+      {report && (
+        <div className="rounded border border-ink/10 bg-surface p-3 mb-6 space-y-2">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <p className="text-xs text-ink/50">Online orders</p>
+              <p className="font-mono">₦{Number(report.online_total).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-ink/50">Walk-in cash</p>
+              <p className="font-mono">₦{Number(report.walk_in_cash).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-ink/50">Walk-in transfer</p>
+              <p className="font-mono">₦{Number(report.walk_in_transfer).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-ink/50">Walk-in credit</p>
+              <p className="font-mono">₦{Number(report.walk_in_credit).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-ink/50">Credit collected</p>
+              <p className="font-mono text-market-green">₦{Number(report.credit_collected).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-ink/50">Credit still owed</p>
+              <p className="font-mono text-market-red">₦{Number(report.credit_outstanding).toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="pt-2 border-t border-ink/10">
+            <p className="text-xs text-ink/50">Combined total</p>
+            <p className="font-mono text-xl text-indigo">₦{Number(report.combined_total).toLocaleString()}</p>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <p className="text-sm font-medium mb-2">Per-item sales — e.g. "how many bags of rice this month"</p>
+        <input
+          value={itemSearch}
+          onChange={(e) => searchItems(e.target.value)}
+          placeholder="Search an item"
+          className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+        />
+        {itemResults.length > 0 && (
+          <div className="mt-1 rounded border border-ink/10 bg-surface divide-y divide-ink/5">
+            {itemResults.map((p) => (
+              <button key={p.id} onClick={() => checkItem(p.id)} className="w-full text-left px-3 py-2 text-sm hover:bg-paper">
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {itemSummary && (
+          <div className="mt-2 rounded border border-ink/10 bg-surface p-3">
+            <p className="text-sm font-medium">{itemSummary.item_name}</p>
+            <p className="text-xs text-ink/50">
+              {itemSummary.online_quantity} sold online + {itemSummary.walk_in_quantity} sold at the register ={' '}
+              <span className="font-mono text-indigo">{itemSummary.total_quantity} total</span>
+            </p>
+            <p className="text-xs text-ink/50">Revenue: ₦{Number(itemSummary.total_revenue).toLocaleString()}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RestockRequests({ sellerId }) {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [newStock, setNewStock] = useState({})
+  const [acting, setActing] = useState(null)
+
+  async function load() {
+    const { data } = await supabase
+      .from('restock_requests')
+      .select('id, current_stock_at_request, notes, status, created_at, products(name), profiles!restock_requests_requested_by_fkey(full_name)')
+      .eq('seller_id', sellerId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    setRequests(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [sellerId])
+
+  async function resolve(requestId, status) {
+    setActing(requestId)
+    const { error } = await supabase.rpc('resolve_restock_request', {
+      p_request_id: requestId,
+      p_status: status,
+      p_new_stock_quantity: status === 'restocked' ? Number(newStock[requestId]) : null,
+    })
+    setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+  if (requests.length === 0) return <p className="text-ink/50 text-sm">No pending restock flags right now.</p>
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-ink/50 mb-2">
+        Real flags raised by you or your attendants — resolving as "Restocked" genuinely updates the real stock
+        quantity, the same one the online storefront reads from.
+      </p>
+      {requests.map((r) => (
+        <div key={r.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
+          <p className="text-sm font-medium">{r.products?.name}</p>
+          <p className="text-xs text-ink/50">
+            Was {r.current_stock_at_request} in stock when flagged by {r.profiles?.full_name || 'an attendant'}
+            {r.notes && ` — "${r.notes}"`}
+          </p>
+          <div className="flex gap-1 mt-2">
+            <input
+              type="number"
+              placeholder="New stock qty"
+              value={newStock[r.id] || ''}
+              onChange={(e) => setNewStock((prev) => ({ ...prev, [r.id]: e.target.value }))}
+              className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
+            />
+            <button onClick={() => resolve(r.id, 'restocked')} disabled={acting === r.id} className="text-xs bg-market-green text-white rounded px-2 py-1">
+              Restocked
+            </button>
+            <button onClick={() => resolve(r.id, 'acknowledged')} disabled={acting === r.id} className="text-xs bg-gold text-ink rounded px-2 py-1">
+              Acknowledge
+            </button>
+            <button onClick={() => resolve(r.id, 'dismissed')} disabled={acting === r.id} className="text-xs text-market-red">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function CreditSaleRequests({ sellerId }) {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [acting, setActing] = useState(null)
+
+  async function load() {
+    const { data } = await supabase
+      .from('credit_sale_requests')
+      .select('id, item_name, quantity, unit_price, debtor_name, debtor_phone, created_at, profiles!credit_sale_requests_requested_by_fkey(full_name)')
+      .eq('seller_id', sellerId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    setRequests(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [sellerId])
+
+  async function resolve(requestId, approve) {
+    setActing(requestId)
+    const { error } = await supabase.rpc('resolve_credit_sale_request', { p_request_id: requestId, p_approve: approve })
+    setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+  if (requests.length === 0) return <p className="text-ink/50 text-sm">No pending credit sale requests right now.</p>
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-ink/50 mb-2">
+        Real requests from your attendants — approving genuinely records the sale, decrements real stock, and
+        creates a real receivable, exactly as if you'd recorded it yourself.
+      </p>
+      {requests.map((r) => (
+        <div key={r.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
+          <p className="text-sm font-medium">
+            {r.item_name} × {r.quantity} — <span className="font-mono text-indigo">₦{Number(r.quantity * r.unit_price).toLocaleString()}</span>
+          </p>
+          <p className="text-xs text-ink/50">
+            Owed by {r.debtor_name}{r.debtor_phone && ` (${r.debtor_phone})`} — requested by {r.profiles?.full_name || 'an attendant'}
+          </p>
+          <div className="flex gap-1 mt-2">
+            <button onClick={() => resolve(r.id, true)} disabled={acting === r.id} className="text-xs bg-market-green text-white rounded px-3 py-1">
+              Approve
+            </button>
+            <button onClick={() => resolve(r.id, false)} disabled={acting === r.id} className="text-xs bg-market-red text-white rounded px-3 py-1">
+              Reject
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

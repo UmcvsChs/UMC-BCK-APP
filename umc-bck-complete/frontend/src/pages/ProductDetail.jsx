@@ -31,7 +31,7 @@ export default function ProductDetail() {
       } = await supabase.auth.getUser()
 
       const [{ data: p, error: pErr }, { data: v }, { data: a }, { data: w }] = await Promise.all([
-        supabase.from('products').select('*, sellers(return_policy)').eq('id', productId).single(),
+        supabase.from('products').select('*, sellers(return_policy, primary_hub)').eq('id', productId).single(),
         supabase.from('product_variants').select('*').eq('product_id', productId),
         supabase.from('product_addons').select('*').eq('product_id', productId),
         user
@@ -177,7 +177,7 @@ export default function ProductDetail() {
             <p className="text-xs text-ink/50">No similar listings found from other sellers.</p>
           )}
           {comparisons?.map((p) => (
-            <div key={p.id} className="flex justify-between text-xs rounded border border-ink/10 bg-white px-2 py-1.5">
+            <div key={p.id} className="flex justify-between text-xs rounded border border-ink/10 bg-surface px-2 py-1.5">
               <span>{p.name}</span>
               {p.price != null && <span className="font-mono text-indigo">₦{Number(p.price).toLocaleString()}</span>}
             </div>
@@ -214,7 +214,9 @@ export default function ProductDetail() {
 
       {addons.length > 0 && (
         <div className="mb-4">
-          <p className="text-sm font-medium mb-2">Add extras</p>
+          <p className="text-sm font-medium mb-2">
+            {product?.sellers?.primary_hub === 'canteen' ? 'Extra ingredients' : 'Add extras'}
+          </p>
           <div className="space-y-2">
             {addons.map((a) => (
               <label
@@ -267,7 +269,7 @@ export default function ProductDetail() {
           value={contributorName}
           onChange={(e) => setContributorName(e.target.value)}
           placeholder="e.g. Amina"
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none text-sm"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none text-sm"
         />
       </div>
 

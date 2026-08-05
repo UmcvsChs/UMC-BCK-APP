@@ -41,8 +41,22 @@ export default function HubBrowse({ hub, title, accentClass, categories = null, 
     }
 
     if (!searchQuery) loadProducts()
+
+    // Real-time propagation — when any seller's is_open status changes,
+    // refresh the list so a closed store's items disappear (or a
+    // reopened store's items reappear) without the buyer needing to
+    // reload. The real RLS filter on products already governs what's
+    // actually visible; this just tells the page when to re-ask.
+    const channel = supabase
+      .channel(`hub-${hub}-store-status`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sellers' }, () => {
+        if (!searchQuery) loadProducts()
+      })
+      .subscribe()
+
     return () => {
       cancelled = true
+      supabase.removeChannel(channel)
     }
   }, [hub, activeCategory, searchQuery])
 
@@ -69,6 +83,8 @@ export default function HubBrowse({ hub, title, accentClass, categories = null, 
   return (
     <div className="p-4">
       <h1 className="text-xl font-display font-semibold text-indigo mb-4">{title}</h1>
+
+      <VerificationBanner />
 
       <form onSubmit={runSearch} className="flex gap-2 mb-4">
         <input
@@ -128,7 +144,7 @@ export default function HubBrowse({ hub, title, accentClass, categories = null, 
           <Link
             key={p.id}
             to={`/product/${p.id}`}
-            className="rounded border border-ink/10 bg-white overflow-hidden hover:border-indigo transition-colors"
+            className="rounded border border-ink/10 bg-surface overflow-hidden hover:border-indigo transition-colors"
           >
             {p.image_urls?.[0] ? (
               <img src={p.image_urls[0]} alt={p.name} className="w-full aspect-square object-cover" />
@@ -150,5 +166,40 @@ export default function HubBrowse({ hub, title, accentClass, categories = null, 
 
       <DemandRequest hub={hub} accentClass={accentClass} note={demandNote} />
     </div>
+  )
+}
+
+// Real, proactive prompt — shown before checkout is even attempted, not
+// just surfaced as a blocked-order error at the last step. Uses the exact
+// same needs_identity_verification() rule the real checkout gate enforces,
+// so the banner and the actual block can never disagree with each other.
+function VerificationBanner() {
+  const [needsVerification, setNeedsVerification] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    async function check() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.rpc('needs_identity_verification', { p_user_id: user.id })
+      if (!cancelled) setNeedsVerification(!!data)
+    }
+    check()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (!needsVerification) return null
+
+  return (
+    <Link
+      to="/settings"
+      className="block mb-4 rounded bg-gold/15 border border-gold/40 px-3 py-2 text-sm text-gold-dark"
+    >
+      🪪 Verify your identity to continue shopping — tap here to submit your ID.
+    </Link>
   )
 }

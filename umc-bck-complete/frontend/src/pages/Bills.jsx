@@ -74,7 +74,7 @@ export default function Bills() {
             id="category"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           >
             {CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>
@@ -94,7 +94,7 @@ export default function Bills() {
             value={provider}
             onChange={(e) => setProvider(e.target.value)}
             placeholder="e.g. MTN, KEDCO, DSTV"
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           />
         </div>
 
@@ -107,7 +107,7 @@ export default function Bills() {
             required
             value={accountReference}
             onChange={(e) => setAccountReference(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           />
         </div>
 
@@ -122,7 +122,7 @@ export default function Bills() {
             required
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono"
           />
         </div>
 
@@ -145,7 +145,7 @@ export default function Bills() {
       {myBills.length === 0 && <p className="text-sm text-ink/50">No bill payments yet.</p>}
       <div className="space-y-2">
         {myBills.map((b) => (
-          <div key={b.id} className="rounded border border-ink/10 bg-white px-3 py-2 flex items-center justify-between">
+          <div key={b.id} className="rounded border border-ink/10 bg-surface px-3 py-2 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">
                 {CATEGORIES.find((c) => c.value === b.category)?.label || b.category}

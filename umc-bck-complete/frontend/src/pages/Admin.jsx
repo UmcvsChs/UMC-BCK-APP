@@ -7,12 +7,14 @@ export default function Admin() {
   return (
     <div className="p-4 max-w-2xl mx-auto">
       <h1 className="text-xl font-display font-semibold text-indigo mb-1">Admin Control Room</h1>
-      <p className="text-sm text-ink/50 mb-6">
+      <p className="text-sm text-ink/50 mb-4">
         Nothing goes live without passing through here — every registration and listing waits for review.
       </p>
 
+      <PendingApprovalsBadge />
+
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
-        {['analytics', 'revenue', 'supermarket', 'marketdata', 'registrations', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
+        {['analytics', 'revenue', 'supermarket', 'marketdata', 'registrations', 'idverify', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -28,7 +30,9 @@ export default function Admin() {
                   ? 'Supermarket Accounts'
                   : t === 'marketdata'
                     ? 'Market Data Clients'
-                    : t === 'prescriptions'
+                    : t === 'idverify'
+                      ? 'Identity Verification'
+                      : t === 'prescriptions'
                       ? 'Prescription requests'
                       : t === 'bills'
                         ? 'Bill payments'
@@ -53,6 +57,7 @@ export default function Admin() {
       {tab === 'revenue' && <PlatformRevenue />}
       {tab === 'supermarket' && <SupermarketAccounts />}
       {tab === 'marketdata' && <MarketDataClients />}
+      {tab === 'idverify' && <IdentityVerifications />}
       {tab === 'registrations' && <PendingRegistrations />}
       {tab === 'listings' && <PendingListings />}
       {tab === 'prescriptions' && <PendingPrescriptions />}
@@ -115,7 +120,7 @@ function PendingPrescriptions() {
   return (
     <div className="space-y-2">
       {rows.map((r) => (
-        <div key={r.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={r.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{r.medication_name}</p>
           <p className="text-xs text-ink/50">
             Qty {r.requested_quantity}
@@ -195,7 +200,7 @@ function PendingRegistrations() {
   return (
     <div className="space-y-2">
       {rows.map((r) => (
-        <div key={`${r.registration_type}-${r.id}`} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={`${r.registration_type}-${r.id}`} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">{r.display_name || r.registration_type}</p>
@@ -257,7 +262,7 @@ function PendingListings() {
   return (
     <div className="space-y-2">
       {rows.map((r) => (
-        <div key={r.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={r.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">{r.name}</p>
@@ -355,7 +360,7 @@ function PlatformAnalytics() {
 
 function StatCard({ label, value, accent = '', mono = false }) {
   return (
-    <div className="rounded border border-ink/10 bg-white px-3 py-2">
+    <div className="rounded border border-ink/10 bg-surface px-3 py-2">
       <p className="text-xs text-ink/50">{label}</p>
       <p className={`text-lg font-display font-semibold ${mono ? 'font-mono text-base' : ''} ${accent || 'text-indigo'}`}>
         {value}
@@ -422,7 +427,7 @@ function PendingBills() {
         These are being fulfilled manually while a direct provider connection is set up — completing here confirms it actually happened outside the platform.
       </p>
       {bills.map((b) => (
-        <div key={b.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={b.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{b.category} · {b.provider}</p>
           <p className="text-xs text-ink/50">{b.account_reference}</p>
           <p className="font-mono text-sm text-indigo mt-1">₦{Number(b.amount).toLocaleString()}</p>
@@ -500,7 +505,7 @@ function OpenDisputes() {
   return (
     <div className="space-y-2">
       {disputes.map((d) => (
-        <div key={d.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={d.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{d.reason}</p>
           <p className="text-xs text-ink/60 mt-1">{d.description}</p>
           <p className="font-mono text-xs text-ink/40 mt-1">Order {d.order_id.slice(0, 8)}</p>
@@ -603,7 +608,7 @@ function PromoCodes() {
 
   return (
     <div>
-      <form onSubmit={createCode} className="space-y-2 mb-4 rounded border border-ink/10 bg-white p-3">
+      <form onSubmit={createCode} className="space-y-2 mb-4 rounded border border-ink/10 bg-surface p-3">
         <div className="flex gap-2">
           <input
             required
@@ -650,7 +655,7 @@ function PromoCodes() {
 
       <div className="space-y-2">
         {codes.map((c) => (
-          <div key={c.id} className="flex items-center justify-between rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={c.id} className="flex items-center justify-between rounded border border-ink/10 bg-surface px-3 py-2">
             <div>
               <p className="font-mono text-sm font-medium">{c.code}</p>
               <p className="text-xs text-ink/50">
@@ -691,7 +696,7 @@ function AccessLog() {
   return (
     <div className="space-y-1">
       {logs.map((l) => (
-        <div key={l.id} className="text-xs rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={l.id} className="text-xs rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="font-medium capitalize">{l.action.replace(/_/g, ' ')} — {l.target_type}</p>
           {l.notes && <p className="text-ink/50">{l.notes}</p>}
           <p className="text-ink/40 font-mono">{new Date(l.created_at).toLocaleString()}</p>
@@ -821,7 +826,7 @@ function OrderDispatch() {
   return (
     <div className="space-y-2">
       {assignments.map((a) => (
-        <div key={a.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={a.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{a.orders?.delivery_address || 'No address'}</p>
           <p className="text-xs text-ink/50">
             Assigned {new Date(a.assigned_at).toLocaleTimeString()} · SLA {new Date(a.sla_deadline).toLocaleTimeString()}
@@ -914,7 +919,7 @@ function FraudAlert() {
         <p className="text-xs font-medium text-ink/60 mb-2">Sellers flagged</p>
         {sellerFlags.length === 0 && <p className="text-xs text-ink/40">None currently.</p>}
         {sellerFlags.map((f) => (
-          <div key={f.id} className="flex justify-between text-sm rounded border border-ink/10 bg-white px-3 py-2 mb-1">
+          <div key={f.id} className="flex justify-between text-sm rounded border border-ink/10 bg-surface px-3 py-2 mb-1">
             <span>{f.storeName}</span>
             <span className="text-market-red font-medium">{f.count} disputes</span>
           </div>
@@ -925,7 +930,7 @@ function FraudAlert() {
         <p className="text-xs font-medium text-ink/60 mb-2">Buyers flagged</p>
         {buyerFlags.length === 0 && <p className="text-xs text-ink/40">None currently.</p>}
         {buyerFlags.map((f) => (
-          <div key={f.id} className="flex justify-between text-sm rounded border border-ink/10 bg-white px-3 py-2 mb-1">
+          <div key={f.id} className="flex justify-between text-sm rounded border border-ink/10 bg-surface px-3 py-2 mb-1">
             <span className="font-mono text-xs">{f.id.slice(0, 8)}</span>
             <span className="text-market-red font-medium">{f.count} disputes raised</span>
           </div>
@@ -982,7 +987,7 @@ function BillsLedger() {
 
       <div className="grid grid-cols-2 gap-2 mb-4">
         {Object.entries(totalsByStatus).map(([status, total]) => (
-          <div key={status} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={status} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <p className="text-xs text-ink/50 capitalize">{status}</p>
             <p className="font-mono text-sm">₦{total.toLocaleString()}</p>
           </div>
@@ -991,7 +996,7 @@ function BillsLedger() {
 
       <div className="space-y-1">
         {bills.map((b) => (
-          <div key={b.id} className="flex justify-between text-xs rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={b.id} className="flex justify-between text-xs rounded border border-ink/10 bg-surface px-3 py-2">
             <span className="capitalize">{b.category} · {b.provider}</span>
             <div className="text-right">
               <p className="font-mono">₦{Number(b.amount).toLocaleString()}</p>
@@ -1046,7 +1051,7 @@ function PlatformRevenue() {
 
       <div className="grid grid-cols-2 gap-2 mb-4">
         {Object.entries(bySource).map(([source, amount]) => (
-          <div key={source} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={source} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <p className="text-xs text-ink/50 capitalize">{source.replace(/_/g, ' ')}</p>
             <p className="font-mono text-sm text-indigo">₦{amount.toLocaleString()}</p>
           </div>
@@ -1055,7 +1060,7 @@ function PlatformRevenue() {
 
       <div className="space-y-1">
         {entries.map((e) => (
-          <div key={e.id} className="text-xs rounded border border-ink/10 bg-white px-3 py-2 flex justify-between">
+          <div key={e.id} className="text-xs rounded border border-ink/10 bg-surface px-3 py-2 flex justify-between">
             <span className="text-ink/70">{e.description}</span>
             <span className="font-mono text-indigo shrink-0 ml-2">₦{Number(e.amount).toLocaleString()}</span>
           </div>
@@ -1113,7 +1118,7 @@ function SupermarketAccounts() {
       {candidates.length === 0 && <p className="text-ink/50 text-sm">No candidates right now.</p>}
       <div className="space-y-2">
         {candidates.map((c) => (
-          <div key={c.seller_id} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={c.seller_id} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <p className="text-sm font-medium">{c.store_name}</p>
             <p className="text-xs text-ink/50">
               {c.store_count > 1 && `${c.store_count} stores`}
@@ -1211,7 +1216,7 @@ function MarketDataClients() {
         client can ever see a single seller's real pricing.
       </p>
 
-      <form onSubmit={createClient} className="space-y-2 mb-4 rounded border border-ink/10 bg-white p-3">
+      <form onSubmit={createClient} className="space-y-2 mb-4 rounded border border-ink/10 bg-surface p-3">
         <input
           required
           placeholder="Organization name"
@@ -1248,7 +1253,7 @@ function MarketDataClients() {
 
       <div className="space-y-2">
         {clients.map((c) => (
-          <div key={c.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={c.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">{c.organization_name}</p>
@@ -1267,6 +1272,153 @@ function MarketDataClients() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function PendingApprovalsBadge() {
+  const [summary, setSummary] = useState([])
+  const [expanded, setExpanded] = useState(false)
+
+  async function load() {
+    const { data } = await supabase.rpc('get_pending_approvals_summary')
+    setSummary(data || [])
+  }
+
+  useEffect(() => {
+    load()
+
+    // Real-time — the admin sees the badge update the instant anything new
+    // comes in, across every real pending queue, not just on page reload.
+    const tables = [
+      'sellers', 'delivery_agents', 'repairers', 'identity_verifications',
+      'restock_requests', 'credit_sale_requests', 'prescription_requests', 'disputes', 'bill_payments',
+    ]
+    const channel = supabase.channel('admin-pending-approvals')
+    tables.forEach((t) => {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table: t }, load)
+    })
+    channel.subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  const grouped = summary.reduce((acc, row) => {
+    acc[row.category] = (acc[row.category] || 0) + Number(row.count)
+    return acc
+  }, {})
+  const total = Object.values(grouped).reduce((a, b) => a + b, 0)
+
+  const LABELS = {
+    new_registrations: 'New registrations',
+    identity_verifications: 'Identity verifications',
+    listings: 'Listings',
+    restock_requests: 'Restock requests',
+    credit_sale_requests: 'Credit sale requests',
+    prescription_requests: 'Prescription requests',
+    disputes: 'Open disputes',
+    bill_payments: 'Bill payments',
+  }
+
+  if (total === 0) {
+    return (
+      <div className="mb-4 rounded bg-market-green/10 px-3 py-2 text-xs text-market-green">
+        Nothing pending right now — all clear.
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setExpanded((v) => !v)}
+      className="w-full mb-4 rounded bg-gold/15 border border-gold/40 px-3 py-2 text-left"
+    >
+      <p className="text-sm font-medium text-gold-dark">
+        🔔 {total} item{total === 1 ? '' : 's'} waiting on you {expanded ? '▲' : '▼'}
+      </p>
+      {expanded && (
+        <div className="mt-2 space-y-1">
+          {Object.entries(grouped).map(([cat, count]) => (
+            <p key={cat} className="text-xs text-ink/70">
+              {LABELS[cat] || cat}: <span className="font-mono">{count}</span>
+            </p>
+          ))}
+        </div>
+      )}
+    </button>
+  )
+}
+
+function IdentityVerifications() {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [acting, setActing] = useState(null)
+  const [rejectReason, setRejectReason] = useState({})
+
+  async function load() {
+    const { data } = await supabase
+      .from('identity_verifications')
+      .select('id, id_type, id_number, id_photo_url, created_at, profiles(full_name, phone)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+    setItems(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function resolve(id, approve) {
+    setActing(id)
+    const { error } = await supabase.rpc('resolve_identity_verification', {
+      p_verification_id: id,
+      p_approve: approve,
+      p_rejection_reason: approve ? null : rejectReason[id] || 'Document unclear or invalid',
+    })
+    setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+  if (items.length === 0) return <p className="text-ink/50 text-sm">No pending identity verifications.</p>
+
+  const ID_LABELS = { nin: 'NIN', voters_card: "Voter's Card", drivers_license: "Driver's License", passport: 'Passport' }
+
+  return (
+    <div className="space-y-3">
+      {items.map((v) => (
+        <div key={v.id} className="rounded border border-ink/10 bg-white p-3">
+          <p className="text-sm font-medium">{v.profiles?.full_name || 'Unknown user'}</p>
+          <p className="text-xs text-ink/50">{v.profiles?.phone}</p>
+          <p className="text-xs text-ink/70 mt-1">
+            {ID_LABELS[v.id_type]} — <span className="font-mono">{v.id_number}</span>
+          </p>
+          <a href={v.id_photo_url} target="_blank" rel="noreferrer" className="text-xs text-indigo underline">
+            View document photo
+          </a>
+          <div className="flex gap-1 mt-2">
+            <button onClick={() => resolve(v.id, true)} disabled={acting === v.id} className="text-xs bg-market-green text-white rounded px-3 py-1">
+              Approve
+            </button>
+            <input
+              value={rejectReason[v.id] || ''}
+              onChange={(e) => setRejectReason((prev) => ({ ...prev, [v.id]: e.target.value }))}
+              placeholder="Reason for rejection"
+              className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
+            />
+            <button onClick={() => resolve(v.id, false)} disabled={acting === v.id} className="text-xs bg-market-red text-white rounded px-3 py-1">
+              Reject
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

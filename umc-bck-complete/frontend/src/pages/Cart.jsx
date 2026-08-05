@@ -172,7 +172,7 @@ export default function Cart() {
         }, 0)
 
         return (
-          <div key={sellerId} className="mb-6 rounded border border-ink/10 bg-white p-3">
+          <div key={sellerId} className="mb-6 rounded border border-ink/10 bg-surface p-3">
             <p className="font-display font-medium text-sm text-indigo mb-3">{group.storeName}</p>
 
             {group.items.map((item) => {
@@ -330,7 +330,7 @@ function DeliveryTermsGate({ accepted, onAccept }) {
       </button>
 
       {open && (
-        <div className="mt-2 rounded border border-ink/20 bg-white">
+        <div className="mt-2 rounded border border-ink/20 bg-surface">
           <div
             onScroll={handleScroll}
             className="h-40 overflow-y-auto px-3 py-2 text-xs text-ink/70 leading-relaxed"

@@ -101,7 +101,7 @@ export default function PrescriptionRequest() {
             required
             value={sellerId}
             onChange={(e) => setSellerId(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-pharma focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-pharma focus:outline-none"
           >
             <option value="">Select a pharmacy</option>
             {sellers.map((s) => (
@@ -121,7 +121,7 @@ export default function PrescriptionRequest() {
             required
             value={medicationName}
             onChange={(e) => setMedicationName(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-pharma focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-pharma focus:outline-none"
           />
         </div>
 
@@ -133,7 +133,7 @@ export default function PrescriptionRequest() {
             id="dosage"
             value={dosage}
             onChange={(e) => setDosage(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-pharma focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-pharma focus:outline-none"
           />
         </div>
 
@@ -148,7 +148,7 @@ export default function PrescriptionRequest() {
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             placeholder="Defaults to 5 unless dosage is specified"
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-pharma focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-pharma focus:outline-none"
           />
         </div>
 
@@ -175,7 +175,7 @@ export default function PrescriptionRequest() {
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-pharma focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-pharma focus:outline-none"
           />
         </div>
 
@@ -198,7 +198,7 @@ export default function PrescriptionRequest() {
       {myRequests.length === 0 && <p className="text-sm text-ink/50">No requests yet.</p>}
       <div className="space-y-2">
         {myRequests.map((r) => (
-          <div key={r.id} className="rounded border border-ink/10 bg-white px-3 py-2 flex items-center justify-between">
+          <div key={r.id} className="rounded border border-ink/10 bg-surface px-3 py-2 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">{r.medication_name}</p>
               <p className="text-xs text-ink/50">Qty {r.requested_quantity}</p>

@@ -86,7 +86,7 @@ function BrowseSwaps() {
   return (
     <div className="space-y-2">
       {listings.map((l) => (
-        <div key={l.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={l.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{l.device_description}</p>
           <p className="text-xs text-ink/50">
             {l.condition?.replace('_', ' ')} · Wants: {l.desired_devices}
@@ -188,7 +188,7 @@ function ListDevice() {
           value={deviceDescription}
           onChange={(e) => setDeviceDescription(e.target.value)}
           placeholder="e.g. iPhone 12, 128GB, screen has a small crack"
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-phones focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-phones focus:outline-none"
         />
       </div>
 
@@ -200,7 +200,7 @@ function ListDevice() {
           id="condition"
           value={condition}
           onChange={(e) => setCondition(e.target.value)}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-phones focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-phones focus:outline-none"
         >
           <option value="new">New</option>
           <option value="fairly_used">Fairly used</option>
@@ -220,7 +220,7 @@ function ListDevice() {
           value={desiredDevices}
           onChange={(e) => setDesiredDevices(e.target.value)}
           placeholder="e.g. Samsung Galaxy S21 or similar"
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-phones focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-phones focus:outline-none"
         />
       </div>
 
@@ -283,7 +283,7 @@ function MyListingsAndOffers() {
   return (
     <div className="space-y-3">
       {listings.map((l) => (
-        <div key={l.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={l.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">{l.device_description}</p>
             <span className="text-xs font-medium text-indigo capitalize">{l.status}</span>

@@ -68,7 +68,7 @@ export default function Settings() {
             setLanguage(e.target.value)
             save('language_preference', e.target.value)
           }}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
         >
           {LANGUAGES.map((l) => (
             <option key={l.value} value={l.value}>
@@ -95,7 +95,7 @@ export default function Settings() {
             setTheme(e.target.value)
             save('theme_preference', e.target.value)
           }}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
         >
           {THEMES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -109,7 +109,136 @@ export default function Settings() {
         </p>
       </div>
 
+      <IdentityVerificationSection />
+
       {saved && <p className="text-sm text-market-green">Saved.</p>}
+    </div>
+  )
+}
+
+function IdentityVerificationSection() {
+  const [status, setStatus] = useState(null)
+  const [rejectionReason, setRejectionReason] = useState(null)
+  const [idType, setIdType] = useState('nin')
+  const [idNumber, setIdNumber] = useState('')
+  const [idPhoto, setIdPhoto] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [message, setMessage] = useState(null)
+
+  async function load() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase
+      .from('identity_verifications')
+      .select('status, rejection_reason')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    setStatus(data?.status || null)
+    setRejectionReason(data?.rejection_reason || null)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!idNumber.trim() || !idPhoto) {
+      setMessage('Both a real ID number and a real photo of the document are required.')
+      return
+    }
+    setSubmitting(true)
+    setMessage(null)
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const path = `${user.id}/${idType}-${Date.now()}.${idPhoto.name.split('.').pop()}`
+    const { error: uploadError } = await supabase.storage.from('id-documents').upload(path, idPhoto)
+    if (uploadError) {
+      setSubmitting(false)
+      setMessage(uploadError.message)
+      return
+    }
+    const { data: urlData } = supabase.storage.from('id-documents').getPublicUrl(path)
+
+    const { error } = await supabase.rpc('submit_identity_verification', {
+      p_id_type: idType,
+      p_id_number: idNumber.trim(),
+      p_id_photo_url: urlData.publicUrl,
+    })
+    setSubmitting(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage('Submitted — an admin will review this shortly.')
+    setIdNumber('')
+    setIdPhoto(null)
+    load()
+  }
+
+  return (
+    <div className="mb-6 pb-6 border-b border-ink/10">
+      <h2 className="text-sm font-medium mb-2">Identity verification</h2>
+      <p className="text-xs text-ink/50 mb-3">
+        Real ID number and a real photo of the document — required to place your second order onward, since money
+        and real identity are both involved here.
+      </p>
+
+      {status === 'approved' && (
+        <p className="text-sm text-market-green">✅ Verified — you're all set.</p>
+      )}
+      {status === 'pending' && (
+        <p className="text-sm text-gold-dark">⏳ Under review — an admin will confirm this shortly.</p>
+      )}
+
+      {(status === null || status === 'rejected') && (
+        <>
+          {status === 'rejected' && (
+            <p className="text-xs text-market-red mb-2">
+              Your last submission was declined{rejectionReason ? `: ${rejectionReason}` : ''} — please resubmit.
+            </p>
+          )}
+          <form onSubmit={submit} className="space-y-2">
+            <select
+              value={idType}
+              onChange={(e) => setIdType(e.target.value)}
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface text-sm"
+            >
+              <option value="nin">NIN (National ID)</option>
+              <option value="voters_card">Voter's Card (INEC)</option>
+              <option value="drivers_license">Driver's License (FRSC)</option>
+              <option value="passport">International Passport</option>
+            </select>
+            <input
+              value={idNumber}
+              onChange={(e) => setIdNumber(e.target.value)}
+              placeholder="ID number"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface text-sm"
+            />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setIdPhoto(e.target.files[0])}
+              className="w-full text-sm"
+            />
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded bg-indigo text-paper py-2 text-sm disabled:opacity-60"
+            >
+              {submitting ? 'Submitting…' : 'Submit for verification'}
+            </button>
+          </form>
+        </>
+      )}
+      {message && <p className="text-xs text-ink/60 mt-2">{message}</p>}
     </div>
   )
 }

@@ -120,7 +120,7 @@ export default function SellerRegister() {
             required
             value={storeName}
             onChange={(e) => setStoreName(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           />
         </div>
 
@@ -132,7 +132,7 @@ export default function SellerRegister() {
             id="tier"
             value={tier}
             onChange={(e) => setTier(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           >
             <option value="individual">Individual</option>
             <option value="business">Registered business</option>
@@ -155,7 +155,7 @@ export default function SellerRegister() {
             id="hub"
             value={primaryHub}
             onChange={(e) => setPrimaryHub(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           >
             {HUBS.map((h) => (
               <option key={h.value} value={h.value}>
@@ -174,7 +174,7 @@ export default function SellerRegister() {
             required
             value={lgaId}
             onChange={(e) => setLgaId(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           >
             <option value="">Select an LGA</option>
             {lgas.map((l) => (
@@ -193,7 +193,7 @@ export default function SellerRegister() {
             id="market"
             value={market}
             onChange={(e) => setMarket(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           />
         </div>
 
@@ -205,7 +205,7 @@ export default function SellerRegister() {
             id="stallNumber"
             value={stallNumber}
             onChange={(e) => setStallNumber(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           />
         </div>
 

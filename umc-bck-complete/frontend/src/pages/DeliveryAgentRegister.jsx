@@ -99,7 +99,7 @@ export default function DeliveryAgentRegister() {
               required
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
             />
           </div>
         )}
@@ -112,7 +112,7 @@ export default function DeliveryAgentRegister() {
             required
             value={lgaId}
             onChange={(e) => setLgaId(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           >
             <option value="">Select an LGA</option>
             {lgas.map((l) => (
@@ -131,7 +131,7 @@ export default function DeliveryAgentRegister() {
             id="vehicleType"
             value={vehicleType}
             onChange={(e) => setVehicleType(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           >
             <option value="motorcycle">Motorcycle</option>
             <option value="tricycle">Tricycle (Keke)</option>

@@ -49,7 +49,7 @@ export default function MyOrders() {
 
       <div className="space-y-2">
         {orders.map((o) => (
-          <div key={o.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={o.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">{o.sellers?.store_name}</p>
