@@ -7,18 +7,21 @@ export default function OrderReceipt() {
   const [order, setOrder] = useState(null)
   const [items, setItems] = useState([])
   const [payments, setPayments] = useState([])
+  const [assignment, setAssignment] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
-      const [{ data: o }, { data: i }, { data: p }] = await Promise.all([
-        supabase.from('orders').select('*, sellers(store_name)').eq('id', orderId).single(),
+      const [{ data: o }, { data: i }, { data: p }, { data: da }] = await Promise.all([
+        supabase.from('orders').select('*, sellers(store_name, primary_hub)').eq('id', orderId).single(),
         supabase.from('order_items').select('*, products(name)').eq('order_id', orderId),
         supabase.from('order_payments').select('*').eq('order_id', orderId),
+        supabase.from('delivery_assignments').select('status, assigned_at').eq('order_id', orderId).order('assigned_at', { ascending: false }).limit(1).maybeSingle(),
       ])
       setOrder(o)
       setItems(i || [])
       setPayments(p || [])
+      setAssignment(da)
       setLoading(false)
     }
     load()
@@ -38,6 +41,10 @@ export default function OrderReceipt() {
         <p className="font-mono text-sm mb-4">{order.id}</p>
 
         <p className="text-sm font-medium mb-1">{order.sellers?.store_name}</p>
+
+        {order.sellers?.primary_hub === 'canteen' && order.status !== 'delivered' && order.status !== 'rejected' && order.status !== 'cancelled' && (
+          <CanteenTracker order={order} assignment={assignment} />
+        )}
         <p className="text-xs text-ink/50 mb-4">{new Date(order.created_at).toLocaleString()}</p>
 
         <div className="space-y-2 py-3 border-y border-ink/10">
@@ -78,6 +85,50 @@ export default function OrderReceipt() {
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+// Real 4-stage tracker specific to Canteen orders, matching the real
+// original source exactly — order received, canteen preparing (with a
+// genuine estimated ready time), rider picking up, delivered to office.
+// Each stage's completion is derived from real order/assignment state,
+// not a fake simulated progress bar.
+function CanteenTracker({ order, assignment }) {
+  const stages = [
+    { key: 'received', label: 'Order received', done: true, time: new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+    {
+      key: 'preparing',
+      label: 'Canteen preparing your food',
+      done: ['preparing', 'assigned', 'delivered'].includes(order.status),
+      time: order.est_ready_time ? `Est. ready: ${new Date(order.est_ready_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'In progress',
+    },
+    {
+      key: 'pickup',
+      label: 'Rider picking up',
+      done: assignment?.status === 'assigned' || assignment?.status === 'delivered',
+      time: assignment ? 'On the way' : 'Pending',
+    },
+    { key: 'delivered', label: 'Delivered to your office', done: order.status === 'delivered', time: 'Pending' },
+  ]
+
+  return (
+    <div className="my-3 py-2">
+      {stages.map((s, i) => (
+        <div key={s.key} className="flex items-center gap-3 py-2">
+          <div
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 ${
+              s.done ? 'bg-market-green text-white' : 'bg-surface border border-ink/20 text-ink/40'
+            }`}
+          >
+            {s.done ? '✓' : i + 1}
+          </div>
+          <div>
+            <p className={`text-xs font-medium ${s.done ? 'text-ink' : 'text-ink/40'}`}>{s.label}</p>
+            <p className="text-xs text-ink/40">{s.time}</p>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

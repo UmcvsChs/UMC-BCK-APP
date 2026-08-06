@@ -17,6 +17,9 @@ const CATEGORIES = [
 export default function Bills() {
   const [category, setCategory] = useState(CATEGORIES[0].value)
   const [provider, setProvider] = useState('')
+  useEffect(() => {
+    setProvider('')
+  }, [category])
   const [accountReference, setAccountReference] = useState('')
   const [amount, setAmount] = useState('')
   const [error, setError] = useState(null)
@@ -88,14 +91,30 @@ export default function Bills() {
           <label htmlFor="provider" className="block text-sm font-medium mb-1">
             Provider
           </label>
-          <input
-            id="provider"
-            required
-            value={provider}
-            onChange={(e) => setProvider(e.target.value)}
-            placeholder="e.g. MTN, KEDCO, DSTV"
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
-          />
+          {category === 'airtime' || category === 'data' ? (
+            <select
+              id="provider"
+              required
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+            >
+              <option value="">-- Select network --</option>
+              <option value="MTN">MTN</option>
+              <option value="Glo">Glo</option>
+              <option value="Airtel">Airtel</option>
+              <option value="9mobile">9mobile</option>
+            </select>
+          ) : (
+            <input
+              id="provider"
+              required
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              placeholder="e.g. KEDCO, DSTV"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+            />
+          )}
         </div>
 
         <div>

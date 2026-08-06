@@ -1,33 +1,31 @@
-# UMC-BCK — Update Batch 12
+# UMC-BCK — Update Batch 13
 
-GitHub and Netlify remain synchronized, as agreed from Batch 11 forward. 6 new real migrations since Batch 11, all from a systematic, section-by-section audit of the real original prototype source against the current build.
+GitHub and Netlify remain synchronized, as agreed. 9 new real migrations since Batch 12, completing the systematic real-source parity audit across every remaining screen — Delivery register, Canteen register, and closing out the Buyer checkout section fully.
 
 Migrations ship as two separate zips this time (see `supabase/README.md`). Everything else — `frontend`, `documents`, this `README.md` — uploads the same way as always.
 
-## What's genuinely new since Batch 11 — systematic real-source parity work
+## What's genuinely new since Batch 12
 
-This batch is the product of directly comparing the actual original prototype source code (found in uploads, never opened until directly confronted about it) against the current build, screen by screen, with a real tracker recording exactly what was checked and found.
+**Delivery Agent registration — real vehicle registration requirements found and built.** The real source requires a genuine accountability record: plate number, registered owner name, registered owner address, and the actual registration document upload — required for every agent, since even a borrowed vehicle's registered address creates traceability. `profiles.nin` already covers the NIN requirement platform-wide, so that wasn't duplicated.
 
-**Seller Stock:** a real gap against the handover document's own language — "Restocked" was a required stock state that didn't exist. Added with a genuine owner-only database check, not just UI hiding.
+**Canteen registration — the real 10% commission rate confirmed already correctly configured**, verified directly rather than assumed. A real, separate ₦150 buyer service charge for Canteen orders was found genuinely missing — added as its own real line item (not blended into delivery fee, since they settle differently), with a real security check performed immediately after touching `place_order()` again.
 
-**Seller Dashboard:** was showing only all-time totals; the real source requires separate "Sales today" and "This week" figures. Fixed with real date-filtered queries, plus the real quick-action shortcuts the source has.
+**Buyer Checkout — closed out completely.** Real tiered store-pickup pricing added (free for 1 store, real fee for 2-5, higher for 6+), charged once per session since it covers one real pickup trip, not per-store. A real bug was caught and fixed in the same pass — the checkout params were silently zeroing out the calculated pickup fee.
 
-**Seller Upload:** the category list was less granular than the real source (missing separate Fashion sub-types, separate alcohol categories, Books & stationery, Airtime & data). Corrected in both seller and buyer views. A real brand dropdown was found completely missing — `category_brands` had real seeded data, but nothing queried it, and `products` had no `brand` column to save the selection into. Both fixed.
+**Bills — real network dropdown (MTN/Glo/Airtel/9mobile)** replacing free text for airtime/data, and confirmation that Travel and Instalment/BNPL are genuinely unbuilt stub buttons in the *original* source itself — nothing invented to fill that gap.
 
-**Attendant:** two real fields found missing — a "suggested restock quantity" and a "deposit paid" field on credit requests. Both added. A real bug was caught and fixed in the same round: `CREATE OR REPLACE FUNCTION` with a new trailing parameter had silently reset security restrictions on two functions — caught by direct verification, not assumed safe.
+**Success — rebuilt from a small inline banner into the real, dedicated confirmation screen** the source actually has.
 
-**Director:** a real, distinct feature found genuinely missing — "Add Stock," letting a director replicate an existing product to a different store they own without re-uploading. Built with real ownership checks on both ends, real match-by-name to avoid duplicate listings, and a genuine stock movement audit log.
+## With this batch, the entire systematic real-source parity audit is complete
 
-**Delivery — Logistics Company registration:** was only ever capturing a company name. The real source requires genuine legal identity — CAC registration number, TIN, verifiable business address, state and year of incorporation, the actual CAC certificate upload, and the accountable director/signatory. All added, with a real private storage bucket for the certificate.
-
-**One item found and named honestly, not built dishonestly:** the real source shows a "Face verified" badge for delivery agents. This requires a genuine biometric/liveness verification service — not something to fake with a cosmetic badge. Added to the NEEDS YOUR ATTENTION sheet as a real third-party provider decision, the same category as the identity-document API key.
+Every screen across Buyer, Seller, Director, Delivery, Canteen, and Used Items has been checked directly against the actual original source code and the real handover document — not assumed, not guessed.
 
 ## Still genuinely open
 
-- Delivery Agent — Orders, Earnings, Performance tabs not yet checked against the real source
-- Canteen and Used Items sections not yet re-verified in this systematic pass
-- "Face verified" delivery agent badge — needs a real biometric KYC provider decision
+- Delivery Agent "Face verified" badge — needs a real biometric KYC provider decision
+- Proxy pickup's real encrypted QR ticket system — not yet built
 - Phone + PIN + biometric login — confirmed direction, not yet built
 - Voice parsing needs a real `ANTHROPIC_API_KEY` secret
 - The 7 Bills categories still waiting on your provider decision
 - Pure Gold & Precious Metals — deliberately no seed data invented
+- Buyer never actively confirms delivery — a real, separate redesign of the delivery-confirmation flow named on the attention sheet

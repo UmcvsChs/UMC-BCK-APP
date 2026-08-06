@@ -949,6 +949,19 @@ function IncomingOrders({ sellerId }) {
     load()
   }
 
+  async function handleMarkPreparing(orderId) {
+    const minutes = window.prompt('Estimated minutes until ready? (optional)')
+    const estReadyTime = minutes ? new Date(Date.now() + Number(minutes) * 60000).toISOString() : null
+    setActioning(orderId)
+    const { error } = await supabase.rpc('mark_order_preparing', { p_order_id: orderId, p_est_ready_time: estReadyTime })
+    setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
   async function saveImei(orderItemId) {
     const { error } = await supabase.rpc('record_item_imei', { p_order_item_id: orderItemId, p_imei: imeiInputs[orderItemId] })
     if (error) {
@@ -992,6 +1005,16 @@ function IncomingOrders({ sellerId }) {
                 Reject
               </button>
             </div>
+          )}
+
+          {o.status === 'confirmed' && (
+            <button
+              onClick={() => handleMarkPreparing(o.id)}
+              disabled={actioning === o.id}
+              className="w-full mt-2 text-xs bg-gold text-ink rounded py-1.5 disabled:opacity-60"
+            >
+              🍳 Mark as preparing
+            </button>
           )}
 
           {expanded === o.id && (

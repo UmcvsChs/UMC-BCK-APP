@@ -40,6 +40,7 @@ export default function UsedItems() {
 function BrowseUsedItems() {
   const [items, setItems] = useState([])
   const [showDonationsOnly, setShowDonationsOnly] = useState(false)
+  const [activeCategory, setActiveCategory] = useState('All')
   const [loading, setLoading] = useState(true)
   const [offerAmounts, setOfferAmounts] = useState({})
   const [offering, setOffering] = useState(null)
@@ -51,11 +52,12 @@ function BrowseUsedItems() {
       setLoading(true)
       let query = supabase
         .from('used_item_listings')
-        .select('id, item_name, description, condition, has_receipt, has_original_packaging, is_donation, listing_type, price, photo_urls')
+        .select('id, item_name, category, description, condition, has_receipt, has_original_packaging, is_donation, listing_type, price, photo_urls')
         .eq('status', 'available')
         .order('created_at', { ascending: false })
 
       if (showDonationsOnly) query = query.eq('is_donation', true)
+      if (activeCategory !== 'All') query = query.eq('category', activeCategory)
 
       const { data } = await query
       if (!cancelled) {
@@ -67,7 +69,7 @@ function BrowseUsedItems() {
     return () => {
       cancelled = true
     }
-  }, [showDonationsOnly])
+  }, [showDonationsOnly, activeCategory])
 
   async function makeOffer(listingId) {
     const amount = offerAmounts[listingId]
@@ -88,6 +90,20 @@ function BrowseUsedItems() {
 
   return (
     <div>
+      <div className="flex gap-1.5 overflow-x-auto mb-3 pb-1">
+        {['All', ...USED_ITEM_CATEGORIES].map((c) => (
+          <button
+            key={c}
+            onClick={() => setActiveCategory(c)}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+              activeCategory === c ? 'bg-market-green text-white' : 'bg-surface border border-ink/20 text-ink/60'
+            }`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
       <label className="flex items-center gap-2 text-sm mb-4">
         <input
           type="checkbox"
@@ -264,8 +280,14 @@ function MyOffers() {
   )
 }
 
+// Real 6-category taxonomy, restored from the actual source — was
+// completely absent before, despite the handover document itself naming
+// category as a required field.
+const USED_ITEM_CATEGORIES = ['Electronics', 'Furniture', 'Fashion', 'Vehicles', 'Instruments', 'Other']
+
 function ListUsedItem() {
   const [itemName, setItemName] = useState('')
+  const [category, setCategory] = useState(USED_ITEM_CATEGORIES[0])
   const [description, setDescription] = useState('')
   const [condition, setCondition] = useState('good')
   const [hasReceipt, setHasReceipt] = useState(false)
@@ -294,6 +316,7 @@ function ListUsedItem() {
     const { error } = await supabase.from('used_item_listings').insert({
       lister_id: user.id,
       item_name: itemName,
+      category,
       description,
       condition,
       has_receipt: hasReceipt,
@@ -310,6 +333,7 @@ function ListUsedItem() {
     }
     setSuccess(true)
     setItemName('')
+    setCategory(USED_ITEM_CATEGORIES[0])
     setDescription('')
     setPrice('')
     setIsNegotiable(false)
@@ -329,6 +353,24 @@ function ListUsedItem() {
           onChange={(e) => setItemName(e.target.value)}
           className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
         />
+      </div>
+
+      <div>
+        <label htmlFor="category" className="block text-sm font-medium mb-1">
+          Category
+        </label>
+        <select
+          id="category"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+        >
+          {USED_ITEM_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>

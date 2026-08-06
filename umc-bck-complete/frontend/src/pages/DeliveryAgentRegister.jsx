@@ -7,6 +7,11 @@ export default function DeliveryAgentRegister() {
   const [lgas, setLgas] = useState([])
   const [lgaId, setLgaId] = useState('')
   const [vehicleType, setVehicleType] = useState('motorcycle')
+  const [homeArea, setHomeArea] = useState('')
+  const [plateNumber, setPlateNumber] = useState('')
+  const [vehicleOwnerName, setVehicleOwnerName] = useState('')
+  const [vehicleOwnerAddress, setVehicleOwnerAddress] = useState('')
+  const [vehicleRegFile, setVehicleRegFile] = useState(null)
   const [isCompany, setIsCompany] = useState(false)
   const [companyName, setCompanyName] = useState('')
   const [cacNumber, setCacNumber] = useState('')
@@ -54,10 +59,28 @@ export default function DeliveryAgentRegister() {
       cacCertificateUrl = urlData.publicUrl
     }
 
+    let vehicleRegUrl = null
+    if (vehicleRegFile) {
+      const path = `${user.id}/vehicle-reg-${Date.now()}.${vehicleRegFile.name.split('.').pop()}`
+      const { error: uploadError } = await supabase.storage.from('id-documents').upload(path, vehicleRegFile)
+      if (uploadError) {
+        setSubmitting(false)
+        setError(uploadError.message)
+        return
+      }
+      const { data: urlData } = supabase.storage.from('id-documents').getPublicUrl(path)
+      vehicleRegUrl = urlData.publicUrl
+    }
+
     const { error } = await supabase.from('delivery_agents').insert({
       user_id: user.id,
       lga_id: lgaId,
       vehicle_type: vehicleType,
+      home_area: homeArea || null,
+      plate_number: plateNumber || null,
+      vehicle_owner_name: vehicleOwnerName || null,
+      vehicle_owner_address: vehicleOwnerAddress || null,
+      vehicle_reg_document_url: vehicleRegUrl,
       is_company: isCompany,
       company_name: isCompany ? companyName : null,
       cac_number: isCompany ? cacNumber || null : null,
@@ -246,6 +269,64 @@ export default function DeliveryAgentRegister() {
             <option value="bicycle">Bicycle</option>
             <option value="on_foot">On foot</option>
           </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Home area / neighbourhood</label>
+          <input
+            value={homeArea}
+            onChange={(e) => setHomeArea(e.target.value)}
+            placeholder="e.g. Shagari Low Cost, Barnawa — street or landmark"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+          />
+        </div>
+
+        <div className="rounded border border-gold/30 bg-gold/10 p-3 space-y-2">
+          <p className="text-sm font-medium">🚗 Vehicle registration document</p>
+          <p className="text-xs text-ink/60">
+            Creates a real, traceable record — even if the vehicle belongs to someone else, their registered address
+            creates accountability. Required for all agents.
+          </p>
+          <div>
+            <label className="block text-xs font-medium mb-1">Plate number / registration number</label>
+            <input
+              required
+              value={plateNumber}
+              onChange={(e) => setPlateNumber(e.target.value)}
+              placeholder="e.g. KD 123 ABC"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1">Registered owner name</label>
+            <input
+              required
+              value={vehicleOwnerName}
+              onChange={(e) => setVehicleOwnerName(e.target.value)}
+              placeholder="Name on the vehicle papers"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1">Registered owner address</label>
+            <input
+              required
+              value={vehicleOwnerAddress}
+              onChange={(e) => setVehicleOwnerAddress(e.target.value)}
+              placeholder="Address on vehicle registration document"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1">Upload vehicle registration document</label>
+            <input
+              type="file"
+              required
+              accept="image/*,application/pdf"
+              onChange={(e) => setVehicleRegFile(e.target.files[0])}
+              className="w-full text-sm"
+            />
+          </div>
         </div>
 
         {error && (

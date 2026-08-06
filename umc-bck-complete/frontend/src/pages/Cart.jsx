@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function Cart() {
+  const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -11,6 +13,8 @@ export default function Cart() {
   const [lgas, setLgas] = useState([])
   const [fees, setFees] = useState({})
   const [lgaId, setLgaId] = useState({})
+  const [weightTier, setWeightTier] = useState({})
+  const [urgencyTier, setUrgencyTier] = useState({})
   const [deliveryType, setDeliveryType] = useState({})
   const [deliveryAddress, setDeliveryAddress] = useState({})
   const [isInstalment, setIsInstalment] = useState({})
@@ -37,7 +41,7 @@ export default function Cart() {
       .from('cart_items')
       .select(
         `id, quantity, product_variant_id,
-         products ( id, name, price, seller_id, sellers ( store_name ) ),
+         products ( id, name, price, seller_id, sellers ( store_name, primary_hub ) ),
          product_variants ( name, price )`
       )
       .order('added_at', { ascending: true })
@@ -79,22 +83,51 @@ export default function Cart() {
       return
     }
     const selectedLga = lgaId[sellerId]
-    const fee = selectedLga ? fees[selectedLga] : undefined
-    if (deliveryType[sellerId] !== 'store_pickup' && (!selectedLga || fee == null)) {
+    const zoneFee = selectedLga ? fees[selectedLga] : undefined
+    if (deliveryType[sellerId] !== 'store_pickup' && (!selectedLga || zoneFee == null)) {
       setError('Please select an LGA with a set delivery fee — admin hasn\u2019t set a fee for this area yet.')
       return
+    }
+    const weightSurcharge = { light: 0, medium: 300, heavy: 600, very_heavy: 1000 }[weightTier[sellerId] || 'light']
+    const urgencySurcharge = { standard: 0, express: 500, urgent: 1000 }[urgencyTier[sellerId] || 'standard']
+
+    let fee
+    if (deliveryType[sellerId] === 'store_pickup') {
+      // Real tiered pricing, covering the whole pickup trip once — not
+      // per seller. Free for 1 store, a real fee for 2-5, higher for 6+,
+      // matching the source. Since each seller checks out as its own
+      // real transaction, the fee is charged once per session (the first
+      // pickup checkout) rather than re-charged on every subsequent one.
+      const pickupSellerCount = Object.keys(bySeller).filter((sid) => deliveryType[sid] === 'store_pickup').length
+      const alreadyCharged = sessionStorage.getItem('pickupFeeChargedThisSession') === 'true'
+      if (alreadyCharged) {
+        fee = 0
+      } else {
+        fee = pickupSellerCount <= 1 ? 0 : pickupSellerCount <= 5 ? 800 : 1500
+      }
+    } else {
+      fee = Number(zoneFee) + weightSurcharge + urgencySurcharge
     }
 
     setCheckingOut(sellerId)
     setError(null)
 
+    // Real group order pass-through — if this checkout's seller matches an
+    // active group order the buyer started or joined, tag the real order
+    // with it. Only the initiator's checkout carries the real delivery
+    // fee, matching what place_order() itself enforces server-side.
+    const savedGroup = sessionStorage.getItem('activeGroupOrder')
+    const activeGroup = savedGroup ? JSON.parse(savedGroup) : null
+    const groupOrderId = activeGroup && activeGroup.sellerId === sellerId ? activeGroup.id : null
+
     const params = {
       p_seller_id: sellerId,
-      p_delivery_address: deliveryAddress[sellerId] || null,
+      p_delivery_address: (groupOrderId && activeGroup.location) || deliveryAddress[sellerId] || null,
       p_delivery_lga_id: selectedLga || null,
-      p_delivery_fee: deliveryType[sellerId] === 'store_pickup' ? 0 : Number(fee),
+      p_delivery_fee: Number(fee),
       p_delivery_type: deliveryType[sellerId] || 'home_delivery',
       p_terms_accepted: !!termsAccepted[sellerId],
+      p_group_order_id: groupOrderId,
     }
 
     if (isInstalment[sellerId]) {
@@ -114,6 +147,9 @@ export default function Cart() {
     if (error) {
       setError(error.message)
       return
+    }
+    if (deliveryType[sellerId] === 'store_pickup' && fee > 0) {
+      sessionStorage.setItem('pickupFeeChargedThisSession', 'true')
     }
     setOrderPlaced(orderId)
     loadCart()
@@ -135,7 +171,8 @@ export default function Cart() {
   const bySeller = items.reduce((acc, item) => {
     const sellerId = item.products.seller_id
     const storeName = item.products.sellers?.store_name || 'Store'
-    if (!acc[sellerId]) acc[sellerId] = { storeName, items: [] }
+    const primaryHub = item.products.sellers?.primary_hub
+    if (!acc[sellerId]) acc[sellerId] = { storeName, primaryHub, items: [] }
     acc[sellerId].items.push(item)
     return acc
   }, {})
@@ -155,11 +192,22 @@ export default function Cart() {
       </details>
 
       {orderPlaced && (
-        <p className="rounded bg-market-green/10 text-market-green text-sm px-3 py-2 mb-4">
-          Order placed — reference {orderPlaced}
-        </p>
+        <div className="flex flex-col items-center justify-center text-center py-10 px-4">
+          <div className="w-16 h-16 rounded-full bg-gold flex items-center justify-center text-3xl mb-3">✓</div>
+          <p className="text-xl font-display font-bold text-indigo mb-1">Order placed!</p>
+          <p className="text-sm text-ink/60 mb-4 max-w-xs">
+            Confirmed. The seller has been notified and a rider will contact you shortly.
+          </p>
+          <div className="w-full max-w-xs rounded bg-surface p-3 text-left mb-4">
+            <p className="text-xs text-ink/50">Order reference</p>
+            <p className="font-mono text-sm">{orderPlaced}</p>
+          </div>
+          <button onClick={() => navigate('/marketplace')} className="text-sm bg-indigo text-white rounded px-6 py-2.5">
+            Back to marketplace
+          </button>
+        </div>
       )}
-      {error && (
+      {!orderPlaced && error && (
         <p role="alert" className="text-sm text-market-red mb-4">
           {error}
         </p>
@@ -218,6 +266,11 @@ export default function Cart() {
             <p className="font-mono text-right font-medium mt-3">
               Subtotal: ₦{subtotal.toLocaleString()}
             </p>
+            {group.primaryHub === 'canteen' && (
+              <p className="font-mono text-right text-xs text-gold-dark">
+                + ₦150 service charge
+              </p>
+            )}
 
             <div className="mt-3 space-y-2">
               <select
@@ -226,7 +279,7 @@ export default function Cart() {
                 className="w-full text-sm rounded border border-ink/20 px-3 py-2"
               >
                 <option value="home_delivery">Home delivery</option>
-                <option value="store_pickup">Store pickup</option>
+                <option value="store_pickup">Store pickup — free for 1 store, ₦800 for 2–5, ₦1,500 for 6+</option>
                 <option value="proxy_pickup">Proxy pickup</option>
               </select>
 
@@ -243,6 +296,25 @@ export default function Cart() {
                         {l.name} {fees[l.id] != null ? `— ₦${Number(fees[l.id]).toLocaleString()}` : '— fee not set'}
                       </option>
                     ))}
+                  </select>
+                  <select
+                    value={weightTier[sellerId] || 'light'}
+                    onChange={(e) => setWeightTier((prev) => ({ ...prev, [sellerId]: e.target.value }))}
+                    className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+                  >
+                    <option value="light">Light — under 5kg — No surcharge</option>
+                    <option value="medium">Medium — 5–20kg — +₦300</option>
+                    <option value="heavy">Heavy — 20–50kg — +₦600</option>
+                    <option value="very_heavy">Very heavy — over 50kg — +₦1,000</option>
+                  </select>
+                  <select
+                    value={urgencyTier[sellerId] || 'standard'}
+                    onChange={(e) => setUrgencyTier((prev) => ({ ...prev, [sellerId]: e.target.value }))}
+                    className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+                  >
+                    <option value="standard">Standard — within 24 hours — No surcharge</option>
+                    <option value="express">Express — within 4 hours — +₦500</option>
+                    <option value="urgent">Urgent — within 2 hours — +₦1,000</option>
                   </select>
                   <input
                     placeholder="Delivery address"
