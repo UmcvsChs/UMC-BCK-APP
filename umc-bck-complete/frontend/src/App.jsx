@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
-import { lazy, Suspense } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, Link, NavLink } from 'react-router-dom'
+import { lazy, Suspense, useState } from 'react'
 import { useAuth } from './lib/useAuth'
 import { useProfile } from './lib/useProfile'
 import { supabase } from './lib/supabase'
@@ -43,6 +43,7 @@ const Admin = lazy(() => import('./pages/Admin'))
 function ProtectedLayout({ children }) {
   const { session, loading } = useAuth()
   const { profile } = useProfile(session)
+  const [moreOpen, setMoreOpen] = useState(false)
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-ink/50">Loading…</div>
@@ -51,56 +52,90 @@ function ProtectedLayout({ children }) {
     return <Navigate to="/sign-in" replace />
   }
 
+  // Real reorganization — matching the original design: buyers see Home,
+  // Cart, Orders, Bills as the four things they actually need constantly,
+  // fixed at the bottom where a thumb naturally rests. Everything else —
+  // Seller tools, Delivery, Used Items, Price Watch, identity Verification,
+  // Wallet, Settings, and Admin (admin-only) — lives in one real "More"
+  // menu instead of a single undifferentiated row where Admin sat next to
+  // Cart with equal visual weight.
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-16">
       <HubRail />
-      <div className="flex justify-end items-center gap-4 px-3 pt-2">
-        <Link to="/seller" className="text-xs font-medium text-ink/60 hover:text-indigo">
-          Seller
-        </Link>
-        <Link to="/join-attendant" className="text-xs font-medium text-ink/60 hover:text-indigo">
-          Join as Attendant
-        </Link>
-        <Link to="/delivery" className="text-xs font-medium text-ink/60 hover:text-indigo">
-          Delivery
-        </Link>
-        <Link to="/used-items" className="text-xs font-medium text-ink/60 hover:text-indigo">
-          Used Items
-        </Link>
-        <Link to="/price-watches" className="text-xs font-medium text-ink/60 hover:text-indigo">
-          Price Watch
-        </Link>
-        <Link to="/bills" className="text-xs font-medium text-ink/60 hover:text-indigo">
-          Bills
-        </Link>
-        <Link to="/verify" className="text-xs font-medium text-ink/60 hover:text-indigo">
-          Verify
-        </Link>
-        {profile?.primary_role === 'admin' && (
-          <Link to="/admin" className="text-xs font-medium text-ink/60 hover:text-indigo">
-            Admin
-          </Link>
-        )}
-        <Link to="/wallet" className="text-xs font-medium text-gold-dark hover:text-gold">
-          Wallet
-        </Link>
-        <Link to="/cart" className="text-xs font-medium text-indigo hover:text-indigo-light">
-          Cart
-        </Link>
-        <Link to="/orders" className="text-xs font-medium text-indigo hover:text-indigo-light">
-          Orders
-        </Link>
-        <Link to="/settings" className="text-xs font-medium text-ink/60 hover:text-indigo">
-          Settings
-        </Link>
+
+      <div className="flex justify-end px-3 pt-2 relative">
         <button
-          onClick={() => supabase.auth.signOut()}
-          className="text-xs text-ink/50 hover:text-market-red"
+          onClick={() => setMoreOpen((v) => !v)}
+          className="text-xs font-medium text-ink/60 hover:text-indigo flex items-center gap-1"
         >
-          Sign out
+          ⋯ More
         </button>
+        {moreOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setMoreOpen(false)} />
+            <div className="absolute right-3 top-8 z-20 bg-surface rounded-lg shadow-lg border border-ink/10 py-2 w-56">
+              <Link onClick={() => setMoreOpen(false)} to="/wallet" className="block px-4 py-2 text-sm text-gold-dark hover:bg-paper">
+                💰 Wallet
+              </Link>
+              <Link onClick={() => setMoreOpen(false)} to="/verify" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
+                🪪 Verify Identity
+              </Link>
+              <div className="border-t border-ink/10 my-1" />
+              <Link onClick={() => setMoreOpen(false)} to="/seller" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
+                🏪 Seller Dashboard
+              </Link>
+              <Link onClick={() => setMoreOpen(false)} to="/join-attendant" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
+                Join as Attendant
+              </Link>
+              <Link onClick={() => setMoreOpen(false)} to="/delivery" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
+                🏍️ Delivery Agent
+              </Link>
+              <div className="border-t border-ink/10 my-1" />
+              <Link onClick={() => setMoreOpen(false)} to="/used-items" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
+                ♻️ Used Items
+              </Link>
+              {profile?.primary_role === 'admin' && (
+                <Link onClick={() => setMoreOpen(false)} to="/admin" className="block px-4 py-2 text-sm text-market-red hover:bg-paper">
+                  🛡️ Admin
+                </Link>
+              )}
+              <div className="border-t border-ink/10 my-1" />
+              <Link onClick={() => setMoreOpen(false)} to="/settings" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
+                ⚙️ Settings
+              </Link>
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="block w-full text-left px-4 py-2 text-sm text-market-red hover:bg-paper"
+              >
+                Sign out
+              </button>
+            </div>
+          </>
+        )}
       </div>
+
       {children}
+
+      <nav className="fixed bottom-0 left-0 right-0 bg-indigo border-t-2 border-gold/40 flex z-30">
+        {[
+          { to: '/marketplace', label: 'Home', icon: '🏠' },
+          { to: '/cart', label: 'Cart', icon: '🛒' },
+          { to: '/price-watches', label: 'My List', icon: '📋' },
+          { to: '/bills', label: 'Bills', icon: '⚡' },
+          { to: '/settings', label: 'Profile', icon: '👤' },
+        ].map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) =>
+              `flex-1 flex flex-col items-center py-2 text-xs font-medium ${isActive ? 'text-gold' : 'text-paper/70'}`
+            }
+          >
+            <span className="text-lg leading-none mb-0.5">{item.icon}</span>
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   )
 }

@@ -17,27 +17,51 @@ const THEMES = [
 export default function Settings() {
   const [language, setLanguage] = useState('en')
   const [theme, setTheme] = useState('light')
+  const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
+  const [addresses, setAddresses] = useState([])
+  const [newLabel, setNewLabel] = useState('')
+  const [newAddress, setNewAddress] = useState('')
+  const [favourites, setFavourites] = useState([])
+  const [favSellerId, setFavSellerId] = useState('')
+  const [favMessage, setFavMessage] = useState(null)
+
+  async function loadAll() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('language_preference, theme_preference, full_name, phone')
+      .eq('id', user.id)
+      .single()
+    if (data) {
+      setLanguage(data.language_preference)
+      setTheme(data.theme_preference)
+      setFullName(data.full_name || '')
+      setPhone(data.phone || '')
+    }
+    const { data: addr } = await supabase
+      .from('delivery_addresses')
+      .select('id, label, full_address, is_default')
+      .eq('user_id', user.id)
+      .order('is_default', { ascending: false })
+    setAddresses(addr || [])
+
+    const { data: favs } = await supabase
+      .from('favourite_sellers')
+      .select('id, sellers(id, store_name)')
+      .eq('user_id', user.id)
+    setFavourites(favs || [])
+
+    setLoading(false)
+  }
 
   useEffect(() => {
-    async function load() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-      const { data } = await supabase
-        .from('profiles')
-        .select('language_preference, theme_preference')
-        .eq('id', user.id)
-        .single()
-      if (data) {
-        setLanguage(data.language_preference)
-        setTheme(data.theme_preference)
-      }
-      setLoading(false)
-    }
-    load()
+    loadAll()
   }, [])
 
   async function save(field, value) {
@@ -50,12 +74,153 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  async function savePersonalInfo(e) {
+    e.preventDefault()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    await supabase.from('profiles').update({ full_name: fullName, phone }).eq('id', user.id)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function addAddress(e) {
+    e.preventDefault()
+    if (!newLabel.trim() || !newAddress.trim()) return
+    const { error } = await supabase.rpc('save_delivery_address', {
+      p_label: newLabel.trim(),
+      p_full_address: newAddress.trim(),
+      p_is_default: addresses.length === 0,
+    })
+    if (error) {
+      alert(error.message)
+      return
+    }
+    setNewLabel('')
+    setNewAddress('')
+    loadAll()
+  }
+
+  async function deleteAddress(id) {
+    await supabase.rpc('delete_delivery_address', { p_address_id: id })
+    loadAll()
+  }
+
+  async function addFavourite(e) {
+    e.preventDefault()
+    setFavMessage(null)
+    if (!favSellerId.trim()) return
+    const { error } = await supabase.rpc('add_favourite_seller', { p_seller_id: favSellerId.trim() })
+    if (error) {
+      setFavMessage(error.message)
+      return
+    }
+    setFavSellerId('')
+    loadAll()
+  }
+
+  async function removeFavourite(sellerId) {
+    await supabase.rpc('remove_favourite_seller', { p_seller_id: sellerId })
+    loadAll()
+  }
+
   if (loading) return <div className="p-4 text-ink/50">Loading…</div>
 
   return (
-    <div className="p-4 max-w-sm mx-auto">
-      <h1 className="text-xl font-display font-semibold text-indigo mb-1">Settings</h1>
-      <p className="text-sm text-ink/60 mb-6">Your preference is saved and will follow you across devices.</p>
+    <div className="p-4 max-w-sm mx-auto pb-6">
+      <h1 className="text-xl font-display font-semibold text-indigo mb-1">👤 My Profile</h1>
+      <p className="text-sm text-ink/60 mb-6">Manage your account and preferences.</p>
+
+      <div className="mb-6 rounded-xl bg-surface p-3">
+        <p className="text-xs font-semibold mb-2">Personal information</p>
+        <form onSubmit={savePersonalInfo} className="space-y-2">
+          <input
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Your full name"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-white text-sm"
+          />
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Phone number"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-white text-sm"
+          />
+          <button type="submit" className="w-full rounded bg-indigo text-paper py-2 text-sm font-medium">
+            Save changes
+          </button>
+        </form>
+      </div>
+
+      <div className="mb-6 rounded-xl bg-surface p-3">
+        <p className="text-xs font-semibold mb-2">Delivery addresses</p>
+        {addresses.map((a) => (
+          <div key={a.id} className="rounded bg-white px-3 py-2 mb-2 flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium">
+                {a.label} {a.is_default && <span className="text-xs bg-market-green/10 text-market-green rounded px-1.5 py-0.5 ml-1">Default</span>}
+              </p>
+              <p className="text-xs text-ink/50">{a.full_address}</p>
+            </div>
+            <button onClick={() => deleteAddress(a.id)} className="text-xs text-market-red">
+              Remove
+            </button>
+          </div>
+        ))}
+        <form onSubmit={addAddress} className="space-y-2 mt-2">
+          <input
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            placeholder="Label (e.g. Home, Office)"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-white text-sm"
+          />
+          <input
+            value={newAddress}
+            onChange={(e) => setNewAddress(e.target.value)}
+            placeholder="House no., street, area, LGA"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-white text-sm"
+          />
+          <button type="submit" className="w-full rounded border border-dashed border-ink/30 py-2 text-sm text-ink/60">
+            + Add address
+          </button>
+        </form>
+      </div>
+
+      <div className="mb-6 rounded-xl bg-surface p-3">
+        <p className="text-xs font-semibold mb-1">⭐ Favourite sellers</p>
+        <p className="text-xs text-ink/50 mb-2">Sellers you've saved for quick access.</p>
+        {favourites.length === 0 && <p className="text-xs text-ink/40 text-center py-3">No favourites yet.</p>}
+        {favourites.map((f) => (
+          <div key={f.id} className="rounded bg-white px-3 py-2 mb-2 flex justify-between items-center">
+            <span className="text-sm">{f.sellers?.store_name}</span>
+            <button onClick={() => removeFavourite(f.sellers?.id)} className="text-xs text-market-red">
+              Remove
+            </button>
+          </div>
+        ))}
+        <form onSubmit={addFavourite} className="flex gap-2 mt-2">
+          <input
+            value={favSellerId}
+            onChange={(e) => setFavSellerId(e.target.value)}
+            placeholder="Seller ID"
+            className="flex-1 rounded border border-ink/20 px-3 py-2 bg-white text-sm"
+          />
+          <button type="submit" className="text-sm bg-gold text-ink rounded px-3">
+            Add
+          </button>
+        </form>
+        {favMessage && <p className="text-xs text-market-red mt-1">{favMessage}</p>}
+      </div>
+
+      <div className="mb-6 rounded-xl bg-surface p-3">
+        <p className="text-xs font-semibold mb-2">Account settings</p>
+        <a href="/bills" className="flex justify-between items-center py-2.5 border-b border-ink/10 text-sm">
+          ⚡ Bills & Airtime <span className="text-ink/40">→</span>
+        </a>
+        <a href="/orders" className="flex justify-between items-center py-2.5 border-b border-ink/10 text-sm">
+          📦 Order history <span className="text-ink/40">→</span>
+        </a>
+      </div>
 
       <div className="mb-6">
         <label htmlFor="language" className="block text-sm font-medium mb-1">

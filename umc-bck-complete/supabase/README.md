@@ -1,8 +1,8 @@
 # Supabase Migrations — UMC-BCK
 
-148 real migrations, applied in order — exported directly from the live database on this date.
+155 real migrations, applied in order — exported directly from the live database on this date.
 
-**This exceeds GitHub's 100-file web-upload limit**, so migrations ship as two separate zips: `migrations-batch10-part1.zip` (74 files) and `migrations-batch10-part2.zip` (74 files). Both need to land in the same `supabase/migrations` folder — upload part 1's loose files first, commit, then navigate back into that same folder and upload part 2's files, commit. Select and drag the `.sql` files themselves, not the extracted folder, or you'll create an unwanted subfolder.
+**This exceeds GitHub's 100-file web-upload limit**, so migrations ship as two separate zips: `migrations-batch11-part1.zip` (78 files) and `migrations-batch11-part2.zip` (77 files). Both need to land in the same `supabase/migrations` folder — upload part 1's loose files first, commit, then navigate back into that same folder and upload part 2's files, commit. Select and drag the `.sql` files themselves, not the extracted folder, or you'll create an unwanted subfolder.
 
 ## How to use this
 

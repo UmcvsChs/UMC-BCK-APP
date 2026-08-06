@@ -94,7 +94,7 @@ export default function Cart() {
       p_delivery_lga_id: selectedLga || null,
       p_delivery_fee: deliveryType[sellerId] === 'store_pickup' ? 0 : Number(fee),
       p_delivery_type: deliveryType[sellerId] || 'home_delivery',
-      p_terms_accepted: true,
+      p_terms_accepted: !!termsAccepted[sellerId],
     }
 
     if (isInstalment[sellerId]) {

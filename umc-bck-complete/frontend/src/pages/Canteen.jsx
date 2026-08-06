@@ -1,6 +1,6 @@
 import HubBrowse from '../components/HubBrowse'
 
-const CANTEEN_CATEGORIES = ['Rice & Swallow', 'Soup', 'Protein', 'Sides', 'Drinks', 'Snacks']
+const CANTEEN_CATEGORIES = ['Nigerian Meals', 'Northern Dishes', 'Fast Food', 'Shawarma', 'Suya & Grills', 'Pizza', 'Cakes & Desserts', 'Drinks']
 
 export default function Canteen() {
   return (

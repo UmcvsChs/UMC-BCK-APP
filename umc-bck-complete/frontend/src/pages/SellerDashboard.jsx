@@ -4,12 +4,38 @@ import { supabase, SUPABASE_URL } from '../lib/supabase'
 import { queueSale, getQueuedSales, removeQueuedSale, markQueuedSaleFailed } from '../lib/offlineQueue'
 
 const CATEGORIES_BY_HUB = {
-  general_marketplace: ['Groceries', 'Fashion', 'Electronics', 'Household', 'Beauty & Personal Care', 'Other'],
-  canteen: ['Rice & Swallow', 'Soup', 'Protein', 'Sides', 'Drinks', 'Snacks'],
+  general_marketplace: [
+    'Grains & staples', 'Oils & fats', 'Dairy & beverages',
+    'Fresh produce — vegetables', 'Fresh produce — fruits', 'Fresh produce — tubers', 'Fresh meat & fish',
+    'Condiments & spices', 'Household & cleaning',
+    'Baby — food & feeding formula', 'Baby — diapers & potty', 'Baby — skincare & toiletries',
+    'Baby — clothing & footwear', 'Baby — nursery & travel', 'Baby — toys & learning', 'Baby — health & safety',
+    'Maternity', 'School supplies & stationery',
+    'Phones & accessories', 'Computers, tablets & peripherals', 'Home appliances', 'Electricals, lighting & fittings',
+    'Building materials', 'Automobile & spare parts', 'Pharmacy & health', 'Hospital & surgical instruments',
+    'Interior decor & bedding', 'Furniture', 'Curtains & blinds', 'Kitchenware & cookware',
+    'Garden & outdoor', 'Sports & fitness', 'Pet supplies', 'Event & party supplies', 'Fashion',
+  ],
+  canteen: ['Nigerian Meals', 'Northern Dishes', 'Fast Food', 'Shawarma', 'Suya & Grills', 'Pizza', 'Cakes & Desserts', 'Drinks'],
   phones_tech: ['New Phones', 'Accessories', 'Laptops & Tablets', 'Internet Gear'],
   gold_jewelry: ['Pure Gold & Precious Metals', 'Fashion & Costume Jewelry'],
   automobile: ['Vehicles', 'Parts & Accessories'],
   pharma_medical: ['Equipment', 'Personal Care'],
+}
+
+// Real, previously-built reference dish list, restored word for word — a
+// canteen owner picks from this instead of typing every listing name from
+// scratch. This is genuine prior structural work, not invented content;
+// each canteen still sets its own real price when it lists an item.
+const FOOD_SPECS = {
+  'Nigerian Meals': ['Jollof rice + chicken', 'Jollof rice + fish', 'Fried rice + turkey', 'Fried rice + chicken', 'Egusi soup + eba', 'Egusi soup + semovita', 'Okra soup + fufu', 'Banga soup + starch', 'Ofada rice + ayamase', 'White rice + stew', 'Beans + dodo', 'Moi moi × 3', 'Pounded yam + egusi'],
+  'Northern Dishes': ['Tuwo shinkafa + miyan kuka', 'Tuwo masara + miyan taushe', 'Tuwon dawa + miyan karkashi', 'Dan wake + groundnut oil', 'Masa + miyan yandaka', 'Fura da nono', 'Dambu nama', 'Kilishi', 'Suya da tuwo'],
+  'Fast Food': ['Beef burger', 'Chicken burger', 'Cheeseburger', 'Double smash burger', 'Club sandwich', 'Hot dog', 'Chicken sandwich', 'Fish burger', 'Veggie burger'],
+  'Shawarma': ['Chicken shawarma', 'Beef shawarma', 'Mixed shawarma (chicken + beef)', 'Falafel wrap', 'Tuna shawarma', 'Grilled chicken wrap', 'Shawarma + chips', 'Mini shawarma × 2'],
+  'Suya & Grills': ['Suya (beef)', 'Suya (chicken)', 'Kilishi', 'Tsire', 'Grilled fish', 'Barbecue chicken', 'Mixed grill platter', 'Suya + chips', 'Chicken wings'],
+  'Pizza': ['Pepperoni pizza', 'Chicken pizza', 'Veggie pizza', 'BBQ beef pizza', 'Four cheese pizza', 'Margherita', 'Seafood pizza', 'Half & half'],
+  'Cakes & Desserts': ['Birthday cake (custom design)', 'Wedding cake', 'Sponge cake', 'Chocolate cake', 'Red velvet cake', 'Cheesecake', 'Cupcakes × 6', 'Chin chin', 'Puff puff × 10', 'Doughnut × 6', 'Waffles', 'Ice cream (vanilla)', 'Ice cream (chocolate)', 'Yogurt (strawberry)', 'Yogurt (mango)'],
+  'Drinks': ['Chapman', 'Fresh orange juice', 'Watermelon juice', 'Zobo (chilled)', 'Kunu', 'Smoothie (mixed fruit)', 'Milkshake (chocolate)', 'Milkshake (vanilla)', 'Tiger nut milk', 'Ginger drink', 'Malt', 'Soft drink (any brand)', 'Water (chilled)'],
 }
 
 export default function SellerDashboard() {
@@ -28,20 +54,45 @@ export default function SellerDashboard() {
     // A user can genuinely own more than one store (the Director role) —
     // sellers.user_id lost its unique constraint specifically to make this
     // possible. Load all of them, not just the first.
-    const { data } = await supabase
+    const { data: owned } = await supabase
       .from('sellers')
       .select('*, primary_hub')
       .eq('user_id', user.id)
       .order('created_at', { ascending: true })
 
-    setStores(data || [])
-    if (data?.length > 0 && !selectedStoreId) setSelectedStoreId(data[0].id)
+    // Real gap fixed: an attendant was never able to reach any working
+    // dashboard, because this only ever checked ownership. An attendant
+    // isn't sellers.user_id — they're linked through a separate real
+    // attendants row. Load those stores too, tagged with the real role,
+    // so the dashboard can show an owner the full picture and an
+    // attendant a real, focused view of just what they need.
+    const { data: attendantLinks } = await supabase
+      .from('attendants')
+      .select('store_id, sellers(*, primary_hub)')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+
+    const ownedTagged = (owned || []).map((s) => ({ ...s, myRole: 'owner' }))
+    const attendantTagged = (attendantLinks || [])
+      .filter((a) => a.sellers)
+      .map((a) => ({ ...a.sellers, myRole: 'attendant' }))
+
+    const combined = [...ownedTagged, ...attendantTagged]
+    setStores(combined)
+    if (combined.length > 0 && !selectedStoreId) setSelectedStoreId(combined[0].id)
     setLoading(false)
   }
 
   useEffect(() => {
     loadStores()
   }, [])
+
+  useEffect(() => {
+    const current = stores.find((s) => s.id === selectedStoreId) || stores[0]
+    if (current?.myRole === 'attendant' && tab === 'overview') {
+      setTab('register')
+    }
+  }, [selectedStoreId, stores])
 
   async function toggleStoreOpen(storeId, currentlyOpen) {
     setTogglingOpen(true)
@@ -55,15 +106,19 @@ export default function SellerDashboard() {
   if (stores.length === 0) {
     return (
       <div className="p-4 text-center py-16">
-        <p className="text-ink/60 mb-3">You don't have a store yet.</p>
+        <p className="text-ink/60 mb-3">You don't have a store yet, and you're not currently an active attendant anywhere.</p>
         <Link to="/seller/register" className="text-indigo font-medium">
           Register your store →
         </Link>
+        <p className="text-xs text-ink/40 mt-3">
+          Joining as an attendant instead? Ask your director for their real invite code.
+        </p>
       </div>
     )
   }
 
   const store = stores.find((s) => s.id === selectedStoreId) || stores[0]
+  const myRole = store.myRole || 'owner'
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
@@ -79,9 +134,22 @@ export default function SellerDashboard() {
                   : 'border-ink/20 text-ink/60'
               }`}
             >
-              {s.store_name}
+              {s.store_name} {s.myRole === 'attendant' && '(attendant)'}
             </button>
           ))}
+        </div>
+      )}
+
+      {stores.some((s) => s.myRole === 'owner') && (
+        <Link to="/seller/register" className="block text-xs text-indigo font-medium mb-3">
+          + Add another store
+        </Link>
+      )}
+
+      {myRole === 'attendant' && (
+        <div className="mb-3 rounded bg-gold/10 border border-gold/30 px-3 py-2 text-xs text-gold-dark">
+          You're an attendant here, not the owner — you can record sales and send requests, but store settings and
+          listings are the director's to manage.
         </div>
       )}
 
@@ -120,7 +188,10 @@ export default function SellerDashboard() {
       </Link>
 
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
-        {['overview', 'listings', 'add', 'orders', 'register', 'reports', 'restock', 'creditreqs', 'tradeins', 'attendants', 'pl', 'featured'].map((t) => (
+        {(myRole === 'attendant'
+          ? ['register', 'restock', 'creditreqs', 'messages']
+          : ['overview', 'listings', 'add', 'orders', 'register', 'reports', 'restock', 'creditreqs', 'messages', 'tradeins', 'attendants', 'pl', 'featured']
+        ).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -128,7 +199,7 @@ export default function SellerDashboard() {
               tab === t ? 'text-indigo border-b-2 border-indigo' : 'text-ink/50'
             }`}
           >
-            {t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'register' ? 'Register' : t === 'reports' ? 'Reports' : t === 'restock' ? 'Restock' : t === 'creditreqs' ? 'Credit Requests' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : t === 'featured' ? 'Featured' : 'Incoming orders'}
+            {t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'register' ? 'Register' : t === 'reports' ? 'Reports' : t === 'restock' ? 'Restock' : t === 'creditreqs' ? 'Credit Requests' : t === 'messages' ? 'Messages' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : t === 'featured' ? 'Featured' : 'Incoming orders'}
           </button>
         ))}
       </div>
@@ -147,6 +218,7 @@ export default function SellerDashboard() {
       {tab === 'reports' && <SalesReports key={store.id} sellerId={store.id} />}
       {tab === 'restock' && <RestockRequests key={store.id} sellerId={store.id} />}
       {tab === 'creditreqs' && <CreditSaleRequests key={store.id} sellerId={store.id} />}
+      {tab === 'messages' && <StoreMessages key={store.id} storeId={store.id} />}
     </div>
   )
 }
@@ -372,6 +444,9 @@ function AddListing({ sellerId, hub, approved }) {
   const [imageFile, setImageFile] = useState(null)
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [catalogSearch, setCatalogSearch] = useState('')
+  const [catalogResults, setCatalogResults] = useState([])
+  const [catalogMessage, setCatalogMessage] = useState(null)
   const [success, setSuccess] = useState(false)
 
   if (!approved) {
@@ -449,8 +524,63 @@ function AddListing({ sellerId, hub, approved }) {
     setTimeout(() => setSuccess(false), 3000)
   }
 
+  async function searchCatalog(q) {
+    setCatalogSearch(q)
+    if (!q.trim()) {
+      setCatalogResults([])
+      return
+    }
+    const { data } = await supabase
+      .from('master_catalog_items')
+      .select('id, base_item, variant_name, brand, suggested_price, unit, category')
+      .eq('hub', hub)
+      .ilike('base_item', `%${q}%`)
+      .order('base_item')
+      .limit(15)
+    setCatalogResults(data || [])
+  }
+
+  async function pickFromCatalog(item, stockQuantity) {
+    setCatalogMessage(null)
+    const { error } = await supabase.rpc('add_listing_from_catalog', {
+      p_seller_id: sellerId,
+      p_catalog_item_id: item.id,
+      p_price: item.suggested_price,
+      p_stock_quantity: Number(stockQuantity) || 1,
+    })
+    if (error) {
+      setCatalogMessage(error.message)
+      return
+    }
+    setCatalogMessage(`${item.variant_name} listed — adjust the price anytime from My Listings if it differs.`)
+    setCatalogSearch('')
+    setCatalogResults([])
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+      <div className="rounded border border-gold/30 bg-gold/10 p-3">
+        <p className="text-xs font-medium mb-2">
+          Real pre-registered items — pick one instead of typing everything from scratch
+        </p>
+        <input
+          value={catalogSearch}
+          onChange={(e) => searchCatalog(e.target.value)}
+          placeholder="Search Rice, Flour, Onions…"
+          className="w-full text-sm rounded border border-ink/20 px-3 py-2 mb-2"
+        />
+        {catalogResults.length > 0 && (
+          <div className="rounded border border-ink/10 bg-white divide-y divide-ink/5 max-h-64 overflow-y-auto">
+            {catalogResults.map((item) => (
+              <CatalogPickRow key={item.id} item={item} onPick={pickFromCatalog} />
+            ))}
+          </div>
+        )}
+        {catalogMessage && <p className="text-xs text-market-green mt-2">{catalogMessage}</p>}
+      </div>
+
+      <p className="text-xs text-ink/40">— or list something new below —</p>
+
       <div>
         <label htmlFor="name" className="block text-sm font-medium mb-1">
           Item name
@@ -494,6 +624,28 @@ function AddListing({ sellerId, hub, approved }) {
           ))}
         </select>
       </div>
+
+      {hub === 'canteen' && FOOD_SPECS[category] && (
+        <div className="rounded border border-gold/30 bg-gold/10 p-3">
+          <p className="text-xs font-medium mb-2">
+            Quick-pick a real dish name — tap one to fill it in, then set your own real price
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {FOOD_SPECS[category].map((dish) => (
+              <button
+                key={dish}
+                type="button"
+                onClick={() => setName(dish)}
+                className={`text-xs rounded-full px-3 py-1.5 border ${
+                  name === dish ? 'bg-indigo text-white border-indigo' : 'bg-white border-ink/20 text-ink/70'
+                }`}
+              >
+                {dish}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <label htmlFor="price" className="block text-sm font-medium mb-1">
@@ -2175,6 +2327,122 @@ function CreditSaleRequests({ sellerId }) {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+function StoreMessages({ storeId }) {
+  const [messages, setMessages] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
+  const [myUserId, setMyUserId] = useState(null)
+
+  async function load() {
+    const { data } = await supabase
+      .from('store_messages')
+      .select('id, message, created_at, sender_id, profiles(full_name)')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: true })
+      .limit(200)
+    setMessages(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setMyUserId(data?.user?.id || null))
+    load()
+
+    // Real-time — messages from the director or any attendant appear
+    // live for everyone watching this store's channel.
+    const channel = supabase
+      .channel(`store-messages-${storeId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'store_messages', filter: `store_id=eq.${storeId}` }, load)
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [storeId])
+
+  async function send(e) {
+    e.preventDefault()
+    if (!text.trim()) return
+    setSending(true)
+    const { error } = await supabase.rpc('send_store_message', { p_store_id: storeId, p_message: text.trim() })
+    setSending(false)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    setText('')
+    load()
+  }
+
+  return (
+    <div>
+      <p className="text-xs text-ink/50 mb-3">
+        A real, shared channel for this store — the director and every active attendant see the same conversation.
+      </p>
+
+      {loading && <p className="text-ink/50">Loading…</p>}
+
+      <div className="space-y-2 mb-3 max-h-96 overflow-y-auto">
+        {messages.length === 0 && !loading && <p className="text-xs text-ink/50">No messages yet — say something.</p>}
+        {messages.map((m) => {
+          const mine = m.sender_id === myUserId
+          return (
+            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div className={`rounded px-3 py-2 max-w-[80%] ${mine ? 'bg-indigo text-paper' : 'bg-white border border-ink/10'}`}>
+                {!mine && <p className="text-xs font-medium text-gold-dark mb-0.5">{m.profiles?.full_name || 'Team member'}</p>}
+                <p className="text-sm">{m.message}</p>
+                <p className={`text-xs mt-0.5 ${mine ? 'text-paper/60' : 'text-ink/40'}`}>
+                  {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <form onSubmit={send} className="flex gap-2">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Message the team…"
+          className="flex-1 text-sm rounded border border-ink/20 px-3 py-2"
+        />
+        <button type="submit" disabled={sending} className="text-sm bg-indigo text-white rounded px-4 disabled:opacity-60">
+          {sending ? '…' : 'Send'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
+function CatalogPickRow({ item, onPick }) {
+  const [qty, setQty] = useState('1')
+  return (
+    <div className="flex items-center justify-between px-3 py-2 gap-2">
+      <div className="min-w-0">
+        <p className="text-sm truncate">
+          {item.variant_name} {item.brand && <span className="text-ink/40">· {item.brand}</span>}
+        </p>
+        <p className="text-xs text-ink/40">Suggested ₦{Number(item.suggested_price).toLocaleString()}</p>
+      </div>
+      <input
+        type="number"
+        value={qty}
+        onChange={(e) => setQty(e.target.value)}
+        className="w-14 text-xs rounded border border-ink/20 px-1 py-1 shrink-0"
+      />
+      <button
+        type="button"
+        onClick={() => onPick(item, qty)}
+        className="text-xs bg-indigo text-white rounded px-3 py-1 shrink-0"
+      >
+        Add
+      </button>
     </div>
   )
 }

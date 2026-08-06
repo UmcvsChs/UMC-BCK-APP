@@ -41,7 +41,7 @@ export default function PriceWatches() {
 
   return (
     <div className="p-4 max-w-md mx-auto">
-      <h1 className="text-xl font-display font-semibold text-indigo mb-1">Kasuwa Price Watch</h1>
+      <h1 className="text-xl font-display font-semibold text-indigo mb-1">Market List</h1>
       <p className="text-sm text-ink/60 mb-6">Prices you're tracking, with their real history.</p>
 
       {watches.length === 0 && (
