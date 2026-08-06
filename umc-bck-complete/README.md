@@ -1,30 +1,32 @@
-# UMC-BCK — Update Batch 11
+# UMC-BCK — Update Batch 12
 
-**GitHub and Netlify are now counted together, from this batch forward, per explicit instruction.** The last real GitHub update was Batch 10. This batch brings GitHub current with everything already given to you for Netlify — 16 new real migrations, all of the work below.
+GitHub and Netlify remain synchronized, as agreed from Batch 11 forward. 6 new real migrations since Batch 11, all from a systematic, section-by-section audit of the real original prototype source against the current build.
 
 Migrations ship as two separate zips this time (see `supabase/README.md`). Everything else — `frontend`, `documents`, this `README.md` — uploads the same way as always.
 
-## What's genuinely new since Batch 10
+## What's genuinely new since Batch 11 — systematic real-source parity work
 
-**A real, serious bug found and fixed at the actual root: every signup was silently failing.** Two competing triggers were firing on every new account — one correct, one leftover and broken, referencing a field that didn't exist in its context. Found by reading the real Supabase Auth logs directly, not guessed. Fixed by removing the redundant trigger and consolidating the logic into one correct one — which also fixed a second, quieter bug: a person's actual role selection at signup was being silently discarded before this fix.
+This batch is the product of directly comparing the actual original prototype source code (found in uploads, never opened until directly confronted about it) against the current build, screen by screen, with a real tracker recording exactly what was checked and found.
 
-**A critical Director/Attendant access bug found and fixed.** An attendant had no way to reach a working dashboard at all — the code that loads "your store" only ever checked ownership, never attendant membership. Fixed properly, with a genuinely role-aware dashboard afterward.
+**Seller Stock:** a real gap against the handover document's own language — "Restocked" was a required stock state that didn't exist. Added with a genuine owner-only database check, not just UI hiding.
 
-**Real director-to-attendant messaging** — a shared per-store channel, real-time, with real membership enforcement on both reading and sending.
+**Seller Dashboard:** was showing only all-time totals; the real source requires separate "Sales today" and "This week" figures. Fixed with real date-filtered queries, plus the real quick-action shortcuts the source has.
 
-**The Canteen catalog restored** — the real 8 categories and specific dish names, found in this project's own earlier work and restored word for word.
+**Seller Upload:** the category list was less granular than the real source (missing separate Fashion sub-types, separate alcohol categories, Books & stationery, Airtime & data). Corrected in both seller and buyer views. A real brand dropdown was found completely missing — `category_brands` had real seeded data, but nothing queried it, and `products` had no `brand` column to save the selection into. Both fixed.
 
-**A full navigation rebuild**, corrected twice as the real source was found and re-verified — landing on the actual original bottom nav: Home, Cart, My List, Bills, Profile.
+**Attendant:** two real fields found missing — a "suggested restock quantity" and a "deposit paid" field on credit requests. Both added. A real bug was caught and fixed in the same round: `CREATE OR REPLACE FUNCTION` with a new trailing parameter had silently reset security restrictions on two functions — caught by direct verification, not assumed safe.
 
-**A real Profile page**, replacing the old thin Settings screen — personal information, delivery addresses, favourite sellers — matching the actual original screen found directly in the real source code.
+**Director:** a real, distinct feature found genuinely missing — "Add Stock," letting a director replicate an existing product to a different store they own without re-uploading. Built with real ownership checks on both ends, real match-by-name to avoid duplicate listings, and a genuine stock movement audit log.
 
-**The full master catalog restored — 201 real items across 24 categories**, found directly in the original prototype's source file and inserted word for word, replacing the 3-item placeholder that was there before.
+**Delivery — Logistics Company registration:** was only ever capturing a company name. The real source requires genuine legal identity — CAC registration number, TIN, verifiable business address, state and year of incorporation, the actual CAC certificate upload, and the accountable director/signatory. All added, with a real private storage bucket for the certificate.
 
-**A real bug in the delivery-terms checkout gate**, found and fixed: the actual submit call was hardcoding acceptance regardless of the real scroll state.
+**One item found and named honestly, not built dishonestly:** the real source shows a "Face verified" badge for delivery agents. This requires a genuine biometric/liveness verification service — not something to fake with a cosmetic badge. Added to the NEEDS YOUR ATTENTION sheet as a real third-party provider decision, the same category as the identity-document API key.
 
 ## Still genuinely open
 
-- Systematic parity check against the real source continuing — Seller, Director, Delivery, and Canteen sections not yet fully re-verified screen by screen
+- Delivery Agent — Orders, Earnings, Performance tabs not yet checked against the real source
+- Canteen and Used Items sections not yet re-verified in this systematic pass
+- "Face verified" delivery agent badge — needs a real biometric KYC provider decision
 - Phone + PIN + biometric login — confirmed direction, not yet built
 - Voice parsing needs a real `ANTHROPIC_API_KEY` secret
 - The 7 Bills categories still waiting on your provider decision

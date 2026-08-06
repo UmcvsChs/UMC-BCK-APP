@@ -14,13 +14,32 @@ const CATEGORIES_BY_HUB = {
     'Phones & accessories', 'Computers, tablets & peripherals', 'Home appliances', 'Electricals, lighting & fittings',
     'Building materials', 'Automobile & spare parts', 'Pharmacy & health', 'Hospital & surgical instruments',
     'Interior decor & bedding', 'Furniture', 'Curtains & blinds', 'Kitchenware & cookware',
-    'Garden & outdoor', 'Sports & fitness', 'Pet supplies', 'Event & party supplies', 'Fashion',
+    'Garden & outdoor', 'Sports & fitness', 'Pet supplies', 'Event & party supplies', 'Books & stationery',
+    'Fashion — clothing', 'Fashion — footwear', 'Fashion — accessories', 'Dairy products',
+    'Non-alcoholic beverages (soda, juice, energy drinks)', 'Alcoholic beverages — beer & stout',
+    'Alcoholic beverages — wine & spirits', 'Local drinks (burukutu, pito, zobo, kunu)', 'Water (sachet, bottled)',
+    'Airtime & data bundles', 'Other',
   ],
   canteen: ['Nigerian Meals', 'Northern Dishes', 'Fast Food', 'Shawarma', 'Suya & Grills', 'Pizza', 'Cakes & Desserts', 'Drinks'],
   phones_tech: ['New Phones', 'Accessories', 'Laptops & Tablets', 'Internet Gear'],
   gold_jewelry: ['Pure Gold & Precious Metals', 'Fashion & Costume Jewelry'],
   automobile: ['Vehicles', 'Parts & Accessories'],
   pharma_medical: ['Equipment', 'Personal Care'],
+}
+
+// Real mapping from display category name to the slug key used in
+// category_brands — the table already existed with real seeded brand
+// data, but nothing in the frontend ever queried it until now.
+const CATEGORY_TO_BRAND_SLUG = {
+  'Grains & staples': 'grains_staples',
+  'Oils & fats': 'oils_fats',
+  'Dairy & beverages': 'dairy_beverages',
+  'Condiments & spices': 'condiments_spices',
+  'Household & cleaning': 'household_cleaning',
+  'Non-alcoholic beverages (soda, juice, energy drinks)': 'non_alcoholic_beverages',
+  'Alcoholic beverages — beer & stout': 'alcoholic_beer_stout',
+  'Alcoholic beverages — wine & spirits': 'alcoholic_wine_spirits',
+  'Local drinks (burukutu, pito, zobo, kunu)': 'local_drinks',
 }
 
 // Real, previously-built reference dish list, restored word for word — a
@@ -190,7 +209,11 @@ export default function SellerDashboard() {
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
         {(myRole === 'attendant'
           ? ['register', 'restock', 'creditreqs', 'messages']
-          : ['overview', 'listings', 'add', 'orders', 'register', 'reports', 'restock', 'creditreqs', 'messages', 'tradeins', 'attendants', 'pl', 'featured']
+          : [
+              'overview', 'listings', 'add', 'orders', 'register', 'reports', 'restock', 'creditreqs', 'messages',
+              ...(stores.filter((s) => s.myRole === 'owner').length > 1 ? ['addstock'] : []),
+              'tradeins', 'attendants', 'pl', 'featured',
+            ]
         ).map((t) => (
           <button
             key={t}
@@ -199,12 +222,12 @@ export default function SellerDashboard() {
               tab === t ? 'text-indigo border-b-2 border-indigo' : 'text-ink/50'
             }`}
           >
-            {t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'register' ? 'Register' : t === 'reports' ? 'Reports' : t === 'restock' ? 'Restock' : t === 'creditreqs' ? 'Credit Requests' : t === 'messages' ? 'Messages' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : t === 'featured' ? 'Featured' : 'Incoming orders'}
+            {t === 'addstock' ? '📦 Add Stock' : t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'register' ? 'Register' : t === 'reports' ? 'Reports' : t === 'restock' ? 'Restock' : t === 'creditreqs' ? 'Credit Requests' : t === 'messages' ? 'Messages' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : t === 'featured' ? 'Featured' : 'Incoming orders'}
           </button>
         ))}
       </div>
 
-      {tab === 'overview' && <StoreOverview key={store.id} sellerId={store.id} />}
+      {tab === 'overview' && <StoreOverview key={store.id} sellerId={store.id} setTab={setTab} />}
       {tab === 'listings' && <MyListings key={store.id} sellerId={store.id} />}
       {tab === 'add' && (
         <AddListing key={store.id} sellerId={store.id} hub={store.primary_hub} approved={store.verification_status === 'approved'} />
@@ -212,6 +235,7 @@ export default function SellerDashboard() {
       {tab === 'orders' && <IncomingOrders key={store.id} sellerId={store.id} />}
       {tab === 'tradeins' && <TradeInOffers key={store.id} sellerId={store.id} />}
       {tab === 'attendants' && <Attendants key={store.id} sellerId={store.id} />}
+      {tab === 'addstock' && <AddStockAcrossStores stores={stores} />}
       {tab === 'pl' && <ProfitLossCalculator />}
       {tab === 'featured' && <FeaturedPlacement key={store.id} sellerId={store.id} />}
       {tab === 'register' && <SalesRegister key={store.id} sellerId={store.id} />}
@@ -272,7 +296,35 @@ function MyListings({ sellerId }) {
               </p>
             </div>
           </button>
-          {expanded === p.id && <ManageVariantsAndAddons productId={p.id} />}
+          {expanded === p.id && (
+            <div>
+              {(p.status === 'live' || p.status === 'sold_out' || p.status === 'restocked') && (
+                <div className="mt-3 pt-3 border-t border-ink/10">
+                  <p className="text-xs font-medium mb-2">
+                    Real stock status — reflects true inventory, only you or the director can change this
+                  </p>
+                  <div className="flex gap-1">
+                    {['live', 'sold_out', 'restocked'].map((st) => (
+                      <button
+                        key={st}
+                        onClick={async () => {
+                          const { error } = await supabase.rpc('set_product_stock_status', { p_product_id: p.id, p_status: st })
+                          if (error) alert(error.message)
+                          else load()
+                        }}
+                        className={`flex-1 text-xs rounded py-1.5 capitalize ${
+                          p.status === st ? 'bg-indigo text-white' : 'bg-white border border-ink/20 text-ink/60'
+                        }`}
+                      >
+                        {st === 'live' ? 'Available' : st === 'sold_out' ? 'Sold out' : 'Restocked'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <ManageVariantsAndAddons productId={p.id} />
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -430,6 +482,24 @@ function AddListing({ sellerId, hub, approved }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState(categories[0])
+  const [brand, setBrand] = useState('')
+  const [brandOther, setBrandOther] = useState('')
+  const [brandOptions, setBrandOptions] = useState([])
+
+  useEffect(() => {
+    const slug = CATEGORY_TO_BRAND_SLUG[category]
+    if (!slug) {
+      setBrandOptions([])
+      setBrand('')
+      return
+    }
+    supabase
+      .from('category_brands')
+      .select('brand')
+      .eq('category', slug)
+      .order('brand')
+      .then(({ data }) => setBrandOptions((data || []).map((r) => r.brand)))
+  }, [category])
   const [price, setPrice] = useState('')
   const [condition, setCondition] = useState('new')
   const [unit, setUnit] = useState('')
@@ -491,6 +561,7 @@ function AddListing({ sellerId, hub, approved }) {
       name,
       description,
       category,
+      brand: brand === '__other__' ? brandOther.trim() || null : brand || null,
       price: Number(price),
       condition,
       unit: unit || null,
@@ -515,6 +586,8 @@ function AddListing({ sellerId, hub, approved }) {
     setPrice('')
     setUnit('')
     setBarcode('')
+    setBrand('')
+    setBrandOther('')
     setBulkPrice('')
     setBulkMinQuantity('')
     setSizeType('')
@@ -624,6 +697,40 @@ function AddListing({ sellerId, hub, approved }) {
           ))}
         </select>
       </div>
+
+      {CATEGORY_TO_BRAND_SLUG[category] && (
+        <div>
+          <label htmlFor="brand" className="block text-sm font-medium mb-1">
+            Brand / variety
+          </label>
+          {brandOptions.length > 0 ? (
+            <select
+              id="brand"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+            >
+              <option value="">-- Select brand --</option>
+              {brandOptions.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+              <option value="__other__">Other — specify</option>
+            </select>
+          ) : (
+            <p className="text-xs text-ink/40">Loading real brands for this category…</p>
+          )}
+          {brand === '__other__' && (
+            <input
+              value={brandOther}
+              onChange={(e) => setBrandOther(e.target.value)}
+              placeholder="Enter brand name"
+              className="w-full mt-2 rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+            />
+          )}
+        </div>
+      )}
 
       {hub === 'canteen' && FOOD_SPECS[category] && (
         <div className="rounded border border-gold/30 bg-gold/10 p-3">
@@ -1106,7 +1213,7 @@ function Attendants({ sellerId }) {
   )
 }
 
-function StoreOverview({ sellerId }) {
+function StoreOverview({ sellerId, setTab }) {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [returnPolicy, setReturnPolicy] = useState('')
@@ -1131,19 +1238,30 @@ function StoreOverview({ sellerId }) {
 
   useEffect(() => {
     async function load() {
-      const [{ data: orders }, { count: listingCount }] = await Promise.all([
+      const now = new Date()
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+      const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+      const [{ data: orders }, { count: listingCount }, { data: todayOrders }, { data: weekOrders }] = await Promise.all([
         supabase.from('orders').select('status, total_amount').eq('seller_id', sellerId),
         supabase.from('products').select('id', { count: 'exact', head: true }).eq('seller_id', sellerId),
+        supabase.from('orders').select('total_amount').eq('seller_id', sellerId).eq('status', 'delivered').gte('delivered_at', todayStart),
+        supabase.from('orders').select('total_amount').eq('seller_id', sellerId).eq('status', 'delivered').gte('delivered_at', weekStart),
       ])
 
       const delivered = (orders || []).filter((o) => o.status === 'delivered')
       const totalRevenue = delivered.reduce((sum, o) => sum + Number(o.total_amount), 0)
+      const pending = (orders || []).filter((o) => o.status === 'confirmed' || o.status === 'assigned').length
 
       setStats({
         totalOrders: (orders || []).length,
         deliveredOrders: delivered.length,
         totalRevenue,
         totalListings: listingCount || 0,
+        salesToday: (todayOrders || []).reduce((sum, o) => sum + Number(o.total_amount), 0),
+        ordersToday: (todayOrders || []).length,
+        salesThisWeek: (weekOrders || []).reduce((sum, o) => sum + Number(o.total_amount), 0),
+        pendingOrders: pending,
       })
       setLoading(false)
     }
@@ -1156,20 +1274,36 @@ function StoreOverview({ sellerId }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="rounded border border-ink/10 bg-surface px-3 py-2">
-        <p className="text-xs text-ink/50">Total orders</p>
-        <p className="text-lg font-display font-semibold text-indigo">{stats.totalOrders}</p>
+        <p className="text-xs text-ink/50">Sales today</p>
+        <p className="text-lg font-display font-semibold text-indigo">₦{stats.salesToday.toLocaleString()}</p>
+        <p className="text-xs text-ink/40">{stats.ordersToday} order{stats.ordersToday === 1 ? '' : 's'}</p>
       </div>
       <div className="rounded border border-ink/10 bg-surface px-3 py-2">
-        <p className="text-xs text-ink/50">Delivered</p>
-        <p className="text-lg font-display font-semibold text-market-green">{stats.deliveredOrders}</p>
+        <p className="text-xs text-ink/50">This week</p>
+        <p className="text-lg font-display font-semibold text-indigo">₦{stats.salesThisWeek.toLocaleString()}</p>
       </div>
+      <div className="rounded border border-ink/10 bg-surface px-3 py-2">
+        <p className="text-xs text-ink/50">Items listed</p>
+        <p className="text-lg font-display font-semibold text-market-green">{stats.totalListings}</p>
+        <p className="text-xs text-ink/40">active listings</p>
+      </div>
+      <div className="rounded border border-ink/10 bg-surface px-3 py-2">
+        <p className="text-xs text-ink/50">Pending orders</p>
+        <p className="text-lg font-display font-semibold text-gold-dark">{stats.pendingOrders}</p>
+        <p className="text-xs text-ink/40">needs action</p>
+      </div>
+      <div className="col-span-2 flex gap-2">
+        <button onClick={() => setTab('add')} className="flex-1 text-sm bg-indigo text-white rounded py-2">
+          ↑ Go to Upload
+        </button>
+        <button onClick={() => setTab('orders')} className="flex-1 text-sm bg-gold text-ink rounded py-2">
+          View orders
+        </button>
+      </div>
+
       <div className="rounded border border-ink/10 bg-surface px-3 py-2 col-span-2">
-        <p className="text-xs text-ink/50">Revenue from delivered orders</p>
+        <p className="text-xs text-ink/50">Revenue from delivered orders (all time)</p>
         <p className="font-mono text-xl text-indigo">₦{stats.totalRevenue.toLocaleString()}</p>
-      </div>
-      <div className="rounded border border-ink/10 bg-surface px-3 py-2 col-span-2">
-        <p className="text-xs text-ink/50">Total listings</p>
-        <p className="text-lg font-display font-semibold text-indigo">{stats.totalListings}</p>
       </div>
       <p className="text-xs text-ink/40 col-span-2">
         Revenue here is your store's gross total from delivered orders — it doesn't subtract any costs. Use the
@@ -1389,6 +1523,7 @@ function SalesRegister({ sellerId }) {
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [debtorName, setDebtorName] = useState('')
   const [debtorPhone, setDebtorPhone] = useState('')
+  const [depositPaid, setDepositPaid] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState(null)
   const [recentSales, setRecentSales] = useState([])
@@ -1673,6 +1808,7 @@ function SalesRegister({ sellerId }) {
       setCart([])
       setDebtorName('')
       setDebtorPhone('')
+      setDepositPaid('')
       refreshQueue()
       setSubmitting(false)
       return
@@ -1691,6 +1827,7 @@ function SalesRegister({ sellerId }) {
                   p_unit_price: line.unit_price,
                   p_debtor_name: debtorName.trim(),
                   p_debtor_phone: debtorPhone.trim() || null,
+                  p_deposit_paid: Number(depositPaid) || 0,
                 })
               : await supabase.rpc('submit_credit_sale_request', {
                   p_seller_id: sellerId,
@@ -1700,6 +1837,7 @@ function SalesRegister({ sellerId }) {
                   p_unit_price: line.unit_price,
                   p_debtor_name: debtorName.trim(),
                   p_debtor_phone: debtorPhone.trim() || null,
+                  p_deposit_paid: Number(depositPaid) || 0,
                 })
             : await supabase.rpc('record_walk_in_sale', {
                 p_seller_id: sellerId,
@@ -1722,6 +1860,7 @@ function SalesRegister({ sellerId }) {
       setCart([])
       setDebtorName('')
       setDebtorPhone('')
+      setDepositPaid('')
       loadRecent()
     } catch (err) {
       setMessage(`Error: ${err.message}`)
@@ -1874,7 +2013,12 @@ function SalesRegister({ sellerId }) {
                 </button>
                 <button
                   onClick={async () => {
-                    const { error } = await supabase.rpc('submit_restock_request', { p_seller_id: sellerId, p_product_id: p.id })
+                    const suggestedQty = window.prompt(`Suggested restock quantity for ${p.name}? (optional)`)
+                    const { error } = await supabase.rpc('submit_restock_request', {
+                      p_seller_id: sellerId,
+                      p_product_id: p.id,
+                      p_suggested_quantity: suggestedQty ? Number(suggestedQty) : null,
+                    })
                     if (error) alert(error.message)
                     else alert(`Flagged ${p.name} for restock.`)
                   }}
@@ -1951,6 +2095,13 @@ function SalesRegister({ sellerId }) {
                 value={debtorPhone}
                 onChange={(e) => setDebtorPhone(e.target.value)}
                 placeholder="Phone (optional)"
+                className="w-full text-sm rounded border border-ink/20 px-2 py-1"
+              />
+              <input
+                type="number"
+                value={depositPaid}
+                onChange={(e) => setDepositPaid(e.target.value)}
+                placeholder="Deposit paid (₦0 if none)"
                 className="w-full text-sm rounded border border-ink/20 px-2 py-1"
               />
             </div>
@@ -2202,7 +2353,7 @@ function RestockRequests({ sellerId }) {
   async function load() {
     const { data } = await supabase
       .from('restock_requests')
-      .select('id, current_stock_at_request, notes, status, created_at, products(name), profiles!restock_requests_requested_by_fkey(full_name)')
+      .select('id, current_stock_at_request, suggested_quantity, notes, status, created_at, products(name), profiles!restock_requests_requested_by_fkey(full_name)')
       .eq('seller_id', sellerId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
@@ -2243,6 +2394,7 @@ function RestockRequests({ sellerId }) {
           <p className="text-sm font-medium">{r.products?.name}</p>
           <p className="text-xs text-ink/50">
             Was {r.current_stock_at_request} in stock when flagged by {r.profiles?.full_name || 'an attendant'}
+            {r.suggested_quantity && <span className="text-gold-dark font-medium"> — suggests restocking {r.suggested_quantity}</span>}
             {r.notes && ` — "${r.notes}"`}
           </p>
           <div className="flex gap-1 mt-2">
@@ -2443,6 +2595,118 @@ function CatalogPickRow({ item, onPick }) {
       >
         Add
       </button>
+    </div>
+  )
+}
+
+function AddStockAcrossStores({ stores }) {
+  const ownedStores = stores.filter((s) => s.myRole === 'owner')
+  const [myProducts, setMyProducts] = useState([])
+  const [sourceProductId, setSourceProductId] = useState('')
+  const [targetSellerId, setTargetSellerId] = useState('')
+  const [quantity, setQuantity] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [message, setMessage] = useState(null)
+  const [movements, setMovements] = useState([])
+
+  async function loadProducts() {
+    const ids = ownedStores.map((s) => s.id)
+    const { data } = await supabase.from('products').select('id, name, seller_id').in('seller_id', ids).order('name')
+    setMyProducts(data || [])
+  }
+
+  async function loadMovements() {
+    const { data } = await supabase
+      .from('stock_movements')
+      .select('item_name, quantity_added, created_at, sellers!stock_movements_target_seller_id_fkey(store_name)')
+      .order('created_at', { ascending: false })
+      .limit(10)
+    setMovements(data || [])
+  }
+
+  useEffect(() => {
+    loadProducts()
+    loadMovements()
+  }, [])
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!sourceProductId || !targetSellerId || !quantity) return
+    setSubmitting(true)
+    setMessage(null)
+    const { error } = await supabase.rpc('add_stock_to_store', {
+      p_source_product_id: sourceProductId,
+      p_target_seller_id: targetSellerId,
+      p_quantity: Number(quantity),
+    })
+    setSubmitting(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage('Stock added — no re-upload needed.')
+    setSourceProductId('')
+    setTargetSellerId('')
+    setQuantity('')
+    loadMovements()
+  }
+
+  return (
+    <div>
+      <div className="rounded border border-ink/10 bg-surface p-3 mb-4">
+        <p className="text-sm font-medium mb-1">📦 Add stock to a store</p>
+        <p className="text-xs text-ink/50 mb-3">
+          Select an existing product from your catalogue and add units to a specific store. No re-uploading needed.
+        </p>
+        <form onSubmit={submit} className="space-y-2">
+          <select
+            value={sourceProductId}
+            onChange={(e) => setSourceProductId(e.target.value)}
+            className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+          >
+            <option value="">-- Select product --</option>
+            {myProducts.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={targetSellerId}
+            onChange={(e) => setTargetSellerId(e.target.value)}
+            className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+          >
+            <option value="">-- Add to which store --</option>
+            {ownedStores.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.store_name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            placeholder="Quantity to add — e.g. 50 bags"
+            className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+          />
+          <button type="submit" disabled={submitting} className="w-full text-sm bg-market-green text-white rounded py-2.5 disabled:opacity-60">
+            {submitting ? 'Adding…' : 'Add stock to store'}
+          </button>
+        </form>
+        {message && <p className="text-xs text-ink/60 mt-2">{message}</p>}
+      </div>
+
+      <div className="rounded border border-ink/10 bg-surface p-3">
+        <p className="text-sm font-medium mb-2">Recent stock movements</p>
+        {movements.length === 0 && <p className="text-xs text-ink/50">No stock movements yet</p>}
+        {movements.map((m, i) => (
+          <div key={i} className="text-xs text-ink/60 flex justify-between py-1.5 border-b border-ink/5">
+            <span>{m.item_name} → {m.sellers?.store_name}</span>
+            <span className="font-mono">+{m.quantity_added}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

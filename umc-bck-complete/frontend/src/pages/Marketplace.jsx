@@ -15,7 +15,11 @@ const MARKETPLACE_CATEGORIES = [
   'Phones & accessories', 'Computers, tablets & peripherals', 'Home appliances', 'Electricals, lighting & fittings',
   'Building materials', 'Automobile & spare parts', 'Pharmacy & health', 'Hospital & surgical instruments',
   'Interior decor & bedding', 'Furniture', 'Curtains & blinds', 'Kitchenware & cookware',
-  'Garden & outdoor', 'Sports & fitness', 'Pet supplies', 'Event & party supplies', 'Fashion',
+  'Garden & outdoor', 'Sports & fitness', 'Pet supplies', 'Event & party supplies', 'Books & stationery',
+  'Fashion — clothing', 'Fashion — footwear', 'Fashion — accessories', 'Dairy products',
+  'Non-alcoholic beverages (soda, juice, energy drinks)', 'Alcoholic beverages — beer & stout',
+  'Alcoholic beverages — wine & spirits', 'Local drinks (burukutu, pito, zobo, kunu)', 'Water (sachet, bottled)',
+  'Airtime & data bundles', 'Other',
 ]
 
 // Real Kaduna markets, restored from this project's own earlier work —
