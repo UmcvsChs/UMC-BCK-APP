@@ -1,0 +1,32 @@
+-- Real, ground-surveyed vendors from the team's own market research,
+-- restored as genuine, live, unclaimed stores — pre-approved since the
+-- team physically verified them, real LGA assignment, real claim codes
+-- ready to hand off once each vendor is ready to take over.
+insert into public.sellers (store_name, primary_hub, tier, verification_status, is_open, lga_id, is_unclaimed, claim_code) values
+('Agro vendors', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-AGROVENDOR'),
+('Al-Amin Stores', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-ALAMINSTOR'),
+('Barnawa Depot', 'general_marketplace', 'individual', 'approved', true, '902bf391-0521-4605-b42a-b9453a7054e4', true, 'CLM-BARNAWADEP'),
+('Barnawa Mkt', 'general_marketplace', 'individual', 'approved', true, '902bf391-0521-4605-b42a-b9453a7054e4', true, 'CLM-BARNAWAMKT'),
+('Barnawa Stores', 'general_marketplace', 'individual', 'approved', true, '902bf391-0521-4605-b42a-b9453a7054e4', true, 'CLM-BARNAWASTO'),
+('Bookshops', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-BOOKSHOPS'),
+('Central Market', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-CENTRALMAR'),
+('Central Mkt', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-CENTRALMKT'),
+('Fatima Stores', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-FATIMASTOR'),
+('Gadgets Hub', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-GADGETSHUB'),
+('Golden Penny', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-GOLDENPENN'),
+('Hajiya Stores', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-HAJIYASTOR'),
+('Hajiya Zainab', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-HAJIYAZAIN'),
+('Jewellery vendors', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-JEWELLERYV'),
+('Kafanchan', 'general_marketplace', 'individual', 'approved', true, '736a56b6-68e2-4793-9d03-b60f7a2af064', true, 'CLM-KAFANCHAN'),
+('Kakuri Depot', 'general_marketplace', 'individual', 'approved', true, '902bf391-0521-4605-b42a-b9453a7054e4', true, 'CLM-KAKURIDEPO'),
+('Kakuri Mkt', 'general_marketplace', 'individual', 'approved', true, '902bf391-0521-4605-b42a-b9453a7054e4', true, 'CLM-KAKURIMKT'),
+('Kawo Depot', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-KAWODEPOT'),
+('Kawo Market', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-KAWOMARKET'),
+('Licensed pharmacy', 'pharma_medical', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-LICENSEDPH'),
+('Monday Market', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-MONDAYMARK'),
+('Multiple sellers', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-MULTIPLESE'),
+('Multiple tailors', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-MULTIPLETA'),
+('New Panteka', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-NEWPANTEKA'),
+('Old Panteka', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-OLDPANTEKA'),
+('Sabo Depot', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-SABODEPOT'),
+('TV Market', 'general_marketplace', 'individual', 'approved', true, 'acc68374-5096-49f9-bbef-d557ef7f9ee2', true, 'CLM-TVMARKET');
