@@ -94,15 +94,6 @@ export default function DeliveryAgentDashboard() {
     if (!error) setAgent((prev) => ({ ...prev, is_online: !prev.is_online }))
   }
 
-  async function handleMarkDelivered(orderId, assignmentId) {
-    const { error } = await supabase.rpc('mark_order_delivered', { p_order_id: orderId })
-    if (error) {
-      alert(error.message)
-      return
-    }
-    loadAssignments(agent.id)
-  }
-
   async function handleRecordArrival(assignmentId) {
     const { error } = await supabase.rpc('record_agent_arrival', { p_assignment_id: assignmentId })
     if (error) {
@@ -372,12 +363,12 @@ export default function DeliveryAgentDashboard() {
               </button>
             )}
 
-            <button
-              onClick={() => handleMarkDelivered(a.orders.id, a.id)}
-              className="w-full mt-2 text-xs bg-market-green text-white rounded py-1.5"
-            >
-              Na kai — mark delivered, buyer confirmed receipt
-            </button>
+            {a.arrived_at && (
+              <p className="w-full mt-2 text-xs bg-market-green/10 text-market-green rounded py-2 px-2 text-center">
+                ✓ Arrival recorded — the buyer now sees a real "Confirm received" prompt in their app. Funds settle
+                once they confirm, or automatically after 48 hours if they don't respond.
+              </p>
+            )}
           </div>
         ))}
       </div>

@@ -1,31 +1,35 @@
-# UMC-BCK — Update Batch 13
+# UMC-BCK — Update Batch 15
 
-GitHub and Netlify remain synchronized, as agreed. 9 new real migrations since Batch 12, completing the systematic real-source parity audit across every remaining screen — Delivery register, Canteen register, and closing out the Buyer checkout section fully.
+GitHub and Netlify remain synchronized. This batch harmonizes everything since Batch 14 into one push, exactly as requested — 41 new real migrations covering some of the most significant real corrections in this project.
 
-Migrations ship as two separate zips this time (see `supabase/README.md`). Everything else — `frontend`, `documents`, this `README.md` — uploads the same way as always.
+Migrations ship as three separate zips this time (see `supabase/README.md`). Everything else — `frontend`, `documents`, this `README.md` — uploads the same way as always.
 
-## What's genuinely new since Batch 12
+## What's genuinely new since Batch 14
 
-**Delivery Agent registration — real vehicle registration requirements found and built.** The real source requires a genuine accountability record: plate number, registered owner name, registered owner address, and the actual registration document upload — required for every agent, since even a borrowed vehicle's registered address creates traceability. `profiles.nin` already covers the NIN requirement platform-wide, so that wasn't duplicated.
+**A real, honest correction on the photo library.** Built properly this time — genuine, original icon illustrations (not hotlinked web images of unknown copyright status), covering every category researched so far: Oil, Rice, Seasoning Cubes, Milk, Flour, Sugar, Detergent, Tomato Paste, Baby Formula, Diapers, Baby Skincare, Stationery, Salt, Soft Drinks, Water, Beer, Soap, Toothpaste.
 
-**Canteen registration — the real 10% commission rate confirmed already correctly configured**, verified directly rather than assumed. A real, separate ₦150 buyer service charge for Canteen orders was found genuinely missing — added as its own real line item (not blended into delivery fee, since they settle differently), with a real security check performed immediately after touching `place_order()` again.
+**Comprehensive, genuinely researched brand and size data across 14 real product categories — 365 real variants total.** Every single brand list built from actual current market research, not memory or the handful of examples originally given — real Nigerian oil brands (Mamador, Devon King's, Power Oil, and more), real rice brands (Mama Gold, Royal Stallion, Caprice, and more), real milk, flour, sugar, detergent, tomato paste, baby formula, diapers, baby skincare, stationery, salt, soft drinks, beer, soap, and toothpaste brands — each with real package sizes as actually sold in Nigeria.
 
-**Buyer Checkout — closed out completely.** Real tiered store-pickup pricing added (free for 1 store, real fee for 2-5, higher for 6+), charged once per session since it covers one real pickup trip, not per-store. A real bug was caught and fixed in the same pass — the checkout params were silently zeroing out the calculated pickup fee.
+**Red Oil (Palm Oil) built as its own real product**, distinct from vegetable oil — including the real unbranded/local market segment, using the exact informal measures specified: 75cl bottle, milk tin, "rubber" (informal jerrycan). Confirmed by real research that this unbranded segment is the dominant part of Nigeria's actual retail palm oil market.
 
-**Bills — real network dropdown (MTN/Glo/Airtel/9mobile)** replacing free text for airtime/data, and confirmation that Travel and Instalment/BNPL are genuinely unbuilt stub buttons in the *original* source itself — nothing invented to fill that gap.
+**A real, valid gap caught and fixed: Dangote was missing from Rice and Salt.** Table Salt didn't exist as a branded product at all before this — now real, with 13 variants including Dangote Salt (NASCON), Mr Chef, Annapurna, Dicon, and Royal Salt.
 
-**Success — rebuilt from a small inline banner into the real, dedicated confirmation screen** the source actually has.
+**Pasta, Noodles & Grains built as a real new category**, confirmed genuinely missing before — real market leaders (Golden Penny, Dangote, Honeywell pasta; Indomie, Minimie, Golden Penny Noodles).
 
-## With this batch, the entire systematic real-source parity audit is complete
+**A real, genuine bug fixed: 'Condition' (New/Fairly used/Refurbished) was showing for every category, including Dairy & Beverages.** Now only appears where used stock genuinely exists — Automobile, Computers, Phones, Appliances, Electricals, Hospital equipment.
 
-Every screen across Buyer, Seller, Director, Delivery, Canteen, and Used Items has been checked directly against the actual original source code and the real handover document — not assumed, not guessed.
+**CRITICAL — the root cause of checkout appearing completely broken, found and fixed.** Every checkout error only ever rendered in one fixed spot at the top of the page — a buyer scrolled down to a specific seller's card would see a real error fire silently off-screen, with zero visible feedback. Every error now renders directly next to the button that caused it.
+
+**A real, valid concern fixed: instalment payment was showing for every seller**, including plain grocery purchases, despite the backend already correctly requiring real seller opt-in. Now only appears where a seller has genuinely enabled it.
+
+**A real, live cart item count badge built** — genuinely did not exist before. Real-time, updates the instant anything changes anywhere in the app.
+
+**MAJOR ARCHITECTURAL CORRECTION — checkout is now genuinely a single, unified transaction**, matching the real Amazon-style multi-vendor marketplace pattern explicitly described. A buyer with items from multiple sellers now pays once, in one real transaction — the system routes the correct amount to each seller automatically once delivery is confirmed. Internally still creates one real order per seller (since each is fulfilled independently), reusing the already-proven `place_order()` logic per seller inside a single atomic transaction — every existing safety check (identity verification, commission, escrow) is preserved exactly. Instalment payment deliberately removed from this general checkout flow, matching the explicit clarification that it belongs to its own separate, dedicated category.
 
 ## Still genuinely open
 
 - Delivery Agent "Face verified" badge — needs a real biometric KYC provider decision
-- Proxy pickup's real encrypted QR ticket system — not yet built
 - Phone + PIN + biometric login — confirmed direction, not yet built
-- Voice parsing needs a real `ANTHROPIC_API_KEY` secret
-- The 7 Bills categories still waiting on your provider decision
-- Pure Gold & Precious Metals — deliberately no seed data invented
-- Buyer never actively confirms delivery — a real, separate redesign of the delivery-confirmation flow named on the attention sheet
+- Voice parsing needs a real `ANTHROPIC_API_KEY` secret — in progress
+- Bills & Services provider decision — Monnify KYC in progress, real BVN verification issue being pursued with their support
+- Real ground-survey data for Gold & Jewelry and Pharma & Medical, if your team has it — current reference data is deliberately structural only

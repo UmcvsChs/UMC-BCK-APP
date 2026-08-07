@@ -7,7 +7,7 @@
 // a genuine, dangerous bug, not a minor inconvenience. Every request that
 // isn't a same-origin static asset always goes straight to the network.
 
-const CACHE_NAME = 'umc-bck-shell-v2'
+const CACHE_NAME = 'umc-bck-shell-v3'
 const SHELL_ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (event) => {

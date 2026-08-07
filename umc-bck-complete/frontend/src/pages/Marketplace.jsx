@@ -6,7 +6,7 @@ import HubBrowse from '../components/HubBrowse'
 // listing. A buyer should be able to browse the same real categories a
 // seller lists under, not a thin, generic placeholder set.
 const MARKETPLACE_CATEGORIES = [
-  'Grains & staples', 'Oils & fats', 'Dairy & beverages',
+  'Grains & staples', 'Pasta, Noodles & Grains', 'Breakfast Cereals', 'Bread & Bakery', 'Oils & fats', 'Dairy & beverages',
   'Fresh produce — vegetables', 'Fresh produce — fruits', 'Fresh produce — tubers', 'Fresh meat & fish',
   'Condiments & spices', 'Household & cleaning',
   'Baby — food & feeding formula', 'Baby — diapers & potty', 'Baby — skincare & toiletries',

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function Admin() {
@@ -12,6 +13,7 @@ export default function Admin() {
       </p>
 
       <PendingApprovalsBadge />
+      <AdminOwnAccountLinks />
 
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
         {['analytics', 'revenue', 'supermarket', 'marketdata', 'registrations', 'idverify', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
@@ -1419,6 +1421,51 @@ function IdentityVerifications() {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// Real, admin-only convenience — links to the admin's own genuine records
+// (their own seller store, delivery agent profile, etc., if they hold
+// any) for verifying the platform firsthand. Never shown to any other
+// user, and worded plainly rather than as a "test mode" banner.
+function AdminOwnAccountLinks() {
+  const [links, setLinks] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      const [{ data: seller }, { data: agent }] = await Promise.all([
+        supabase.from('sellers').select('id').eq('user_id', user.id).maybeSingle(),
+        supabase.from('delivery_agents').select('id').eq('user_id', user.id).maybeSingle(),
+      ])
+      if (!cancelled) setLinks({ sellerId: seller?.id || null, hasAgent: !!agent })
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (!links || (!links.sellerId && !links.hasAgent)) return null
+
+  return (
+    <div className="mb-4 text-xs text-ink/50 flex gap-3">
+      <span>Your own linked accounts:</span>
+      {links.sellerId && (
+        <Link to="/seller" className="text-indigo underline">
+          Seller dashboard
+        </Link>
+      )}
+      {links.hasAgent && (
+        <Link to="/delivery" className="text-indigo underline">
+          Delivery dashboard
+        </Link>
+      )}
     </div>
   )
 }

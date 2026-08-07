@@ -5,7 +5,7 @@ import { queueSale, getQueuedSales, removeQueuedSale, markQueuedSaleFailed } fro
 
 const CATEGORIES_BY_HUB = {
   general_marketplace: [
-    'Grains & staples', 'Oils & fats', 'Dairy & beverages',
+    'Grains & staples', 'Pasta, Noodles & Grains', 'Breakfast Cereals', 'Bread & Bakery', 'Oils & fats', 'Dairy & beverages',
     'Fresh produce — vegetables', 'Fresh produce — fruits', 'Fresh produce — tubers', 'Fresh meat & fish',
     'Condiments & spices', 'Household & cleaning',
     'Baby — food & feeding formula', 'Baby — diapers & potty', 'Baby — skincare & toiletries',
@@ -30,6 +30,15 @@ const CATEGORIES_BY_HUB = {
 // Real mapping from display category name to the slug key used in
 // category_brands — the table already existed with real seeded brand
 // data, but nothing in the frontend ever queried it until now.
+// Real fix for a genuine gap: 'Condition' was showing for every category,
+// including perishables and consumables where 'fairly used' makes no
+// sense at all. Only categories where used/refurbished stock genuinely
+// exists as real inventory get this field.
+const CONDITION_RELEVANT_CATEGORIES = [
+  'Automobile & spare parts', 'Computers, tablets & peripherals', 'Phones & accessories',
+  'Home appliances', 'Electricals, lighting & fittings', 'Hospital & surgical instruments',
+]
+
 const CATEGORY_TO_BRAND_SLUG = {
   'Grains & staples': 'grains_staples',
   'Oils & fats': 'oils_fats',
@@ -251,6 +260,8 @@ function MyListings({ sellerId }) {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
+  const [editingPrice, setEditingPrice] = useState(null)
+  const [priceInput, setPriceInput] = useState('')
 
   async function load() {
     const { data } = await supabase
@@ -260,6 +271,18 @@ function MyListings({ sellerId }) {
       .order('created_at', { ascending: false })
     setProducts(data || [])
     setLoading(false)
+  }
+
+  async function savePrice(productId) {
+    const newPrice = Number(priceInput)
+    if (!newPrice || newPrice <= 0) return
+    const { error } = await supabase.from('products').update({ price: newPrice }).eq('id', productId).eq('seller_id', sellerId)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    setEditingPrice(null)
+    load()
   }
 
   useEffect(() => {
@@ -282,7 +305,35 @@ function MyListings({ sellerId }) {
               <p className="text-xs text-ink/50">{p.category}</p>
             </div>
             <div className="text-right">
-              {p.price != null && <p className="font-mono text-sm">₦{Number(p.price).toLocaleString()}</p>}
+              {editingPrice === p.id ? (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="number"
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value)}
+                    className="w-24 text-sm rounded border border-ink/20 px-1 py-0.5"
+                    autoFocus
+                  />
+                  <button onClick={() => savePrice(p.id)} className="text-xs bg-market-green text-white rounded px-2 py-1">
+                    Save
+                  </button>
+                  <button onClick={() => setEditingPrice(null)} className="text-xs text-ink/50 px-1">
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditingPrice(p.id)
+                    setPriceInput(String(p.price ?? ''))
+                  }}
+                  className="text-right"
+                >
+                  {p.price != null && <p className="font-mono text-sm underline decoration-dotted">₦{Number(p.price).toLocaleString()}</p>}
+                  <p className="text-xs text-indigo">Edit price</p>
+                </button>
+              )}
               <p
                 className={`text-xs font-medium ${
                   p.status === 'live'
@@ -512,6 +563,7 @@ function AddListing({ sellerId, hub, approved }) {
   const isFashion = category?.toLowerCase().includes('fashion') || category?.toLowerCase().includes('footwear')
   const STANDARD_COLOURS = ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Brown', 'Grey', 'Pink', 'Purple', 'Orange', 'Beige', 'Mixed/Multicolour']
   const [imageFile, setImageFile] = useState(null)
+  const [libraryPhotoUrl, setLibraryPhotoUrl] = useState(null)
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [catalogSearch, setCatalogSearch] = useState('')
@@ -533,7 +585,9 @@ function AddListing({ sellerId, hub, approved }) {
     setSubmitting(true)
 
     let imageUrls = []
-    if (imageFile) {
+    if (libraryPhotoUrl) {
+      imageUrls = [libraryPhotoUrl]
+    } else if (imageFile) {
       // Folder convention {seller_id}/{filename} — storage RLS checks this
       // path segment against a real sellers row owned by the caller.
       const path = `${sellerId}/${Date.now()}-${imageFile.name}`
@@ -769,23 +823,25 @@ function AddListing({ sellerId, hub, approved }) {
         />
       </div>
 
-      <div>
-        <label htmlFor="condition" className="block text-sm font-medium mb-1">
-          Condition
-        </label>
-        <select
-          id="condition"
-          value={condition}
-          onChange={(e) => setCondition(e.target.value)}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
-        >
-          <option value="new">New</option>
-          <option value="fairly_used">Fairly used</option>
-          <option value="nigerian_used">Nigerian used</option>
-          <option value="foreign_used_tokunbo">Foreign used (Tokunbo)</option>
-          <option value="refurbished">Refurbished</option>
-        </select>
-      </div>
+      {CONDITION_RELEVANT_CATEGORIES.includes(category) && (
+        <div>
+          <label htmlFor="condition" className="block text-sm font-medium mb-1">
+            Condition
+          </label>
+          <select
+            id="condition"
+            value={condition}
+            onChange={(e) => setCondition(e.target.value)}
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+          >
+            <option value="new">New</option>
+            <option value="fairly_used">Fairly used</option>
+            <option value="nigerian_used">Nigerian used</option>
+            <option value="foreign_used_tokunbo">Foreign used (Tokunbo)</option>
+            <option value="refurbished">Refurbished</option>
+          </select>
+        </div>
+      )}
 
       <div>
         <label htmlFor="unit" className="block text-sm font-medium mb-1">
@@ -875,9 +931,11 @@ function AddListing({ sellerId, hub, approved }) {
         </div>
       )}
 
+      <PhotoLibraryPicker itemName={name} onPick={(url) => setLibraryPhotoUrl(url)} selectedUrl={libraryPhotoUrl} />
+
       <div>
         <label htmlFor="image" className="block text-sm font-medium mb-1">
-          Photo
+          Or upload your own photo {libraryPhotoUrl && '(optional — a library photo is already selected above)'}
         </label>
         <input
           id="image"
@@ -893,7 +951,15 @@ function AddListing({ sellerId, hub, approved }) {
           {error}
         </p>
       )}
-      {success && <p className="text-sm text-market-green">Listing submitted for review.</p>}
+      {success && (
+        <div className="rounded bg-market-green/10 border border-market-green/30 p-3">
+          <p className="text-sm text-market-green font-medium">Listing submitted for review.</p>
+          <p className="text-xs text-ink/60 mt-1">
+            Selling this in more than one size or brand — like sachet, tin, and refill? Go to <strong>My Listings</strong>,
+            tap this item to expand it, and add each real size/brand as a variant with its own price.
+          </p>
+        </div>
+      )}
 
       <button
         type="submit"
@@ -912,6 +978,8 @@ function IncomingOrders({ sellerId }) {
   const [actioning, setActioning] = useState(null)
   const [expanded, setExpanded] = useState(null)
   const [imeiInputs, setImeiInputs] = useState({})
+  const [ticketInputs, setTicketInputs] = useState({})
+  const [ticketMessage, setTicketMessage] = useState({})
 
   async function load() {
     const { data } = await supabase
@@ -947,6 +1015,17 @@ function IncomingOrders({ sellerId }) {
       return
     }
     load()
+  }
+
+  async function handleVerifyTicket(orderId) {
+    const code = (ticketInputs[orderId] || '').trim()
+    if (!code) return
+    const { data, error } = await supabase.rpc('verify_and_redeem_proxy_pickup', {
+      p_order_id: orderId,
+      p_ticket_code: code,
+    })
+    setTicketMessage((prev) => ({ ...prev, [orderId]: error ? error.message : data }))
+    if (!error) load()
   }
 
   async function handleMarkPreparing(orderId) {
@@ -1015,6 +1094,28 @@ function IncomingOrders({ sellerId }) {
             >
               🍳 Mark as preparing
             </button>
+          )}
+
+          {o.delivery_type === 'proxy_pickup' && (o.status === 'confirmed' || o.status === 'preparing') && (
+            <div className="mt-2 pt-2 border-t border-ink/10">
+              <p className="text-xs font-medium mb-1">👤 Proxy pickup — verify their real ticket before releasing</p>
+              <div className="flex gap-1">
+                <input
+                  value={ticketInputs[o.id] || ''}
+                  onChange={(e) => setTicketInputs((prev) => ({ ...prev, [o.id]: e.target.value }))}
+                  placeholder="Paste their ticket code"
+                  className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
+                />
+                <button onClick={() => handleVerifyTicket(o.id)} className="text-xs bg-indigo text-white rounded px-3">
+                  Verify
+                </button>
+              </div>
+              {ticketMessage[o.id] && (
+                <p className={`text-xs mt-1 ${ticketMessage[o.id].startsWith('Verified') ? 'text-market-green' : 'text-market-red'}`}>
+                  {ticketMessage[o.id]}
+                </p>
+              )}
+            </div>
           )}
 
           {expanded === o.id && (
@@ -1332,6 +1433,19 @@ function StoreOverview({ sellerId, setTab }) {
         Revenue here is your store's gross total from delivered orders — it doesn't subtract any costs. Use the
         P&L tab to work out actual profit.
       </p>
+
+      <div className="col-span-2 pt-3 border-t border-ink/10">
+        <p className="text-sm font-medium mb-1">Your Seller ID — for buyers to add you as a favourite</p>
+        <p className="font-mono text-xs bg-surface rounded p-2 break-all mb-2">{sellerId}</p>
+        <img
+          src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(sellerId)}`}
+          alt="Scannable QR code for this store's Seller ID"
+          className="rounded border border-ink/10"
+          width={140}
+          height={140}
+        />
+        <p className="text-xs text-ink/40 mt-1">A genuinely scannable code — scanning it reads your real Seller ID.</p>
+      </div>
 
       <div className="col-span-2 pt-3 border-t border-ink/10">
         <label className="block text-sm font-medium mb-1">Return policy</label>
@@ -2728,6 +2842,55 @@ function AddStockAcrossStores({ stores }) {
             <span>{m.item_name} → {m.sellers?.store_name}</span>
             <span className="font-mono">+{m.quantity_added}</span>
           </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Real photo library — genuinely original illustrations, not hotlinked
+// web images of unknown copyright status. Solves the real problem named
+// directly: inconsistent, low-quality seller-uploaded photos.
+function PhotoLibraryPicker({ itemName, onPick, selectedUrl }) {
+  const [matches, setMatches] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    async function search() {
+      if (!itemName || itemName.trim().length < 3) {
+        setMatches([])
+        return
+      }
+      const { data } = await supabase
+        .from('catalog_photo_library')
+        .select('id, base_item, image_url')
+        .ilike('base_item', `%${itemName.trim()}%`)
+        .limit(6)
+      if (!cancelled) setMatches(data || [])
+    }
+    search()
+    return () => {
+      cancelled = true
+    }
+  }, [itemName])
+
+  if (matches.length === 0) return null
+
+  return (
+    <div className="rounded border border-gold/30 bg-gold/10 p-3">
+      <p className="text-xs font-medium mb-2">Real photos from our library — tap to use instead of uploading your own</p>
+      <div className="flex gap-2 overflow-x-auto">
+        {matches.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => onPick(m.image_url)}
+            className={`shrink-0 rounded border-2 overflow-hidden ${
+              selectedUrl === m.image_url ? 'border-indigo' : 'border-transparent'
+            }`}
+          >
+            <img src={m.image_url} alt={m.base_item} className="w-16 h-16 object-cover bg-white" />
+          </button>
         ))}
       </div>
     </div>

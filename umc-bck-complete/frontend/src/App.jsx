@@ -28,6 +28,7 @@ const Cart = lazy(() => import('./pages/Cart'))
 const MyOrders = lazy(() => import('./pages/MyOrders'))
 const OrderReceipt = lazy(() => import('./pages/OrderReceipt'))
 const Settings = lazy(() => import('./pages/Settings'))
+const ClaimStore = lazy(() => import('./pages/ClaimStore'))
 const Wallet = lazy(() => import('./pages/Wallet'))
 const SellerRegister = lazy(() => import('./pages/SellerRegister'))
 const SellerDashboard = lazy(() => import('./pages/SellerDashboard'))
@@ -44,6 +45,33 @@ function ProtectedLayout({ children }) {
   const { session, loading } = useAuth()
   const { profile } = useProfile(session)
   const [moreOpen, setMoreOpen] = useState(false)
+  const [cartCount, setCartCount] = useState(0)
+
+  useEffect(() => {
+    if (!session?.user?.id) return
+    let cancelled = false
+
+    async function loadCount() {
+      const { data } = await supabase
+        .from('cart_items')
+        .select('quantity')
+        .eq('buyer_id', session.user.id)
+      if (!cancelled) setCartCount((data || []).reduce((sum, r) => sum + Number(r.quantity || 0), 0))
+    }
+    loadCount()
+
+    // Real-time — the badge updates the instant an item is added or
+    // removed anywhere in the app, not just after navigating back to Cart.
+    const channel = supabase
+      .channel('cart-count-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cart_items', filter: `buyer_id=eq.${session.user.id}` }, loadCount)
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
+  }, [session?.user?.id])
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-ink/50">Loading…</div>
@@ -83,6 +111,9 @@ function ProtectedLayout({ children }) {
               <div className="border-t border-ink/10 my-1" />
               <Link onClick={() => setMoreOpen(false)} to="/seller" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
                 🏪 Seller Dashboard
+              </Link>
+              <Link onClick={() => setMoreOpen(false)} to="/claim-store" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
+                🔑 Claim a Store
               </Link>
               <Link onClick={() => setMoreOpen(false)} to="/join-attendant" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
                 Join as Attendant
@@ -131,7 +162,14 @@ function ProtectedLayout({ children }) {
               `flex-1 flex flex-col items-center py-2 text-xs font-medium ${isActive ? 'text-gold' : 'text-paper/70'}`
             }
           >
-            <span className="text-lg leading-none mb-0.5">{item.icon}</span>
+            <span className="relative">
+              <span className="text-lg leading-none mb-0.5 block">{item.icon}</span>
+              {item.to === '/cart' && cartCount > 0 && (
+                <span className="absolute -top-1 -right-2 bg-gold text-ink text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </span>
             {item.label}
           </NavLink>
         ))}
@@ -194,6 +232,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <Settings />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/claim-store"
+          element={
+            <ProtectedLayout>
+              <ClaimStore />
             </ProtectedLayout>
           }
         />

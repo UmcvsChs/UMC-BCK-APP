@@ -26,6 +26,7 @@ export default function Settings() {
   const [newAddress, setNewAddress] = useState('')
   const [favourites, setFavourites] = useState([])
   const [favSellerId, setFavSellerId] = useState('')
+  const [scannerOpen, setScannerOpen] = useState(false)
   const [favMessage, setFavMessage] = useState(null)
 
   async function loadAll() {
@@ -108,9 +109,13 @@ export default function Settings() {
 
   async function addFavourite(e) {
     e.preventDefault()
+    await addFavouriteById(favSellerId)
+  }
+
+  async function addFavouriteById(id) {
     setFavMessage(null)
-    if (!favSellerId.trim()) return
-    const { error } = await supabase.rpc('add_favourite_seller', { p_seller_id: favSellerId.trim() })
+    if (!id.trim()) return
+    const { error } = await supabase.rpc('add_favourite_seller', { p_seller_id: id.trim() })
     if (error) {
       setFavMessage(error.message)
       return
@@ -118,6 +123,29 @@ export default function Settings() {
     setFavSellerId('')
     loadAll()
   }
+
+  useEffect(() => {
+    if (!scannerOpen) return
+    let html5QrCode
+    import('html5-qrcode').then(({ Html5Qrcode }) => {
+      html5QrCode = new Html5Qrcode('fav-seller-qr-reader')
+      html5QrCode
+        .start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          (decodedText) => {
+            addFavouriteById(decodedText)
+            html5QrCode.stop().catch(() => {})
+            setScannerOpen(false)
+          },
+          () => {}
+        )
+        .catch(() => setFavMessage('Could not access the camera — check permissions, or add by ID below.'))
+    })
+    return () => {
+      if (html5QrCode) html5QrCode.stop().catch(() => {})
+    }
+  }, [scannerOpen])
 
   async function removeFavourite(sellerId) {
     await supabase.rpc('remove_favourite_seller', { p_seller_id: sellerId })
@@ -209,6 +237,14 @@ export default function Settings() {
             Add
           </button>
         </form>
+        <button
+          type="button"
+          onClick={() => setScannerOpen((v) => !v)}
+          className="w-full mt-2 text-xs text-indigo underline"
+        >
+          {scannerOpen ? 'Close scanner' : '📷 Or scan their real QR code'}
+        </button>
+        {scannerOpen && <div id="fav-seller-qr-reader" className="mt-2 rounded overflow-hidden" />}
         {favMessage && <p className="text-xs text-market-red mt-1">{favMessage}</p>}
       </div>
 

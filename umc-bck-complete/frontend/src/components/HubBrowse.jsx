@@ -23,7 +23,7 @@ export default function HubBrowse({ hub, title, accentClass, categories = null, 
       // not a duplicated/denormalized field on products.
       let query = supabase
         .from('products')
-        .select('id, name, price, category, image_urls, created_at, sellers!inner(primary_hub)')
+        .select('id, name, price, category, image_urls, created_at, sellers!inner(primary_hub), product_variants(price)')
         .eq('sellers.primary_hub', hub)
         .order('created_at', { ascending: false })
         .limit(24)
@@ -156,8 +156,14 @@ export default function HubBrowse({ hub, title, accentClass, categories = null, 
             <div className="p-3">
               <p className={`text-xs font-medium mb-1 ${accentClass.replace('bg-', 'text-')}`}>{p.category}</p>
               <p className="font-medium leading-snug">{p.name}</p>
-              {p.price != null && (
-                <p className="font-mono text-sm text-indigo mt-1">₦{Number(p.price).toLocaleString()}</p>
+              {p.product_variants?.length > 0 ? (
+                <p className="font-mono text-sm text-indigo mt-1">
+                  From ₦{Math.min(...p.product_variants.map((v) => Number(v.price))).toLocaleString()}
+                </p>
+              ) : (
+                p.price != null && (
+                  <p className="font-mono text-sm text-indigo mt-1">₦{Number(p.price).toLocaleString()}</p>
+                )
               )}
             </div>
           </Link>
