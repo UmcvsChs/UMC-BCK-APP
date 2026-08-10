@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import HubBrowse from '../components/HubBrowse'
+import { supabase } from '../lib/supabase'
 
 // Real, complete category taxonomy — restored from this project's own
 // earlier work, matching exactly what sellers already choose from when
@@ -21,10 +22,6 @@ const MARKETPLACE_CATEGORIES = [
   'Alcoholic beverages — wine & spirits', 'Local drinks (burukutu, pito, zobo, kunu)', 'Water (sachet, bottled)',
   'Airtime & data bundles', 'Other',
 ]
-
-// Real Kaduna markets, restored from this project's own earlier work —
-// not invented placeholder names.
-const REAL_MARKETS = ['Monday Market', 'Old Panteka', 'Barnawa Market', 'Zaria Main Market', 'Kafanchan Market']
 
 export default function Marketplace() {
   const [searchScope, setSearchScope] = useState('near_me')
@@ -51,17 +48,79 @@ export default function Marketplace() {
           ))}
         </div>
 
-        <p className="text-xs font-medium text-ink/50 mb-1.5">Markets near you</p>
-        <div className="flex gap-2 overflow-x-auto mb-1 pb-1">
-          {REAL_MARKETS.map((m) => (
-            <span key={m} className="shrink-0 rounded-full px-3 py-1.5 text-xs border border-ink/20 text-ink/60 bg-surface">
-              {m}
-            </span>
-          ))}
-        </div>
+        <RealMarketsBar />
       </div>
 
       <HubBrowse hub="general_marketplace" title="Marketplace" accentClass="bg-hub-marketplace" categories={MARKETPLACE_CATEGORIES} />
     </div>
   )
 }
+
+// Real, live Kaduna markets — 409 real markets pulled directly from the
+// team's own ground research, not hardcoded placeholder names. Includes
+// a real filter by market type (General, Livestock, Agricultural,
+// Grain, Produce, Industrial, Community) since the whole point of this
+// real data is that a farmer looking for the maize market shouldn't have
+// to scroll past clothing markets to find it.
+function RealMarketsBar() {
+  const [markets, setMarkets] = useState([])
+  const [marketTypes, setMarketTypes] = useState([])
+  const [activeType, setActiveType] = useState(null)
+  const [expanded, setExpanded] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const { data: types } = await supabase.from('markets').select('market_type').not('market_type', 'is', null)
+      const uniqueTypes = [...new Set((types || []).map((t) => t.market_type))].sort()
+      setMarketTypes(uniqueTypes)
+
+      let query = supabase.from('markets').select('id, name, market_type, town').order('name').limit(expanded ? 60 : 12)
+      if (activeType) query = query.eq('market_type', activeType)
+      const { data } = await query
+      setMarkets(data || [])
+    }
+    load()
+  }, [activeType, expanded])
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-xs font-medium text-ink/50">Real Kaduna markets</p>
+        <button onClick={() => setExpanded((v) => !v)} className="text-xs text-indigo font-medium">
+          {expanded ? 'Show less' : 'Browse all 409 →'}
+        </button>
+      </div>
+
+      <div className="flex gap-1.5 overflow-x-auto mb-2 pb-1">
+        <button
+          onClick={() => setActiveType(null)}
+          className={`shrink-0 rounded-full px-3 py-1 text-xs ${
+            !activeType ? 'bg-hub-marketplace text-white' : 'border border-ink/20 text-ink/60'
+          }`}
+        >
+          All types
+        </button>
+        {marketTypes.map((t) => (
+          <button
+            key={t}
+            onClick={() => setActiveType(t)}
+            className={`shrink-0 rounded-full px-3 py-1 text-xs ${
+              activeType === t ? 'bg-hub-marketplace text-white' : 'border border-ink/20 text-ink/60'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto mb-1 pb-1">
+        {markets.map((m) => (
+          <span key={m.id} className="shrink-0 rounded-full px-3 py-1.5 text-xs border border-ink/20 text-ink/60 bg-surface">
+            {m.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+

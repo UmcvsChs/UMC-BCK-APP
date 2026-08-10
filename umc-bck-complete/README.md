@@ -1,35 +1,23 @@
-# UMC-BCK — Update Batch 15
+# UMC-BCK — Combined Update (Batch 16 + Feedback System)
 
-GitHub and Netlify remain synchronized. This batch harmonizes everything since Batch 14 into one push, exactly as requested — 41 new real migrations covering some of the most significant real corrections in this project.
+GitHub and Netlify remain synchronized. This is Batch 16 combined with the very next real piece of work — the general app feedback system — so this is genuinely everything up to right now, in one push.
 
-Migrations ship as three separate zips this time (see `supabase/README.md`). Everything else — `frontend`, `documents`, this `README.md` — uploads the same way as always.
+Migrations ship as three separate zips (see `supabase/README.md`). Everything else — `frontend`, `documents`, this `README.md` — uploads the same way as always.
 
-## What's genuinely new since Batch 14
+## Everything included
 
-**A real, honest correction on the photo library.** Built properly this time — genuine, original icon illustrations (not hotlinked web images of unknown copyright status), covering every category researched so far: Oil, Rice, Seasoning Cubes, Milk, Flour, Sugar, Detergent, Tomato Paste, Baby Formula, Diapers, Baby Skincare, Stationery, Salt, Soft Drinks, Water, Beer, Soap, Toothpaste.
+Everything from Batch 16 — the seven new hubs, the critical checkout and delivery-fee fixes, the branded photo work, the leftover-variant bug fix, the full 409-market real Kaduna data, wholesale designation, product Q&A, seller bulk perks.
 
-**Comprehensive, genuinely researched brand and size data across 14 real product categories — 365 real variants total.** Every single brand list built from actual current market research, not memory or the handful of examples originally given — real Nigerian oil brands (Mamador, Devon King's, Power Oil, and more), real rice brands (Mama Gold, Royal Stallion, Caprice, and more), real milk, flour, sugar, detergent, tomato paste, baby formula, diapers, baby skincare, stationery, salt, soft drinks, beer, soap, and toothpaste brands — each with real package sizes as actually sold in Nigeria.
+**Plus, new since then**: a real, general "how's the app working for you" feedback system — deliberately separate from rating the person on the other end of a transaction. A genuinely tiny first ask (one tap, three faces), with a deeper optional text box that opens only when it matters — the first time, every third time, or immediately if the quick rating was low. Currently wired into the two clearest real completion points: buyers, right after they confirm delivery, and sellers, the moment an order they fulfilled shows delivered.
 
-**Red Oil (Palm Oil) built as its own real product**, distinct from vegetable oil — including the real unbranded/local market segment, using the exact informal measures specified: 75cl bottle, milk tin, "rubber" (informal jerrycan). Confirmed by real research that this unbranded segment is the dominant part of Nigeria's actual retail palm oil market.
+**Honest, still-open piece**: delivery agents and repairers don't have this yet. There's genuinely no "completed deliveries" view in the delivery agent dashboard to attach it to — that needs to be built first, and the repairer flow needs the same check. Real next step, not forgotten.
 
-**A real, valid gap caught and fixed: Dangote was missing from Rice and Salt.** Table Salt didn't exist as a branded product at all before this — now real, with 13 variants including Dangote Salt (NASCON), Mr Chef, Annapurna, Dicon, and Royal Salt.
+## Still genuinely open (unchanged from Batch 16)
 
-**Pasta, Noodles & Grains built as a real new category**, confirmed genuinely missing before — real market leaders (Golden Penny, Dangote, Honeywell pasta; Indomie, Minimie, Golden Penny Noodles).
-
-**A real, genuine bug fixed: 'Condition' (New/Fairly used/Refurbished) was showing for every category, including Dairy & Beverages.** Now only appears where used stock genuinely exists — Automobile, Computers, Phones, Appliances, Electricals, Hospital equipment.
-
-**CRITICAL — the root cause of checkout appearing completely broken, found and fixed.** Every checkout error only ever rendered in one fixed spot at the top of the page — a buyer scrolled down to a specific seller's card would see a real error fire silently off-screen, with zero visible feedback. Every error now renders directly next to the button that caused it.
-
-**A real, valid concern fixed: instalment payment was showing for every seller**, including plain grocery purchases, despite the backend already correctly requiring real seller opt-in. Now only appears where a seller has genuinely enabled it.
-
-**A real, live cart item count badge built** — genuinely did not exist before. Real-time, updates the instant anything changes anywhere in the app.
-
-**MAJOR ARCHITECTURAL CORRECTION — checkout is now genuinely a single, unified transaction**, matching the real Amazon-style multi-vendor marketplace pattern explicitly described. A buyer with items from multiple sellers now pays once, in one real transaction — the system routes the correct amount to each seller automatically once delivery is confirmed. Internally still creates one real order per seller (since each is fulfilled independently), reusing the already-proven `place_order()` logic per seller inside a single atomic transaction — every existing safety check (identity verification, commission, escrow) is preserved exactly. Instalment payment deliberately removed from this general checkout flow, matching the explicit clarification that it belongs to its own separate, dedicated category.
-
-## Still genuinely open
-
-- Delivery Agent "Face verified" badge — needs a real biometric KYC provider decision
-- Phone + PIN + biometric login — confirmed direction, not yet built
-- Voice parsing needs a real `ANTHROPIC_API_KEY` secret — in progress
-- Bills & Services provider decision — Monnify KYC in progress, real BVN verification issue being pursued with their support
-- Real ground-survey data for Gold & Jewelry and Pharma & Medical, if your team has it — current reference data is deliberately structural only
+- Google Maps / OpenRouteService distance-based delivery pricing — real flat LGA estimates are live now; true per-address distance calculation is pending a real API key
+- Voice-to-text needs a real `ANTHROPIC_API_KEY` secret
+- Bills & Services provider decision — Monnify KYC in progress
+- Pure Gold & Precious Metals real pricing data, if the team has it
+- Login redesign (phone + PIN) — confirmed direction, not yet built
+- "Face verified" badge — needs a real biometric KYC provider decision
+- Completed-deliveries view for delivery agents (and repairer completion flow) — needed before the feedback prompt can extend to them

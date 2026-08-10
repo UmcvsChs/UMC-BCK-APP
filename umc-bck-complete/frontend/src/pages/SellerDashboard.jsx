@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, SUPABASE_URL } from '../lib/supabase'
 import { queueSale, getQueuedSales, removeQueuedSale, markQueuedSaleFailed } from '../lib/offlineQueue'
+import FeedbackPrompt from '../components/FeedbackPrompt'
 
 const CATEGORIES_BY_HUB = {
   general_marketplace: [
@@ -11,15 +12,21 @@ const CATEGORIES_BY_HUB = {
     'Baby — food & feeding formula', 'Baby — diapers & potty', 'Baby — skincare & toiletries',
     'Baby — clothing & footwear', 'Baby — nursery & travel', 'Baby — toys & learning', 'Baby — health & safety',
     'Maternity', 'School supplies & stationery',
-    'Phones & accessories', 'Computers, tablets & peripherals', 'Home appliances', 'Electricals, lighting & fittings',
+    'Phones & accessories', 'Computers, tablets & peripherals',
     'Building materials', 'Automobile & spare parts', 'Pharmacy & health', 'Hospital & surgical instruments',
-    'Interior decor & bedding', 'Furniture', 'Curtains & blinds', 'Kitchenware & cookware',
     'Garden & outdoor', 'Sports & fitness', 'Pet supplies', 'Event & party supplies', 'Books & stationery',
     'Fashion — clothing', 'Fashion — footwear', 'Fashion — accessories', 'Dairy products',
     'Non-alcoholic beverages (soda, juice, energy drinks)', 'Alcoholic beverages — beer & stout',
     'Alcoholic beverages — wine & spirits', 'Local drinks (burukutu, pito, zobo, kunu)', 'Water (sachet, bottled)',
     'Airtime & data bundles', 'Other',
   ],
+  boutique: ["Men's wear", "Women's wear", "Children's wear", 'Native & traditional wear', 'Accessories'],
+  thrift_wear: ['Clothing (thrift)', 'Beddings & curtains', 'Footwear (thrift)', 'Bags (thrift)'],
+  textile: ['Ankara fabric', 'Lace fabric', 'Guinea brocade', 'Aso-oke', 'Chiffon & silk', 'Plain & cotton fabric'],
+  green_energy: ['Solar panels', 'Inverters', 'Deep cycle batteries', 'Solar accessories (cables, charge controllers)', 'Wind & other renewable'],
+  electrical_equipment: ['Cables & wiring', 'Switches & sockets', 'Circuit breakers', 'Transformers', 'Industrial installation equipment', 'Generators'],
+  interior_appliances: ['Furniture', 'Curtains & rugs', 'Kitchen appliances', 'Cooling & heating', 'Refrigeration', 'TVs & entertainment'],
+  plastic_utensils: ['Kitchen utensils', 'Storage containers', 'Buckets & basins', 'Plastic chairs & tables', 'Disposable & party plasticware'],
   canteen: ['Nigerian Meals', 'Northern Dishes', 'Fast Food', 'Shawarma', 'Suya & Grills', 'Pizza', 'Cakes & Desserts', 'Drinks'],
   phones_tech: ['New Phones', 'Accessories', 'Laptops & Tablets', 'Internet Gear'],
   gold_jewelry: ['Pure Gold & Precious Metals', 'Fashion & Costume Jewelry'],
@@ -219,7 +226,7 @@ export default function SellerDashboard() {
         {(myRole === 'attendant'
           ? ['register', 'restock', 'creditreqs', 'messages']
           : [
-              'overview', 'listings', 'add', 'orders', 'register', 'reports', 'restock', 'creditreqs', 'messages',
+              'overview', 'listings', 'add', 'orders', 'questions', 'register', 'reports', 'restock', 'creditreqs', 'messages',
               ...(stores.filter((s) => s.myRole === 'owner').length > 1 ? ['addstock'] : []),
               'tradeins', 'attendants', 'pl', 'featured',
             ]
@@ -231,7 +238,7 @@ export default function SellerDashboard() {
               tab === t ? 'text-indigo border-b-2 border-indigo' : 'text-ink/50'
             }`}
           >
-            {t === 'addstock' ? '📦 Add Stock' : t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'register' ? 'Register' : t === 'reports' ? 'Reports' : t === 'restock' ? 'Restock' : t === 'creditreqs' ? 'Credit Requests' : t === 'messages' ? 'Messages' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : t === 'featured' ? 'Featured' : 'Incoming orders'}
+            {t === 'addstock' ? '📦 Add Stock' : t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'register' ? 'Register' : t === 'reports' ? 'Reports' : t === 'restock' ? 'Restock' : t === 'creditreqs' ? 'Credit Requests' : t === 'messages' ? 'Messages' : t === 'questions' ? 'Questions' : t === 'tradeins' ? 'Trade-ins' : t === 'attendants' ? 'Attendants' : t === 'pl' ? 'P&L' : t === 'featured' ? 'Featured' : 'Incoming orders'}
           </button>
         ))}
       </div>
@@ -242,6 +249,7 @@ export default function SellerDashboard() {
         <AddListing key={store.id} sellerId={store.id} hub={store.primary_hub} approved={store.verification_status === 'approved'} />
       )}
       {tab === 'orders' && <IncomingOrders key={store.id} sellerId={store.id} />}
+      {tab === 'questions' && <SellerProductQuestions key={store.id} sellerId={store.id} />}
       {tab === 'tradeins' && <TradeInOffers key={store.id} sellerId={store.id} />}
       {tab === 'attendants' && <Attendants key={store.id} sellerId={store.id} />}
       {tab === 'addstock' && <AddStockAcrossStores stores={stores} />}
@@ -556,6 +564,11 @@ function AddListing({ sellerId, hub, approved }) {
   const [unit, setUnit] = useState('')
   const [barcode, setBarcode] = useState('')
   const [bulkPrice, setBulkPrice] = useState('')
+  const [offersFreeDelivery, setOffersFreeDelivery] = useState(false)
+  const [freeDeliveryMinQty, setFreeDeliveryMinQty] = useState('')
+  const [offersFreePickupCenter, setOffersFreePickupCenter] = useState(false)
+  const [isClearanceSale, setIsClearanceSale] = useState(false)
+  const [clearanceSaleNote, setClearanceSaleNote] = useState('')
   const [bulkMinQuantity, setBulkMinQuantity] = useState('')
   const [sizeType, setSizeType] = useState('')
   const [availableSizes, setAvailableSizes] = useState('')
@@ -612,6 +625,7 @@ function AddListing({ sellerId, hub, approved }) {
 
     const { error } = await supabase.from('products').insert({
       seller_id: sellerId,
+      hub,
       name,
       description,
       category,
@@ -627,6 +641,11 @@ function AddListing({ sellerId, hub, approved }) {
       available_colours: isFashion && availableColours.length ? availableColours : null,
       product_type: 'standard',
       image_urls: imageUrls,
+      offers_free_delivery: offersFreeDelivery,
+      free_delivery_min_quantity: offersFreeDelivery && freeDeliveryMinQty ? Number(freeDeliveryMinQty) : null,
+      offers_free_pickup_center_delivery: offersFreePickupCenter,
+      is_clearance_sale: isClearanceSale,
+      clearance_sale_note: isClearanceSale ? clearanceSaleNote || null : null,
     })
 
     setSubmitting(false)
@@ -823,7 +842,7 @@ function AddListing({ sellerId, hub, approved }) {
         />
       </div>
 
-      {CONDITION_RELEVANT_CATEGORIES.includes(category) && (
+      {(CONDITION_RELEVANT_CATEGORIES.includes(category) || hub === 'green_energy' || hub === 'electrical_equipment') && (
         <div>
           <label htmlFor="condition" className="block text-sm font-medium mb-1">
             Condition
@@ -837,9 +856,23 @@ function AddListing({ sellerId, hub, approved }) {
             <option value="new">New</option>
             <option value="fairly_used">Fairly used</option>
             <option value="nigerian_used">Nigerian used</option>
-            <option value="foreign_used_tokunbo">Foreign used (Tokunbo)</option>
+            {(hub === 'green_energy' || hub === 'electrical_equipment') ? (
+              <>
+                <option value="uk_used">UK used</option>
+                <option value="germany_used">Germany used</option>
+                <option value="foreign_used_other">Foreign used (other)</option>
+              </>
+            ) : (
+              <option value="foreign_used_tokunbo">Foreign used (Tokunbo)</option>
+            )}
             <option value="refurbished">Refurbished</option>
           </select>
+          {(hub === 'green_energy' || hub === 'electrical_equipment') && (
+            <p className="text-xs text-ink/50 mt-1">
+              Real buyer note: UK-used and Germany-used solar equipment often outsells new China-made stock in this
+              market — be specific about origin, it genuinely affects what buyers choose.
+            </p>
+          )}
         </div>
       )}
 
@@ -930,6 +963,39 @@ function AddListing({ sellerId, hub, approved }) {
           </div>
         </div>
       )}
+
+      <div className="rounded border border-ink/15 p-3 space-y-2">
+        <p className="text-sm font-medium">Real perks to attract buyers (optional)</p>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={offersFreeDelivery} onChange={(e) => setOffersFreeDelivery(e.target.checked)} className="accent-gold" />
+          I offer free home delivery
+        </label>
+        {offersFreeDelivery && (
+          <input
+            type="number"
+            placeholder="Only if buying at least this many (leave blank for always free)"
+            value={freeDeliveryMinQty}
+            onChange={(e) => setFreeDeliveryMinQty(e.target.value)}
+            className="w-full rounded border border-ink/20 px-3 py-2 text-sm ml-6"
+          />
+        )}
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={offersFreePickupCenter} onChange={(e) => setOffersFreePickupCenter(e.target.checked)} className="accent-gold" />
+          I'll deliver to the platform pickup center free — buyer collects from there
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={isClearanceSale} onChange={(e) => setIsClearanceSale(e.target.checked)} className="accent-gold" />
+          This is a clearance / discount sale
+        </label>
+        {isClearanceSale && (
+          <input
+            placeholder="e.g. 'Clearance — 20% off this week only'"
+            value={clearanceSaleNote}
+            onChange={(e) => setClearanceSaleNote(e.target.value)}
+            className="w-full rounded border border-ink/20 px-3 py-2 text-sm ml-6"
+          />
+        )}
+      </div>
 
       <PhotoLibraryPicker itemName={name} onPick={(url) => setLibraryPhotoUrl(url)} selectedUrl={libraryPhotoUrl} />
 
@@ -1066,6 +1132,10 @@ function IncomingOrders({ sellerId }) {
               <span className="text-xs font-medium text-indigo capitalize">{o.status}</span>
             </div>
           </button>
+
+          {o.status === 'delivered' && (
+            <FeedbackPrompt role="seller" contextType="order_delivered_seller" contextId={o.id} roleLabel="order" />
+          )}
 
           {o.status === 'new' && (
             <div className="flex gap-2 mt-2">
@@ -2893,6 +2963,103 @@ function PhotoLibraryPicker({ itemName, onPick, selectedUrl }) {
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+// Real seller-side answer view — every unanswered question across this
+// store's real listings, in one place, so a seller doesn't need to check
+// each product individually to find what needs a reply.
+function SellerProductQuestions({ sellerId }) {
+  const [questions, setQuestions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [answering, setAnswering] = useState(null)
+  const [answerText, setAnswerText] = useState('')
+
+  async function load() {
+    const { data } = await supabase
+      .from('product_questions')
+      .select('id, question, answer, created_at, products!inner(name, seller_id)')
+      .eq('products.seller_id', sellerId)
+      .order('created_at', { ascending: false })
+    setQuestions(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [sellerId])
+
+  async function submitAnswer(id) {
+    if (!answerText.trim()) return
+    await supabase
+      .from('product_questions')
+      .update({ answer: answerText.trim(), answered_at: new Date().toISOString() })
+      .eq('id', id)
+    setAnswering(null)
+    setAnswerText('')
+    load()
+  }
+
+  if (loading) return <p className="text-sm text-ink/50">Loading…</p>
+  if (questions.length === 0) return <p className="text-sm text-ink/50">No questions yet on any of your listings.</p>
+
+  const unanswered = questions.filter((q) => !q.answer)
+  const answered = questions.filter((q) => q.answer)
+
+  return (
+    <div className="space-y-4">
+      {unanswered.length > 0 && (
+        <div>
+          <p className="text-sm font-medium mb-2 text-market-red">Needs your reply ({unanswered.length})</p>
+          <div className="space-y-2">
+            {unanswered.map((q) => (
+              <div key={q.id} className="rounded border border-gold/40 bg-gold/10 p-3">
+                <p className="text-xs text-ink/50">{q.products.name}</p>
+                <p className="text-sm font-medium">{q.question}</p>
+                {answering === q.id ? (
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      value={answerText}
+                      onChange={(e) => setAnswerText(e.target.value)}
+                      placeholder="Your real answer…"
+                      className="flex-1 rounded border border-ink/20 px-3 py-1.5 text-sm"
+                      autoFocus
+                    />
+                    <button onClick={() => submitAnswer(q.id)} className="text-xs bg-market-green text-white rounded px-3">
+                      Send
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setAnswering(q.id)
+                      setAnswerText('')
+                    }}
+                    className="text-xs text-indigo underline mt-1"
+                  >
+                    Reply
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {answered.length > 0 && (
+        <div>
+          <p className="text-sm font-medium mb-2 text-ink/50">Already answered ({answered.length})</p>
+          <div className="space-y-2">
+            {answered.map((q) => (
+              <div key={q.id} className="rounded bg-ink/5 p-3">
+                <p className="text-xs text-ink/50">{q.products.name}</p>
+                <p className="text-sm">Q: {q.question}</p>
+                <p className="text-sm text-market-green">A: {q.answer}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

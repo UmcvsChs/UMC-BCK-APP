@@ -28,6 +28,13 @@ export default {
           gold: '#C89B3C',
           automobile: '#6B4A8A',
           pharma: '#1E7A6E',
+          boutique: '#B23A6B',
+          thrift: '#5C7A99',
+          textile: '#8A3FA0',
+          greenenergy: '#2E8B57',
+          electrical: '#D4A017',
+          interior: '#A0522D',
+          plastic: '#1E88A8',
         },
       },
       fontFamily: {

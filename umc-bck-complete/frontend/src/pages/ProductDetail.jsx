@@ -107,7 +107,15 @@ export default function ProductDetail() {
 
   if (loading) return <div className="p-4 text-ink/50">Loading…</div>
   if (error && !product) return <div className="p-4 text-market-red">{error}</div>
-  if (!product) return null
+  if (!product)
+    return (
+      <div className="p-4">
+        <p className="text-market-red mb-2">This product couldn't be loaded — it may no longer be available.</p>
+        <button onClick={() => navigate(-1)} className="text-sm text-indigo underline">
+          ← Go back
+        </button>
+      </div>
+    )
 
   const unitPrice = selectedVariant
     ? variants.find((v) => v.id === selectedVariant)?.price
@@ -297,6 +305,96 @@ export default function ProductDetail() {
       >
         {product.stock_quantity === 0 ? 'Out of stock' : added ? 'Added to cart ✓' : adding ? 'Adding…' : 'Add to cart'}
       </button>
+
+      <ProductQA productId={productId} />
+    </div>
+  )
+}
+
+// Real product Q&A — matching exactly the real problem described: a
+// sealed carton photo often can't show count, color options, or size
+// variants. A buyer asks, the real seller answers, and the answer stays
+// visible for every future buyer browsing the same listing.
+function ProductQA({ productId }) {
+  const [questions, setQuestions] = useState([])
+  const [newQuestion, setNewQuestion] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function load() {
+    const { data } = await supabase
+      .from('product_questions')
+      .select('id, question, answer, answered_at, created_at')
+      .eq('product_id', productId)
+      .order('created_at', { ascending: false })
+    setQuestions(data || [])
+  }
+
+  useEffect(() => {
+    load()
+  }, [productId])
+
+  async function submitQuestion() {
+    if (!newQuestion.trim()) return
+    setSubmitting(true)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    await supabase.from('product_questions').insert({
+      product_id: productId,
+      buyer_id: user.id,
+      question: newQuestion.trim(),
+    })
+    setNewQuestion('')
+    setSubmitting(false)
+    load()
+  }
+
+  return (
+    <div className="mt-6 pt-4 border-t border-ink/10">
+      <p className="text-sm font-medium mb-2">Questions about this item</p>
+      <p className="text-xs text-ink/50 mb-3">
+        Photo not clear enough? Ask the seller directly — how many pieces, what colors, what sizes, whatever you
+        need to know before buying.
+      </p>
+
+      <div className="flex gap-2 mb-4">
+        <input
+          value={newQuestion}
+          onChange={(e) => setNewQuestion(e.target.value)}
+          placeholder="e.g. How many plates are in this carton?"
+          className="flex-1 rounded border border-ink/20 px-3 py-2 text-sm"
+        />
+        <button
+          onClick={submitQuestion}
+          disabled={submitting || !newQuestion.trim()}
+          className="rounded bg-indigo text-paper text-sm font-medium px-4 disabled:opacity-60"
+        >
+          Ask
+        </button>
+      </div>
+
+      {questions.length === 0 ? (
+        <p className="text-xs text-ink/40">No questions yet — be the first to ask.</p>
+      ) : (
+        <div className="space-y-3">
+          {questions.map((q) => (
+            <div key={q.id} className="rounded bg-ink/5 px-3 py-2">
+              <p className="text-sm">
+                <span className="font-medium">Q: </span>
+                {q.question}
+              </p>
+              {q.answer ? (
+                <p className="text-sm text-market-green mt-1">
+                  <span className="font-medium">Seller: </span>
+                  {q.answer}
+                </p>
+              ) : (
+                <p className="text-xs text-gold-dark mt-1">Awaiting seller's reply…</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import FeedbackPrompt from '../components/FeedbackPrompt'
 
 export default function OrderReceipt() {
   const { orderId } = useParams()
@@ -44,6 +45,10 @@ export default function OrderReceipt() {
 
         {assignment?.arrived_at && order.status !== 'delivered' && (
           <BuyerConfirmDeliveryGate orderId={order.id} onConfirmed={() => window.location.reload()} />
+        )}
+
+        {order.status === 'delivered' && (
+          <FeedbackPrompt role="buyer" contextType="order_delivered" contextId={order.id} roleLabel="order" />
         )}
 
         {order.delivery_type === 'proxy_pickup' && order.status !== 'delivered' && order.status !== 'rejected' && order.status !== 'cancelled' && (

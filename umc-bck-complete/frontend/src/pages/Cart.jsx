@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function Cart() {
@@ -81,7 +81,7 @@ export default function Cart() {
       setError('Please accept the delivery terms before checking out.')
       return
     }
-    if (deliveryType !== 'store_pickup' && (!lgaId || fees[lgaId] == null)) {
+    if (deliveryType === 'home_delivery' && (!lgaId || fees[lgaId] == null)) {
       setError('Please select an LGA with a set delivery fee above — admin hasn\u2019t set a fee for this area yet.')
       return
     }
@@ -264,7 +264,7 @@ export default function Cart() {
               <option value="proxy_pickup">Proxy pickup</option>
             </select>
 
-            {deliveryType !== 'store_pickup' && (
+            {deliveryType === 'home_delivery' && (
               <>
                 <select
                   value={lgaId}
@@ -317,7 +317,17 @@ export default function Cart() {
 
           {error && (
             <p role="alert" className="text-sm text-market-red mt-2 rounded bg-market-red/10 px-3 py-2">
-              ⚠️ {error}
+              {error.toLowerCase().includes('verify your identity') ? (
+                <>
+                  ⚠️ Please verify your identity before placing an order —{' '}
+                  <Link to="/settings" className="underline font-medium">
+                    click here to submit your ID
+                  </Link>
+                  .
+                </>
+              ) : (
+                <>⚠️ {error}</>
+              )}
             </p>
           )}
 

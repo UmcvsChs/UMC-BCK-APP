@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Link, NavLink } from 'react-router-dom'
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { useAuth } from './lib/useAuth'
 import { useProfile } from './lib/useProfile'
 import { supabase } from './lib/supabase'
@@ -21,6 +21,13 @@ const Gold = lazy(() => import('./pages/Gold'))
 const TradeIn = lazy(() => import('./pages/TradeIn'))
 const Automobile = lazy(() => import('./pages/Automobile'))
 const Pharma = lazy(() => import('./pages/Pharma'))
+const Boutique = lazy(() => import('./pages/Boutique'))
+const ThriftWear = lazy(() => import('./pages/ThriftWear'))
+const Textile = lazy(() => import('./pages/Textile'))
+const GreenEnergy = lazy(() => import('./pages/GreenEnergy'))
+const ElectricalEquipment = lazy(() => import('./pages/ElectricalEquipment'))
+const InteriorAppliances = lazy(() => import('./pages/InteriorAppliances'))
+const PlasticUtensils = lazy(() => import('./pages/PlasticUtensils'))
 const PrescriptionRequest = lazy(() => import('./pages/PrescriptionRequest'))
 const PharmaResellerRegister = lazy(() => import('./pages/PharmaResellerRegister'))
 const ProductDetail = lazy(() => import('./pages/ProductDetail'))
@@ -392,6 +399,62 @@ export default function App() {
           element={
             <ProtectedLayout>
               <Pharma />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/boutique"
+          element={
+            <ProtectedLayout>
+              <Boutique />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/thrift-wear"
+          element={
+            <ProtectedLayout>
+              <ThriftWear />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/textile"
+          element={
+            <ProtectedLayout>
+              <Textile />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/green-energy"
+          element={
+            <ProtectedLayout>
+              <GreenEnergy />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/electrical-equipment"
+          element={
+            <ProtectedLayout>
+              <ElectricalEquipment />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/interior-appliances"
+          element={
+            <ProtectedLayout>
+              <InteriorAppliances />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/plastic-utensils"
+          element={
+            <ProtectedLayout>
+              <PlasticUtensils />
             </ProtectedLayout>
           }
         />

@@ -23,8 +23,8 @@ export default function HubBrowse({ hub, title, accentClass, categories = null, 
       // not a duplicated/denormalized field on products.
       let query = supabase
         .from('products')
-        .select('id, name, price, category, image_urls, created_at, sellers!inner(primary_hub), product_variants(price)')
-        .eq('sellers.primary_hub', hub)
+        .select('id, name, price, category, image_urls, created_at, hub, sellers!inner(store_name), product_variants(price)')
+        .eq('hub', hub)
         .order('created_at', { ascending: false })
         .limit(24)
 

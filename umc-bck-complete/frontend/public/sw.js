@@ -6,9 +6,17 @@
 // serving a stale wallet balance or stale order status from cache would be
 // a genuine, dangerous bug, not a minor inconvenience. Every request that
 // isn't a same-origin static asset always goes straight to the network.
+//
+// CRITICAL, real fix: navigation requests (index.html / '/') are now
+// network-first, never cache-first. index.html references the current
+// build's hashed JS filenames — serving a stale cached index.html after a
+// new deploy points the browser at JS files that no longer exist on the
+// server, and the whole app fails to mount, showing a blank page. Only
+// content-hashed asset files (which are genuinely immutable — a new build
+// always produces new filenames) are safe to cache-first.
 
-const CACHE_NAME = 'umc-bck-shell-v3'
-const SHELL_ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png']
+const CACHE_NAME = 'umc-bck-shell-v5'
+const SHELL_ASSETS = ['/manifest.json', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -36,8 +44,19 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Same-origin static assets only: cache-first, falling back to network
-  // and caching the result for next time.
+  // Real navigation requests (the HTML page itself, including SPA routes
+  // that fall back to index.html) — always network-first. Falls back to a
+  // cached copy only if genuinely offline, never as the default.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/index.html'))
+    )
+    return
+  }
+
+  // Genuinely immutable, content-hashed asset files only (JS/CSS bundles,
+  // fonts) — safe to cache-first since a new deployment always produces
+  // new filenames, never reusing an old one.
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached
