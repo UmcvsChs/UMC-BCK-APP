@@ -57,7 +57,15 @@ export default function ProductDetail() {
     }
   }, [productId])
 
-  function toggleAddon(id) {
+  function toggleAddon(id, groupName, isSingleSelect) {
+    if (isSingleSelect) {
+      const groupIds = addons.filter((a) => a.addon_group === groupName).map((a) => a.id)
+      setSelectedAddonIds((prev) => {
+        const withoutGroup = prev.filter((x) => !groupIds.includes(x))
+        return prev.includes(id) ? withoutGroup : [...withoutGroup, id]
+      })
+      return
+    }
     setSelectedAddonIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
@@ -85,6 +93,18 @@ export default function ProductDetail() {
   }
 
   async function handleAddToCart() {
+    // Real canteen orders use their own real, uniform zone/urgency
+    // checkout — confirmed distinct from the general marketplace's
+    // LGA-based delivery fees — so they're routed there directly rather
+    // than into the general cart.
+    if (product?.sellers?.primary_hub === 'canteen') {
+      const params = new URLSearchParams({ product: productId })
+      if (selectedVariant) params.set('variant', selectedVariant)
+      if (selectedAddonIds.length > 0) params.set('addons', selectedAddonIds.join(','))
+      navigate(`/canteen-checkout?${params.toString()}`)
+      return
+    }
+
     setAdding(true)
     setError(null)
 
@@ -222,28 +242,51 @@ export default function ProductDetail() {
 
       {addons.length > 0 && (
         <div className="mb-4">
-          <p className="text-sm font-medium mb-2">
-            {product?.sellers?.primary_hub === 'canteen' ? 'Extra ingredients' : 'Add extras'}
-          </p>
-          <div className="space-y-2">
-            {addons.map((a) => (
-              <label
-                key={a.id}
-                className="flex items-center justify-between rounded border border-ink/15 px-3 py-2 cursor-pointer"
-              >
-                <span className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedAddonIds.includes(a.id)}
-                    onChange={() => toggleAddon(a.id)}
-                    className="accent-indigo"
-                  />
-                  {a.name}
-                </span>
-                <span className="font-mono text-sm">+₦{Number(a.price).toLocaleString()}</span>
-              </label>
-            ))}
-          </div>
+          {Object.entries(
+            addons.reduce((groups, a) => {
+              const key = a.addon_group || 'Add extras'
+              groups[key] = groups[key] || []
+              groups[key].push(a)
+              return groups
+            }, {})
+          ).map(([groupName, groupAddons]) => {
+            const isSingleSelect = groupName.toLowerCase().includes('choose one')
+            return (
+              <div key={groupName} className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-market-green mb-1">
+                  {groupName === 'Soup' ? 'Choose your soup(s)' : groupName === 'Protein' ? 'Choose your protein(s)' : groupName}
+                </p>
+                {groupName === 'Soup' && (
+                  <p className="text-xs text-ink/50 mb-2">
+                    Mix and match — ogbono + bitter leaf together is perfectly fine 👍
+                  </p>
+                )}
+                {groupName === 'Protein' && (
+                  <p className="text-xs text-ink/50 mb-2">Select as many as you want, in one bowl.</p>
+                )}
+                <div className="space-y-2">
+                  {groupAddons.map((a) => (
+                    <label
+                      key={a.id}
+                      className="flex items-center justify-between rounded border border-ink/15 px-3 py-2 cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2 text-sm">
+                        <input
+                          type={isSingleSelect ? 'radio' : 'checkbox'}
+                          name={isSingleSelect ? groupName : undefined}
+                          checked={selectedAddonIds.includes(a.id)}
+                          onChange={() => toggleAddon(a.id, groupName, isSingleSelect)}
+                          className="accent-indigo"
+                        />
+                        {a.name}
+                      </span>
+                      <span className="font-mono text-sm">+₦{Number(a.price).toLocaleString()}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -303,7 +346,15 @@ export default function ProductDetail() {
         disabled={adding || (variants.length > 0 && !selectedVariant) || product.stock_quantity === 0}
         className="w-full rounded bg-indigo text-paper font-display font-medium py-2.5 hover:bg-indigo-light transition-colors disabled:opacity-60"
       >
-        {product.stock_quantity === 0 ? 'Out of stock' : added ? 'Added to cart ✓' : adding ? 'Adding…' : 'Add to cart'}
+        {product.stock_quantity === 0
+          ? 'Out of stock'
+          : added
+            ? 'Added to cart ✓'
+            : adding
+              ? 'Adding…'
+              : product?.sellers?.primary_hub === 'canteen'
+                ? 'Build your order →'
+                : 'Add to cart'}
       </button>
 
       <ProductQA productId={productId} />

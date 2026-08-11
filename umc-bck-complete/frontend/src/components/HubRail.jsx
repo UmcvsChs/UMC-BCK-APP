@@ -8,7 +8,7 @@ import { useState } from 'react'
 // it does to a 7th.
 const PINNED_HUBS = [
   { path: '/marketplace', label: 'Marketplace', color: 'bg-hub-marketplace' },
-  { path: '/canteen', label: 'Canteen', color: 'bg-hub-canteen' },
+  { path: '/canteen', label: 'Canteen & Fast Food', color: 'bg-hub-canteen' },
   { path: '/phones', label: 'Phones & Tech', color: 'bg-hub-phones' },
 ]
 
@@ -25,6 +25,7 @@ const MORE_HUBS = [
   { path: '/electrical-equipment', label: 'Electrical Equipment', color: 'bg-hub-electrical' },
   { path: '/interior-appliances', label: 'Interior & Home Appliances', color: 'bg-hub-interior' },
   { path: '/plastic-utensils', label: 'Plastic & Utensils', color: 'bg-hub-plastic' },
+  { path: '/office-equipment', label: 'Office Equipment & Stationery', color: 'bg-hub-office' },
 ]
 
 // Real, second row — the six real roles on this platform, exactly as
@@ -59,8 +60,8 @@ export default function HubRail() {
             key={hub.path}
             to={hub.path}
             className={({ isActive }) =>
-              `shrink-0 rounded px-3 py-2 text-sm font-display font-medium text-paper transition-opacity
-               ${hub.color} ${isActive ? 'opacity-100 ring-2 ring-gold' : 'opacity-70 hover:opacity-90'}`
+              `shrink-0 rounded px-3 py-2 text-sm font-display font-medium text-paper transition-all
+               ${hub.color} ${isActive ? 'ring-2 ring-gold scale-105' : 'hover:brightness-110'}`
             }
           >
             {hub.label}
@@ -83,8 +84,8 @@ export default function HubRail() {
               to={hub.path}
               onClick={() => setMoreOpen(false)}
               className={({ isActive }) =>
-                `rounded px-3 py-2 text-xs font-display font-medium text-paper text-center transition-opacity
-                 ${hub.color} ${isActive ? 'opacity-100 ring-2 ring-gold' : 'opacity-80 hover:opacity-100'}`
+                `rounded px-3 py-2 text-xs font-display font-medium text-paper text-center transition-all
+                 ${hub.color} ${isActive ? 'ring-2 ring-gold scale-105' : 'hover:brightness-110'}`
               }
             >
               {hub.label}

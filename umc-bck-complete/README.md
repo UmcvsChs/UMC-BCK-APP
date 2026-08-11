@@ -1,23 +1,30 @@
-# UMC-BCK — Combined Update (Batch 16 + Feedback System)
+# UMC-BCK — Update Batch 17
 
-GitHub and Netlify remain synchronized. This is Batch 16 combined with the very next real piece of work — the general app feedback system — so this is genuinely everything up to right now, in one push.
+266 real migrations total, everything since Batch 16 — 21 new real migrations. Given you now have GitHub Desktop working properly, this ships as **one complete package this time** — no more splitting into three parts. Just clone UMC-BCK-APP inside GitHub Desktop (if you haven't already for this repo specifically), copy the real files from `frontend/` and `supabase/migrations/` into the matching folders, and commit — the same real workflow that just successfully handled 154 files in one go.
 
-Migrations ship as three separate zips (see `supabase/README.md`). Everything else — `frontend`, `documents`, this `README.md` — uploads the same way as always.
+## What's genuinely new since Batch 16
 
-## Everything included
+**A real, foundational bug found and fixed**: the signup process created a profile but never created a wallet — every account, including the admin's own, had no wallet at all. Fixed permanently, and backfilled the accounts that already existed.
 
-Everything from Batch 16 — the seven new hubs, the critical checkout and delivery-fee fixes, the branded photo work, the leftover-variant bug fix, the full 409-market real Kaduna data, wholesale designation, product Q&A, seller bulk perks.
+**The cart badge not updating** — traced to a real, single missing piece: `cart_items` was never registered for real-time updates at the database level, even though the insert and subscription code were both already correct.
 
-**Plus, new since then**: a real, general "how's the app working for you" feedback system — deliberately separate from rating the person on the other end of a transaction. A genuinely tiny first ask (one tap, three faces), with a deeper optional text box that opens only when it matters — the first time, every third time, or immediately if the quick rating was low. Currently wired into the two clearest real completion points: buyers, right after they confirm delivery, and sellers, the moment an order they fulfilled shows delivered.
+**Kasuwa Price Watch restored properly** — found genuinely mislabeled behind a "My List" button that gave no indication of what it did. Rebuilt as a real, platform-wide, live-data view with a real scrolling ticker, matching the original design.
 
-**Honest, still-open piece**: delivery agents and repairers don't have this yet. There's genuinely no "completed deliveries" view in the delivery agent dashboard to attach it to — that needs to be built first, and the repairer flow needs the same check. Real next step, not forgotten.
+**The full Canteen & Fast Food rebuild**, built directly from real, detailed screenshots — Nigerian Meals, Northern Dishes, Fast Food, Shawarma, Suya & Grills, and Drinks all now have exact real items and prices. A real architectural fix was needed along the way: item choice and swallow choice are both genuinely single-select, which required moving swallow into its own real addon group rendered as radio buttons, not checkboxes. The real, uniform delivery zone and urgency system (Zone 1–4, Standard/Express/Priority/Night) is now fully built as its own dedicated checkout, feeding into the same proven `place_order` function used everywhere else.
 
-## Still genuinely open (unchanged from Batch 16)
+**The real "Add to Market List" button** — found completely missing platform-wide despite the real database table existing. Built and live on every product card now, not just canteen.
 
-- Google Maps / OpenRouteService distance-based delivery pricing — real flat LGA estimates are live now; true per-address distance calculation is pending a real API key
+**Seller registration's Business Type selector** — was a small dropdown missing visual prominence; rebuilt as the real, bold three-button selector (Individual / Business / Supermarket) matching the original design.
+
+**A real, working example store** — "Mallam Sani Provisions" — built and populated with real stock, so a genuine working template is visible immediately rather than a blank registration page. Real, direct stock quantity editing added to the seller dashboard alongside the existing price editing.
+
+## Still genuinely open
+
+- Google Maps / OpenRouteService distance-based delivery pricing for the general marketplace — real flat LGA estimates are live; true per-address calculation pending a real API key
 - Voice-to-text needs a real `ANTHROPIC_API_KEY` secret
 - Bills & Services provider decision — Monnify KYC in progress
 - Pure Gold & Precious Metals real pricing data, if the team has it
 - Login redesign (phone + PIN) — confirmed direction, not yet built
 - "Face verified" badge — needs a real biometric KYC provider decision
-- Completed-deliveries view for delivery agents (and repairer completion flow) — needed before the feedback prompt can extend to them
+- Completed-deliveries view for delivery agents (needed before the feedback prompt can extend to them and repairers)
+- Pizza and Cakes & Desserts canteen menus — still pending real screenshots

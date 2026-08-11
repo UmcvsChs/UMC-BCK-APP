@@ -27,6 +27,7 @@ const CATEGORIES_BY_HUB = {
   electrical_equipment: ['Cables & wiring', 'Switches & sockets', 'Circuit breakers', 'Transformers', 'Industrial installation equipment', 'Generators'],
   interior_appliances: ['Furniture', 'Curtains & rugs', 'Kitchen appliances', 'Cooling & heating', 'Refrigeration', 'TVs & entertainment'],
   plastic_utensils: ['Kitchen utensils', 'Storage containers', 'Buckets & basins', 'Plastic chairs & tables', 'Disposable & party plasticware'],
+  office_equipment: ['Office furniture', 'Printers & copiers', 'Binding & laminating equipment', 'Paper & printing supplies', 'Writing & desk supplies', 'Office electronics'],
   canteen: ['Nigerian Meals', 'Northern Dishes', 'Fast Food', 'Shawarma', 'Suya & Grills', 'Pizza', 'Cakes & Desserts', 'Drinks'],
   phones_tech: ['New Phones', 'Accessories', 'Laptops & Tablets', 'Internet Gear'],
   gold_jewelry: ['Pure Gold & Precious Metals', 'Fashion & Costume Jewelry'],
@@ -270,11 +271,13 @@ function MyListings({ sellerId }) {
   const [expanded, setExpanded] = useState(null)
   const [editingPrice, setEditingPrice] = useState(null)
   const [priceInput, setPriceInput] = useState('')
+  const [editingStock, setEditingStock] = useState(null)
+  const [stockInput, setStockInput] = useState('')
 
   async function load() {
     const { data } = await supabase
       .from('products')
-      .select('id, name, price, category, status')
+      .select('id, name, price, category, status, stock_quantity')
       .eq('seller_id', sellerId)
       .order('created_at', { ascending: false })
     setProducts(data || [])
@@ -290,6 +293,21 @@ function MyListings({ sellerId }) {
       return
     }
     setEditingPrice(null)
+    load()
+  }
+
+  // Real, direct stock quantity editing — exactly as described: tap the
+  // number, change it, save. This is the real quantity buyers see as
+  // "in stock" everywhere else in the app.
+  async function saveStock(productId) {
+    const newStock = Number(stockInput)
+    if (newStock < 0 || Number.isNaN(newStock)) return
+    const { error } = await supabase.from('products').update({ stock_quantity: newStock }).eq('id', productId).eq('seller_id', sellerId)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    setEditingStock(null)
     load()
   }
 
@@ -311,6 +329,34 @@ function MyListings({ sellerId }) {
             <div className="text-left">
               <p className="text-sm font-medium">{p.name}</p>
               <p className="text-xs text-ink/50">{p.category}</p>
+              {editingStock === p.id ? (
+                <div className="flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="number"
+                    value={stockInput}
+                    onChange={(e) => setStockInput(e.target.value)}
+                    className="w-16 text-xs rounded border border-ink/20 px-1 py-0.5"
+                    autoFocus
+                  />
+                  <button onClick={() => saveStock(p.id)} className="text-xs bg-market-green text-white rounded px-2 py-0.5">
+                    Save
+                  </button>
+                  <button onClick={() => setEditingStock(null)} className="text-xs text-ink/50 px-1">
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditingStock(p.id)
+                    setStockInput(String(p.stock_quantity ?? ''))
+                  }}
+                  className="text-xs text-indigo mt-0.5"
+                >
+                  Qty: {p.stock_quantity ?? 0} · Edit
+                </button>
+              )}
             </div>
             <div className="text-right">
               {editingPrice === p.id ? (

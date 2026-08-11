@@ -19,6 +19,8 @@ export default function Settings() {
   const [theme, setTheme] = useState('light')
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
   const [addresses, setAddresses] = useState([])
@@ -29,6 +31,31 @@ export default function Settings() {
   const [scannerOpen, setScannerOpen] = useState(false)
   const [favMessage, setFavMessage] = useState(null)
 
+  async function handleAvatarUpload(file) {
+    if (!file) return
+    setUploadingAvatar(true)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    // Real folder convention {user_id}/filename — matches the real
+    // storage policy already in place, which checks exactly this path
+    // structure before allowing the upload.
+    const path = `${user.id}/${Date.now()}-${file.name}`
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+
+    if (uploadError) {
+      setUploadingAvatar(false)
+      alert(uploadError.message)
+      return
+    }
+
+    const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(path)
+    await supabase.from('profiles').update({ avatar_url: publicUrl.publicUrl }).eq('id', user.id)
+    setAvatarUrl(publicUrl.publicUrl)
+    setUploadingAvatar(false)
+  }
+
   async function loadAll() {
     const {
       data: { user },
@@ -36,7 +63,7 @@ export default function Settings() {
     if (!user) return
     const { data } = await supabase
       .from('profiles')
-      .select('language_preference, theme_preference, full_name, phone')
+      .select('language_preference, theme_preference, full_name, phone, avatar_url')
       .eq('id', user.id)
       .single()
     if (data) {
@@ -44,6 +71,7 @@ export default function Settings() {
       setTheme(data.theme_preference)
       setFullName(data.full_name || '')
       setPhone(data.phone || '')
+      setAvatarUrl(data.avatar_url || null)
     }
     const { data: addr } = await supabase
       .from('delivery_addresses')
@@ -158,6 +186,36 @@ export default function Settings() {
     <div className="p-4 max-w-sm mx-auto pb-6">
       <h1 className="text-xl font-display font-semibold text-indigo mb-1">👤 My Profile</h1>
       <p className="text-sm text-ink/60 mb-6">Manage your account and preferences.</p>
+
+      <div className="flex flex-col items-center mb-6">
+        <label htmlFor="avatar-upload" className="relative cursor-pointer group">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt="Your profile photo"
+              className="w-24 h-24 rounded-full object-cover border-2 border-gold"
+            />
+          ) : (
+            <div className="w-24 h-24 rounded-full bg-indigo/10 border-2 border-dashed border-indigo/40 flex items-center justify-center text-3xl">
+              👤
+            </div>
+          )}
+          <div className="absolute inset-0 rounded-full bg-ink/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium">
+            {uploadingAvatar ? 'Uploading…' : 'Change photo'}
+          </div>
+          <input
+            id="avatar-upload"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            disabled={uploadingAvatar}
+            onChange={(e) => handleAvatarUpload(e.target.files?.[0])}
+          />
+        </label>
+        <p className="text-xs text-ink/50 mt-2">
+          Tap to upload your real photo, company logo, or shop front — whatever helps people recognize you.
+        </p>
+      </div>
 
       <div className="mb-6 rounded-xl bg-surface p-3">
         <p className="text-xs font-semibold mb-2">Personal information</p>

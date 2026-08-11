@@ -1,0 +1,1 @@
+update public.product_addons set addon_group = 'Size (choose one)' where addon_group = 'Choose size (one)';

@@ -1,0 +1,2 @@
+alter table public.sellers add column return_policy text;
+comment on column public.sellers.return_policy is 'Seller-set, free text — displayed to buyers before checkout. Null means the store has not stated one, shown honestly as such rather than a default assumed policy.';

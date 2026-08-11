@@ -1,0 +1,1 @@
+create index idx_order_item_addons_addon_id on public.order_item_addons(addon_id);

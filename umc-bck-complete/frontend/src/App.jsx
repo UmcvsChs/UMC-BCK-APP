@@ -28,6 +28,7 @@ const GreenEnergy = lazy(() => import('./pages/GreenEnergy'))
 const ElectricalEquipment = lazy(() => import('./pages/ElectricalEquipment'))
 const InteriorAppliances = lazy(() => import('./pages/InteriorAppliances'))
 const PlasticUtensils = lazy(() => import('./pages/PlasticUtensils'))
+const OfficeEquipment = lazy(() => import('./pages/OfficeEquipment'))
 const PrescriptionRequest = lazy(() => import('./pages/PrescriptionRequest'))
 const PharmaResellerRegister = lazy(() => import('./pages/PharmaResellerRegister'))
 const ProductDetail = lazy(() => import('./pages/ProductDetail'))
@@ -44,6 +45,7 @@ const DeliveryAgentRegister = lazy(() => import('./pages/DeliveryAgentRegister')
 const DeliveryAgentDashboard = lazy(() => import('./pages/DeliveryAgentDashboard'))
 const UsedItems = lazy(() => import('./pages/UsedItems'))
 const PriceWatches = lazy(() => import('./pages/PriceWatches'))
+const CanteenCheckout = lazy(() => import('./pages/CanteenCheckout'))
 const Bills = lazy(() => import('./pages/Bills'))
 const Verify = lazy(() => import('./pages/Verify'))
 const Admin = lazy(() => import('./pages/Admin'))
@@ -158,7 +160,7 @@ function ProtectedLayout({ children }) {
         {[
           { to: '/marketplace', label: 'Home', icon: '🏠' },
           { to: '/cart', label: 'Cart', icon: '🛒' },
-          { to: '/price-watches', label: 'My List', icon: '📋' },
+          { to: '/price-watches', label: 'Price Watch', icon: '📊' },
           { to: '/bills', label: 'Bills', icon: '⚡' },
           { to: '/settings', label: 'Profile', icon: '👤' },
         ].map((item) => (
@@ -315,6 +317,14 @@ export default function App() {
           }
         />
         <Route
+          path="/canteen-checkout"
+          element={
+            <ProtectedLayout>
+              <CanteenCheckout />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/bills"
           element={
             <ProtectedLayout>
@@ -455,6 +465,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <PlasticUtensils />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/office-equipment"
+          element={
+            <ProtectedLayout>
+              <OfficeEquipment />
             </ProtectedLayout>
           }
         />

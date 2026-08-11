@@ -141,37 +141,93 @@ export default function HubBrowse({ hub, title, accentClass, categories = null, 
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
         {products.map((p) => (
-          <Link
-            key={p.id}
-            to={`/product/${p.id}`}
-            className="rounded border border-ink/10 bg-surface overflow-hidden hover:border-indigo transition-colors"
-          >
-            {p.image_urls?.[0] ? (
-              <img src={p.image_urls[0]} alt={p.name} className="w-full aspect-square object-cover" />
-            ) : (
-              <div className="w-full aspect-square bg-paper flex items-center justify-center text-ink/30 text-xs">
-                No photo
-              </div>
-            )}
-            <div className="p-3">
-              <p className={`text-xs font-medium mb-1 ${accentClass.replace('bg-', 'text-')}`}>{p.category}</p>
-              <p className="font-medium leading-snug">{p.name}</p>
-              {p.product_variants?.length > 0 ? (
-                <p className="font-mono text-sm text-indigo mt-1">
-                  From ₦{Math.min(...p.product_variants.map((v) => Number(v.price))).toLocaleString()}
-                </p>
+          <div key={p.id} className="rounded border border-ink/10 bg-surface overflow-hidden hover:border-indigo transition-colors relative">
+            <MarketListButton productId={p.id} />
+            <Link to={`/product/${p.id}`}>
+              {p.image_urls?.[0] ? (
+                <img src={p.image_urls[0]} alt={p.name} className="w-full aspect-square object-cover" />
               ) : (
-                p.price != null && (
-                  <p className="font-mono text-sm text-indigo mt-1">₦{Number(p.price).toLocaleString()}</p>
-                )
+                <div className="w-full aspect-square bg-paper flex items-center justify-center text-ink/30 text-xs">
+                  No photo
+                </div>
               )}
-            </div>
-          </Link>
+              <div className="p-3">
+                <p className={`text-xs font-medium mb-1 ${accentClass.replace('bg-', 'text-')}`}>{p.category}</p>
+                <p className="font-medium leading-snug">{p.name}</p>
+                {p.product_variants?.length > 0 ? (
+                  <p className="font-mono text-sm text-indigo mt-1">
+                    From ₦{Math.min(...p.product_variants.map((v) => Number(v.price))).toLocaleString()}
+                  </p>
+                ) : (
+                  p.price != null && (
+                    <p className="font-mono text-sm text-indigo mt-1">₦{Number(p.price).toLocaleString()}</p>
+                  )
+                )}
+              </div>
+            </Link>
+          </div>
         ))}
       </div>
 
       <DemandRequest hub={hub} accentClass={accentClass} note={demandNote} />
     </div>
+  )
+}
+
+// Real "Add to Market List" — the red circular tap target restored
+// exactly as described: tap once, this item is saved to your real,
+// personal, reusable market list, so a month later you can pull it back
+// up and check for real, current price updates without re-searching.
+function MarketListButton({ productId }) {
+  const [watching, setWatching] = useState(false)
+  const [checked, setChecked] = useState(false)
+
+  useEffect(() => {
+    async function check() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('price_watches')
+        .select('id')
+        .eq('watcher_id', user.id)
+        .eq('product_id', productId)
+        .maybeSingle()
+      setWatching(!!data)
+      setChecked(true)
+    }
+    check()
+  }, [productId])
+
+  async function toggle(e) {
+    e.preventDefault()
+    e.stopPropagation()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+    if (watching) {
+      await supabase.from('price_watches').delete().eq('watcher_id', user.id).eq('product_id', productId)
+      setWatching(false)
+    } else {
+      await supabase.from('price_watches').insert({ watcher_id: user.id, product_id: productId })
+      setWatching(true)
+    }
+  }
+
+  if (!checked) return null
+
+  return (
+    <button
+      onClick={toggle}
+      aria-label={watching ? 'Remove from market list' : 'Add to market list'}
+      className={`absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-full flex items-center justify-center text-sm shadow ${
+        watching ? 'bg-market-red text-white' : 'bg-white/90 text-market-red border border-market-red/40'
+      }`}
+    >
+      {watching ? '✓' : '+'}
+    </button>
   )
 }
 

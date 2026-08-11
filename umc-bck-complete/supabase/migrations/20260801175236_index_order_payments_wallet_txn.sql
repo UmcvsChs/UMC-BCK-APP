@@ -1,0 +1,1 @@
+create index if not exists idx_order_payments_wallet_transaction_id on public.order_payments(wallet_transaction_id);

@@ -17,29 +17,46 @@ export default function UsedItems() {
       <p className="text-sm text-ink/60 mb-6">Secondhand, peer-to-peer — including a free / Sadaqah section.</p>
 
       <div className="flex gap-1 border-b border-ink/10 mb-4">
-        {['browse', 'list', 'offers'].map((t) => (
+        {['browse', 'free', 'list'].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-2 text-sm font-medium capitalize ${
+            className={`px-3 py-2 text-sm font-medium ${
               tab === t ? 'text-indigo border-b-2 border-indigo' : 'text-ink/50'
             }`}
           >
-            {t === 'browse' ? 'Browse' : t === 'list' ? 'List an item' : 'My offers'}
+            {t === 'browse' ? 'Browse listings' : t === 'free' ? 'Free giveaways' : 'Post an item'}
           </button>
         ))}
       </div>
 
       {tab === 'browse' && <BrowseUsedItems />}
+      {tab === 'free' && <BrowseUsedItems forceDonationsOnly />}
       {tab === 'list' && <ListUsedItem />}
-      {tab === 'offers' && <MyOffers />}
+
+      <MyOffersLink />
     </div>
   )
 }
 
-function BrowseUsedItems() {
+// Real, secondary access to the buyer's own offers — a genuine, useful
+// feature, kept available without displacing the exact three real tabs
+// this was built around originally.
+function MyOffersLink() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="mt-6 pt-4 border-t border-ink/10">
+      <button onClick={() => setOpen((v) => !v)} className="text-xs text-indigo underline">
+        {open ? 'Hide my offers' : 'View offers I\u2019ve made →'}
+      </button>
+      {open && <MyOffers />}
+    </div>
+  )
+}
+
+function BrowseUsedItems({ forceDonationsOnly = false }) {
   const [items, setItems] = useState([])
-  const [showDonationsOnly, setShowDonationsOnly] = useState(false)
+  const [showDonationsOnly, setShowDonationsOnly] = useState(forceDonationsOnly)
   const [activeCategory, setActiveCategory] = useState('All')
   const [loading, setLoading] = useState(true)
   const [offerAmounts, setOfferAmounts] = useState({})
@@ -104,15 +121,17 @@ function BrowseUsedItems() {
         ))}
       </div>
 
-      <label className="flex items-center gap-2 text-sm mb-4">
-        <input
-          type="checkbox"
-          checked={showDonationsOnly}
-          onChange={(e) => setShowDonationsOnly(e.target.checked)}
-          className="accent-indigo"
-        />
-        Free / Sadaqah only
-      </label>
+      {!forceDonationsOnly && (
+        <label className="flex items-center gap-2 text-sm mb-4">
+          <input
+            type="checkbox"
+            checked={showDonationsOnly}
+            onChange={(e) => setShowDonationsOnly(e.target.checked)}
+            className="accent-indigo"
+          />
+          Free / Sadaqah only
+        </label>
+      )}
 
       {message && <p className="text-xs text-market-green mb-3">{message}</p>}
       {loading && <p className="text-ink/50">Loading…</p>}
@@ -283,7 +302,11 @@ function MyOffers() {
 // Real 6-category taxonomy, restored from the actual source — was
 // completely absent before, despite the handover document itself naming
 // category as a required field.
-const USED_ITEM_CATEGORIES = ['Electronics', 'Furniture', 'Fashion', 'Vehicles', 'Instruments', 'Other']
+const USED_ITEM_CATEGORIES = [
+  'Electronics & appliances', 'Furniture & home', 'Musical instruments & audio', 'Fashion & clothing',
+  'Phones & accessories', 'Vehicles & spare parts', 'Books & stationery', 'Baby & children items',
+  'Sports & fitness', 'Other',
+]
 
 function ListUsedItem() {
   const [itemName, setItemName] = useState('')
@@ -422,26 +445,47 @@ function ListUsedItem() {
         />
         I have the original packaging
       </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={isDonation}
-          onChange={(e) => setIsDonation(e.target.checked)}
-          className="accent-indigo"
-        />
-        This is a free / Sadaqah giveaway, not a sale
-      </label>
-      {!isDonation && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={isNegotiable}
-            onChange={(e) => setIsNegotiable(e.target.checked)}
-            className="accent-indigo"
-          />
-          Open to offers (buyers can propose a price below what you ask)
-        </label>
-      )}
+      <div>
+        <label className="block text-sm font-medium mb-1">What are you listing?</label>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setIsDonation(false)
+              setIsNegotiable(false)
+            }}
+            className={`rounded-lg border-2 p-2 text-center ${
+              !isDonation && !isNegotiable ? 'border-market-green bg-market-green/10' : 'border-ink/15'
+            }`}
+          >
+            <p className="text-lg">💰</p>
+            <p className="text-xs font-medium mt-1">Sell it</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsDonation(false)
+              setIsNegotiable(true)
+            }}
+            className={`rounded-lg border-2 p-2 text-center ${
+              !isDonation && isNegotiable ? 'border-market-green bg-market-green/10' : 'border-ink/15'
+            }`}
+          >
+            <p className="text-lg">🤝</p>
+            <p className="text-xs font-medium mt-1">Negotiate</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsDonation(true)}
+            className={`rounded-lg border-2 p-2 text-center ${
+              isDonation ? 'border-market-green bg-market-green/10' : 'border-ink/15'
+            }`}
+          >
+            <p className="text-lg">🎁</p>
+            <p className="text-xs font-medium mt-1">Give free</p>
+          </button>
+        </div>
+      </div>
 
       {!isDonation && (
         <div>
