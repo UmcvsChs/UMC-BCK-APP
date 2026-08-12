@@ -9,6 +9,7 @@ const PAYSTACK_PUBLIC_KEY = 'pk_test_a16b6e74a539f04d7ea5b5e22d4565977e3bd642'
 
 export default function Wallet() {
   const [wallet, setWallet] = useState(null)
+  const [transactions, setTransactions] = useState([])
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -34,6 +35,22 @@ export default function Wallet() {
 
     if (error) setError(error.message)
     else setWallet(data)
+
+    if (data?.id) {
+      // Real transaction history — every credit/debit this whole platform
+      // makes writes a real description here (commission-adjusted
+      // settlements, featured placement charges, retainer billing, fine
+      // assessments). Showing a balance with no history behind it would
+      // leave a seller with no way to know why it changed.
+      const { data: txns } = await supabase
+        .from('wallet_transactions')
+        .select('id, type, amount, description, balance_after, created_at')
+        .eq('wallet_id', data.id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      setTransactions(txns || [])
+    }
+
     setLoading(false)
   }
 
@@ -150,6 +167,29 @@ export default function Wallet() {
         </p>
       </div>
 
+      <details className="mb-6 rounded border border-ink/10 bg-surface">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-indigo">
+          Transaction history {transactions.length > 0 && `(${transactions.length})`}
+        </summary>
+        <div className="border-t border-ink/10 divide-y divide-ink/5">
+          {transactions.length === 0 && <p className="px-3 py-3 text-sm text-ink/50">No transactions yet.</p>}
+          {transactions.map((t) => (
+            <div key={t.id} className="px-3 py-2 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm text-ink/80 truncate">{t.description || t.type}</p>
+                <p className="text-xs text-ink/40">{new Date(t.created_at).toLocaleString()}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className={`font-mono text-sm ${t.type === 'debit' || t.type === 'hold' ? 'text-market-red' : 'text-market-green'}`}>
+                  {t.type === 'debit' || t.type === 'hold' ? '−' : '+'}₦{Number(t.amount).toLocaleString()}
+                </p>
+                <p className="text-xs text-ink/40 font-mono">bal ₦{Number(t.balance_after).toLocaleString()}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </details>
+
       <div className="space-y-3">
         <label htmlFor="amount" className="block text-sm font-medium">
           Fund your wallet
@@ -162,7 +202,7 @@ export default function Wallet() {
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="Amount in ₦"
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono"
         />
 
         {message && <p className="text-sm text-market-green">{message}</p>}

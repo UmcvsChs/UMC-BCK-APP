@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function Admin() {
@@ -7,12 +8,15 @@ export default function Admin() {
   return (
     <div className="p-4 max-w-2xl mx-auto">
       <h1 className="text-xl font-display font-semibold text-indigo mb-1">Admin Control Room</h1>
-      <p className="text-sm text-ink/50 mb-6">
+      <p className="text-sm text-ink/50 mb-4">
         Nothing goes live without passing through here — every registration and listing waits for review.
       </p>
 
+      <PendingApprovalsBadge />
+      <AdminOwnAccountLinks />
+
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
-        {['analytics', 'revenue', 'supermarket', 'registrations', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
+        {['analytics', 'revenue', 'supermarket', 'marketdata', 'registrations', 'idverify', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -26,23 +30,27 @@ export default function Admin() {
                 ? 'Platform Revenue'
                 : t === 'supermarket'
                   ? 'Supermarket Accounts'
-                  : t === 'prescriptions'
-                    ? 'Prescription requests'
-                    : t === 'bills'
-                      ? 'Bill payments'
-                      : t === 'ledger'
-                        ? 'Bills ledger'
-                        : t === 'promocodes'
-                          ? 'Promo codes'
-                          : t === 'accesslog'
-                            ? 'Access log'
-                            : t === 'deliveryfees'
-                              ? 'Delivery fees'
-                              : t === 'dispatch'
-                                ? 'Order dispatch'
-                                : t === 'fraud'
-                                  ? 'Fraud alert'
-                                  : `Pending ${t}`}
+                  : t === 'marketdata'
+                    ? 'Market Data Clients'
+                    : t === 'idverify'
+                      ? 'Identity Verification'
+                      : t === 'prescriptions'
+                      ? 'Prescription requests'
+                      : t === 'bills'
+                        ? 'Bill payments'
+                        : t === 'ledger'
+                          ? 'Bills ledger'
+                          : t === 'promocodes'
+                            ? 'Promo codes'
+                            : t === 'accesslog'
+                              ? 'Access log'
+                              : t === 'deliveryfees'
+                                ? 'Delivery fees'
+                                : t === 'dispatch'
+                                  ? 'Order dispatch'
+                                  : t === 'fraud'
+                                    ? 'Fraud alert'
+                                    : `Pending ${t}`}
           </button>
         ))}
       </div>
@@ -50,6 +58,8 @@ export default function Admin() {
       {tab === 'analytics' && <PlatformAnalytics />}
       {tab === 'revenue' && <PlatformRevenue />}
       {tab === 'supermarket' && <SupermarketAccounts />}
+      {tab === 'marketdata' && <MarketDataClients />}
+      {tab === 'idverify' && <IdentityVerifications />}
       {tab === 'registrations' && <PendingRegistrations />}
       {tab === 'listings' && <PendingListings />}
       {tab === 'prescriptions' && <PendingPrescriptions />}
@@ -94,11 +104,15 @@ function PendingPrescriptions() {
 
   async function handleDecision(requestId, approve) {
     setActioning(requestId)
-    await supabase.rpc('review_prescription_request', {
+    const { error } = await supabase.rpc('review_prescription_request', {
       p_request_id: requestId,
       p_decision: approve ? 'approved' : 'declined',
     })
     setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -108,7 +122,7 @@ function PendingPrescriptions() {
   return (
     <div className="space-y-2">
       {rows.map((r) => (
-        <div key={r.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={r.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{r.medication_name}</p>
           <p className="text-xs text-ink/50">
             Qty {r.requested_quantity}
@@ -173,8 +187,12 @@ function PendingRegistrations() {
   async function handleDecision(row, approve) {
     setActioning(row.id)
     const fn = approve ? 'admin_approve_registration' : 'admin_reject_registration'
-    await supabase.rpc(fn, { p_registration_type: row.registration_type, p_id: row.id })
+    const { error } = await supabase.rpc(fn, { p_registration_type: row.registration_type, p_id: row.id })
     setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -184,7 +202,7 @@ function PendingRegistrations() {
   return (
     <div className="space-y-2">
       {rows.map((r) => (
-        <div key={`${r.registration_type}-${r.id}`} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={`${r.registration_type}-${r.id}`} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">{r.display_name || r.registration_type}</p>
@@ -231,8 +249,12 @@ function PendingListings() {
   async function handleDecision(productId, approve) {
     setActioning(productId)
     const fn = approve ? 'admin_approve_listing' : 'admin_reject_listing'
-    await supabase.rpc(fn, { p_product_id: productId })
+    const { error } = await supabase.rpc(fn, { p_product_id: productId })
     setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -242,7 +264,7 @@ function PendingListings() {
   return (
     <div className="space-y-2">
       {rows.map((r) => (
-        <div key={r.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={r.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">{r.name}</p>
@@ -340,7 +362,7 @@ function PlatformAnalytics() {
 
 function StatCard({ label, value, accent = '', mono = false }) {
   return (
-    <div className="rounded border border-ink/10 bg-white px-3 py-2">
+    <div className="rounded border border-ink/10 bg-surface px-3 py-2">
       <p className="text-xs text-ink/50">{label}</p>
       <p className={`text-lg font-display font-semibold ${mono ? 'font-mono text-base' : ''} ${accent || 'text-indigo'}`}>
         {value}
@@ -371,20 +393,29 @@ function PendingBills() {
 
   async function complete(billId) {
     setActing(billId)
-    await supabase.rpc('complete_bill_payment', {
+    const { error } = await supabase.rpc('complete_bill_payment', {
       p_bill_payment_id: billId,
       p_provider_reference: refs[billId] || 'manual',
     })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
   async function fail(billId) {
     setActing(billId)
-    await supabase.rpc('fail_bill_payment', {
+    const { error } = await supabase.rpc('fail_bill_payment', {
       p_bill_payment_id: billId,
       p_reason: 'Could not be fulfilled — refunded to wallet',
     })
+    if (error) {
+      setActing(null)
+      alert(error.message)
+      return
+    }
     setActing(null)
     load()
   }
@@ -398,7 +429,7 @@ function PendingBills() {
         These are being fulfilled manually while a direct provider connection is set up — completing here confirms it actually happened outside the platform.
       </p>
       {bills.map((b) => (
-        <div key={b.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={b.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{b.category} · {b.provider}</p>
           <p className="text-xs text-ink/50">{b.account_reference}</p>
           <p className="font-mono text-sm text-indigo mt-1">₦{Number(b.amount).toLocaleString()}</p>
@@ -452,12 +483,21 @@ function OpenDisputes() {
 
   async function resolve(disputeId, status) {
     setActing(disputeId)
-    await supabase.rpc('resolve_dispute', {
+    const { data: refundStatus, error } = await supabase.rpc('resolve_dispute', {
       p_dispute_id: disputeId,
       p_status: status,
       p_resolution_notes: notes[disputeId] || '',
     })
     setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    if (refundStatus === 'refunded') {
+      alert('Resolved — the buyer has been refunded from the seller\u2019s wallet.')
+    } else if (refundStatus === 'failed_insufficient_funds') {
+      alert('Resolved, but the refund could NOT be completed — the seller\u2019s wallet has insufficient funds. Real collection from this seller needs a different path (direct negotiation, offsetting future earnings, etc.).')
+    }
     load()
   }
 
@@ -467,7 +507,7 @@ function OpenDisputes() {
   return (
     <div className="space-y-2">
       {disputes.map((d) => (
-        <div key={d.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={d.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{d.reason}</p>
           <p className="text-xs text-ink/60 mt-1">{d.description}</p>
           <p className="font-mono text-xs text-ink/40 mt-1">Order {d.order_id.slice(0, 8)}</p>
@@ -570,7 +610,7 @@ function PromoCodes() {
 
   return (
     <div>
-      <form onSubmit={createCode} className="space-y-2 mb-4 rounded border border-ink/10 bg-white p-3">
+      <form onSubmit={createCode} className="space-y-2 mb-4 rounded border border-ink/10 bg-surface p-3">
         <div className="flex gap-2">
           <input
             required
@@ -617,7 +657,7 @@ function PromoCodes() {
 
       <div className="space-y-2">
         {codes.map((c) => (
-          <div key={c.id} className="flex items-center justify-between rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={c.id} className="flex items-center justify-between rounded border border-ink/10 bg-surface px-3 py-2">
             <div>
               <p className="font-mono text-sm font-medium">{c.code}</p>
               <p className="text-xs text-ink/50">
@@ -658,7 +698,7 @@ function AccessLog() {
   return (
     <div className="space-y-1">
       {logs.map((l) => (
-        <div key={l.id} className="text-xs rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={l.id} className="text-xs rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="font-medium capitalize">{l.action.replace(/_/g, ' ')} — {l.target_type}</p>
           {l.notes && <p className="text-ink/50">{l.notes}</p>}
           <p className="text-ink/40 font-mono">{new Date(l.created_at).toLocaleString()}</p>
@@ -773,8 +813,12 @@ function OrderDispatch() {
 
   async function reassign(orderId) {
     setReassigning(orderId)
-    await supabase.rpc('admin_reassign_order', { p_order_id: orderId, p_new_agent_id: newAgentId[orderId] })
+    const { error } = await supabase.rpc('admin_reassign_order', { p_order_id: orderId, p_new_agent_id: newAgentId[orderId] })
     setReassigning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -784,7 +828,7 @@ function OrderDispatch() {
   return (
     <div className="space-y-2">
       {assignments.map((a) => (
-        <div key={a.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+        <div key={a.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
           <p className="text-sm font-medium">{a.orders?.delivery_address || 'No address'}</p>
           <p className="text-xs text-ink/50">
             Assigned {new Date(a.assigned_at).toLocaleTimeString()} · SLA {new Date(a.sla_deadline).toLocaleTimeString()}
@@ -877,7 +921,7 @@ function FraudAlert() {
         <p className="text-xs font-medium text-ink/60 mb-2">Sellers flagged</p>
         {sellerFlags.length === 0 && <p className="text-xs text-ink/40">None currently.</p>}
         {sellerFlags.map((f) => (
-          <div key={f.id} className="flex justify-between text-sm rounded border border-ink/10 bg-white px-3 py-2 mb-1">
+          <div key={f.id} className="flex justify-between text-sm rounded border border-ink/10 bg-surface px-3 py-2 mb-1">
             <span>{f.storeName}</span>
             <span className="text-market-red font-medium">{f.count} disputes</span>
           </div>
@@ -888,7 +932,7 @@ function FraudAlert() {
         <p className="text-xs font-medium text-ink/60 mb-2">Buyers flagged</p>
         {buyerFlags.length === 0 && <p className="text-xs text-ink/40">None currently.</p>}
         {buyerFlags.map((f) => (
-          <div key={f.id} className="flex justify-between text-sm rounded border border-ink/10 bg-white px-3 py-2 mb-1">
+          <div key={f.id} className="flex justify-between text-sm rounded border border-ink/10 bg-surface px-3 py-2 mb-1">
             <span className="font-mono text-xs">{f.id.slice(0, 8)}</span>
             <span className="text-market-red font-medium">{f.count} disputes raised</span>
           </div>
@@ -945,7 +989,7 @@ function BillsLedger() {
 
       <div className="grid grid-cols-2 gap-2 mb-4">
         {Object.entries(totalsByStatus).map(([status, total]) => (
-          <div key={status} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={status} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <p className="text-xs text-ink/50 capitalize">{status}</p>
             <p className="font-mono text-sm">₦{total.toLocaleString()}</p>
           </div>
@@ -954,7 +998,7 @@ function BillsLedger() {
 
       <div className="space-y-1">
         {bills.map((b) => (
-          <div key={b.id} className="flex justify-between text-xs rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={b.id} className="flex justify-between text-xs rounded border border-ink/10 bg-surface px-3 py-2">
             <span className="capitalize">{b.category} · {b.provider}</span>
             <div className="text-right">
               <p className="font-mono">₦{Number(b.amount).toLocaleString()}</p>
@@ -1009,7 +1053,7 @@ function PlatformRevenue() {
 
       <div className="grid grid-cols-2 gap-2 mb-4">
         {Object.entries(bySource).map(([source, amount]) => (
-          <div key={source} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={source} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <p className="text-xs text-ink/50 capitalize">{source.replace(/_/g, ' ')}</p>
             <p className="font-mono text-sm text-indigo">₦{amount.toLocaleString()}</p>
           </div>
@@ -1018,7 +1062,7 @@ function PlatformRevenue() {
 
       <div className="space-y-1">
         {entries.map((e) => (
-          <div key={e.id} className="text-xs rounded border border-ink/10 bg-white px-3 py-2 flex justify-between">
+          <div key={e.id} className="text-xs rounded border border-ink/10 bg-surface px-3 py-2 flex justify-between">
             <span className="text-ink/70">{e.description}</span>
             <span className="font-mono text-indigo shrink-0 ml-2">₦{Number(e.amount).toLocaleString()}</span>
           </div>
@@ -1052,12 +1096,16 @@ function SupermarketAccounts() {
       return
     }
     setSaving(sellerId)
-    await supabase.rpc('admin_set_supermarket_terms', {
+    const { error } = await supabase.rpc('admin_set_supermarket_terms', {
       p_seller_id: sellerId,
       p_commission_pct: Number(t.commission),
       p_monthly_retainer: Number(t.retainer),
     })
     setSaving(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
     load()
   }
 
@@ -1072,7 +1120,7 @@ function SupermarketAccounts() {
       {candidates.length === 0 && <p className="text-ink/50 text-sm">No candidates right now.</p>}
       <div className="space-y-2">
         {candidates.map((c) => (
-          <div key={c.seller_id} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={c.seller_id} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <p className="text-sm font-medium">{c.store_name}</p>
             <p className="text-xs text-ink/50">
               {c.store_count > 1 && `${c.store_count} stores`}
@@ -1105,6 +1153,319 @@ function SupermarketAccounts() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function MarketDataClients() {
+  const [clients, setClients] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [orgName, setOrgName] = useState('')
+  const [email, setEmail] = useState('')
+  const [fee, setFee] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [newKey, setNewKey] = useState(null)
+
+  async function load() {
+    const { data } = await supabase
+      .from('data_access_clients')
+      .select('id, organization_name, contact_email, status, monthly_fee, created_at')
+      .order('created_at', { ascending: false })
+    setClients(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function createClient(e) {
+    e.preventDefault()
+    setCreating(true)
+    const { data, error } = await supabase.rpc('admin_create_data_access_client', {
+      p_organization_name: orgName,
+      p_contact_email: email,
+      p_monthly_fee: fee ? Number(fee) : null,
+    })
+    setCreating(false)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    setNewKey(data)
+    setOrgName('')
+    setEmail('')
+    setFee('')
+    load()
+  }
+
+  async function revoke(clientId) {
+    const { error } = await supabase.rpc('admin_revoke_data_access_client', { p_client_id: clientId })
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+
+  return (
+    <div>
+      <p className="text-xs text-ink/50 mb-3">
+        Real API access for external licensed buyers of Kasuwa Price Watch data — government agencies, the Bureau
+        of Statistics, and similar. Every response requires at least 3 distinct sellers per data point, so no
+        client can ever see a single seller's real pricing.
+      </p>
+
+      <form onSubmit={createClient} className="space-y-2 mb-4 rounded border border-ink/10 bg-surface p-3">
+        <input
+          required
+          placeholder="Organization name"
+          value={orgName}
+          onChange={(e) => setOrgName(e.target.value)}
+          className="w-full text-sm rounded border border-ink/20 px-2 py-1"
+        />
+        <input
+          required
+          type="email"
+          placeholder="Contact email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full text-sm rounded border border-ink/20 px-2 py-1"
+        />
+        <input
+          type="number"
+          placeholder="Monthly fee ₦ (optional — negotiated, leave blank if free/pending)"
+          value={fee}
+          onChange={(e) => setFee(e.target.value)}
+          className="w-full text-sm rounded border border-ink/20 px-2 py-1"
+        />
+        <button type="submit" disabled={creating} className="w-full text-sm bg-indigo text-white rounded py-2 disabled:opacity-60">
+          {creating ? 'Creating…' : 'Create client + generate API key'}
+        </button>
+      </form>
+
+      {newKey && (
+        <div className="rounded bg-gold/10 px-3 py-2 mb-4">
+          <p className="text-xs font-medium mb-1">Real API key — shown once, copy it now:</p>
+          <p className="font-mono text-xs break-all">{newKey}</p>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {clients.map((c) => (
+          <div key={c.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{c.organization_name}</p>
+                <p className="text-xs text-ink/50">{c.contact_email}</p>
+                {c.monthly_fee && <p className="text-xs font-mono text-indigo">₦{Number(c.monthly_fee).toLocaleString()}/month</p>}
+              </div>
+              <div className="text-right">
+                <span className={`text-xs font-medium ${c.status === 'active' ? 'text-market-green' : 'text-market-red'}`}>{c.status}</span>
+                {c.status === 'active' && (
+                  <button onClick={() => revoke(c.id)} className="block text-xs text-market-red underline mt-1">
+                    Revoke
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PendingApprovalsBadge() {
+  const [summary, setSummary] = useState([])
+  const [expanded, setExpanded] = useState(false)
+
+  async function load() {
+    const { data } = await supabase.rpc('get_pending_approvals_summary')
+    setSummary(data || [])
+  }
+
+  useEffect(() => {
+    load()
+
+    // Real-time — the admin sees the badge update the instant anything new
+    // comes in, across every real pending queue, not just on page reload.
+    const tables = [
+      'sellers', 'delivery_agents', 'repairers', 'identity_verifications',
+      'restock_requests', 'credit_sale_requests', 'prescription_requests', 'disputes', 'bill_payments',
+    ]
+    const channel = supabase.channel('admin-pending-approvals')
+    tables.forEach((t) => {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table: t }, load)
+    })
+    channel.subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  const grouped = summary.reduce((acc, row) => {
+    acc[row.category] = (acc[row.category] || 0) + Number(row.count)
+    return acc
+  }, {})
+  const total = Object.values(grouped).reduce((a, b) => a + b, 0)
+
+  const LABELS = {
+    new_registrations: 'New registrations',
+    identity_verifications: 'Identity verifications',
+    listings: 'Listings',
+    restock_requests: 'Restock requests',
+    credit_sale_requests: 'Credit sale requests',
+    prescription_requests: 'Prescription requests',
+    disputes: 'Open disputes',
+    bill_payments: 'Bill payments',
+  }
+
+  if (total === 0) {
+    return (
+      <div className="mb-4 rounded bg-market-green/10 px-3 py-2 text-xs text-market-green">
+        Nothing pending right now — all clear.
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setExpanded((v) => !v)}
+      className="w-full mb-4 rounded bg-gold/15 border border-gold/40 px-3 py-2 text-left"
+    >
+      <p className="text-sm font-medium text-gold-dark">
+        🔔 {total} item{total === 1 ? '' : 's'} waiting on you {expanded ? '▲' : '▼'}
+      </p>
+      {expanded && (
+        <div className="mt-2 space-y-1">
+          {Object.entries(grouped).map(([cat, count]) => (
+            <p key={cat} className="text-xs text-ink/70">
+              {LABELS[cat] || cat}: <span className="font-mono">{count}</span>
+            </p>
+          ))}
+        </div>
+      )}
+    </button>
+  )
+}
+
+function IdentityVerifications() {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [acting, setActing] = useState(null)
+  const [rejectReason, setRejectReason] = useState({})
+
+  async function load() {
+    const { data } = await supabase
+      .from('identity_verifications')
+      .select('id, id_type, id_number, id_photo_url, created_at, profiles(full_name, phone)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+    setItems(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function resolve(id, approve) {
+    setActing(id)
+    const { error } = await supabase.rpc('resolve_identity_verification', {
+      p_verification_id: id,
+      p_approve: approve,
+      p_rejection_reason: approve ? null : rejectReason[id] || 'Document unclear or invalid',
+    })
+    setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+  if (items.length === 0) return <p className="text-ink/50 text-sm">No pending identity verifications.</p>
+
+  const ID_LABELS = { nin: 'NIN', voters_card: "Voter's Card", drivers_license: "Driver's License", passport: 'Passport' }
+
+  return (
+    <div className="space-y-3">
+      {items.map((v) => (
+        <div key={v.id} className="rounded border border-ink/10 bg-white p-3">
+          <p className="text-sm font-medium">{v.profiles?.full_name || 'Unknown user'}</p>
+          <p className="text-xs text-ink/50">{v.profiles?.phone}</p>
+          <p className="text-xs text-ink/70 mt-1">
+            {ID_LABELS[v.id_type]} — <span className="font-mono">{v.id_number}</span>
+          </p>
+          <a href={v.id_photo_url} target="_blank" rel="noreferrer" className="text-xs text-indigo underline">
+            View document photo
+          </a>
+          <div className="flex gap-1 mt-2">
+            <button onClick={() => resolve(v.id, true)} disabled={acting === v.id} className="text-xs bg-market-green text-white rounded px-3 py-1">
+              Approve
+            </button>
+            <input
+              value={rejectReason[v.id] || ''}
+              onChange={(e) => setRejectReason((prev) => ({ ...prev, [v.id]: e.target.value }))}
+              placeholder="Reason for rejection"
+              className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
+            />
+            <button onClick={() => resolve(v.id, false)} disabled={acting === v.id} className="text-xs bg-market-red text-white rounded px-3 py-1">
+              Reject
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Real, admin-only convenience — links to the admin's own genuine records
+// (their own seller store, delivery agent profile, etc., if they hold
+// any) for verifying the platform firsthand. Never shown to any other
+// user, and worded plainly rather than as a "test mode" banner.
+function AdminOwnAccountLinks() {
+  const [links, setLinks] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      const [{ data: seller }, { data: agent }] = await Promise.all([
+        supabase.from('sellers').select('id').eq('user_id', user.id).maybeSingle(),
+        supabase.from('delivery_agents').select('id').eq('user_id', user.id).maybeSingle(),
+      ])
+      if (!cancelled) setLinks({ sellerId: seller?.id || null, hasAgent: !!agent })
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (!links || (!links.sellerId && !links.hasAgent)) return null
+
+  return (
+    <div className="mb-4 text-xs text-ink/50 flex gap-3">
+      <span>Your own linked accounts:</span>
+      {links.sellerId && (
+        <Link to="/seller" className="text-indigo underline">
+          Seller dashboard
+        </Link>
+      )}
+      {links.hasAgent && (
+        <Link to="/delivery" className="text-indigo underline">
+          Delivery dashboard
+        </Link>
+      )}
     </div>
   )
 }

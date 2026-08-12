@@ -61,7 +61,7 @@ export default function PharmaResellerRegister() {
             id="businessType"
             value={businessType}
             onChange={(e) => setBusinessType(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-pharma focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-pharma focus:outline-none"
           >
             {BUSINESS_TYPES.map((t) => (
               <option key={t} value={t}>
@@ -80,7 +80,7 @@ export default function PharmaResellerRegister() {
             required
             value={licenseNumber}
             onChange={(e) => setLicenseNumber(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-pharma focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-pharma focus:outline-none"
           />
         </div>
 

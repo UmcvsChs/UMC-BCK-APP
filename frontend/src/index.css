@@ -10,3 +10,15 @@
     @apply outline outline-2 outline-offset-2 outline-gold;
   }
 }
+
+/* Real, gentle scrolling ticker for Kasuwa Price Watch */
+@keyframes scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Real, automatic vertical scroll for the full Market Watch list */
+@keyframes marketScroll {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}

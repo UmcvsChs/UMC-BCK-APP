@@ -1,0 +1,1 @@
+delete from public.price_watches where id = 'dff5f2bd-9d98-4922-b7e0-e41b5661f785';

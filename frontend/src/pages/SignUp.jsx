@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { readableAuthError } from '../lib/authErrors'
 
 // Every role a person can register as — matches public.user_role exactly.
 // 'admin' is deliberately excluded: nobody signs themselves up as an admin.
@@ -17,6 +18,7 @@ export default function SignUp() {
   const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
+  const [nin, setNin] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [primaryRole, setPrimaryRole] = useState('buyer')
@@ -36,13 +38,13 @@ export default function SignUp() {
       email,
       password,
       options: {
-        data: { full_name: fullName, phone, primary_role: primaryRole },
+        data: { full_name: fullName, phone, nin, primary_role: primaryRole },
       },
     })
 
     setLoading(false)
     if (error) {
-      setError(error.message)
+      setError(readableAuthError(error))
       return
     }
     navigate('/marketplace')
@@ -65,7 +67,7 @@ export default function SignUp() {
               required
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
             />
           </div>
 
@@ -79,8 +81,26 @@ export default function SignUp() {
               placeholder="080..."
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
             />
+          </div>
+
+          <div>
+            <label htmlFor="nin" className="block text-sm font-medium mb-1">
+              NIN (National Identification Number, optional for now)
+            </label>
+            <input
+              id="nin"
+              type="text"
+              placeholder="11-digit NIN"
+              value={nin}
+              onChange={(e) => setNin(e.target.value)}
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+            />
+            <p className="text-xs text-ink/40 mt-1">
+              Real ID verification against NIMC isn't built yet — this is stored for a future verification step, not
+              checked against anything today.
+            </p>
           </div>
 
           <div>
@@ -93,7 +113,7 @@ export default function SignUp() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
             />
           </div>
 
@@ -108,7 +128,7 @@ export default function SignUp() {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
             />
           </div>
 

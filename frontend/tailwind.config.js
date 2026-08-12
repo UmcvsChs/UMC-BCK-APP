@@ -4,12 +4,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        paper: '#FBF8F2',
+        paper: '#F5F0E5',
+        surface: '#FCF9F2',
         ink: '#1C1B19',
         indigo: {
-          DEFAULT: '#223159',
-          light: '#2E4275',
-          dark: '#182342',
+          DEFAULT: '#0F4C3A',
+          light: '#186B52',
+          dark: '#0A362A',
         },
         gold: {
           DEFAULT: '#C89B3C',
@@ -21,12 +22,20 @@ export default {
           red: '#B4432E',
         },
         hub: {
-          marketplace: '#3F7A5C',
-          canteen: '#C2571A',
-          phones: '#2E6FA3',
-          gold: '#C89B3C',
-          automobile: '#6B4A8A',
-          pharma: '#1E7A6E',
+          marketplace: '#35825B',
+          canteen: '#824C35',
+          phones: '#355B82',
+          gold: '#826B35',
+          automobile: '#553582',
+          pharma: '#35827F',
+          boutique: '#82355B',
+          thrift: '#353582',
+          textile: '#753582',
+          greenenergy: '#4E8235',
+          electrical: '#788235',
+          interior: '#82353B',
+          plastic: '#356F82',
+          office: '#354882',
         },
       },
       fontFamily: {

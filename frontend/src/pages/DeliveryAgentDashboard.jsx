@@ -8,6 +8,7 @@ export default function DeliveryAgentDashboard() {
   const [togglingOnline, setTogglingOnline] = useState(false)
   const [assignments, setAssignments] = useState([])
   const [earnings, setEarnings] = useState(null)
+  const [performance, setPerformance] = useState(null)
   const [reportingFor, setReportingFor] = useState(null)
   const [incidentText, setIncidentText] = useState('')
   const [listening, setListening] = useState(false)
@@ -37,17 +38,38 @@ export default function DeliveryAgentDashboard() {
     setAssignments(data || [])
   }
 
-  async function loadEarnings(agentId) {
+  async function loadEarnings(agentId, userId) {
     // There is no dedicated "agent payout" field anywhere in the schema —
     // the honest, real mapping is the delivery_fee of every order this
     // agent actually delivered, not an invented number.
-    const { data } = await supabase
-      .from('delivery_assignments')
-      .select('resolved_at, orders(delivery_fee)')
-      .eq('delivery_agent_id', agentId)
-      .eq('status', 'delivered')
-    const total = (data || []).reduce((sum, a) => sum + Number(a.orders?.delivery_fee || 0), 0)
-    setEarnings({ total, count: (data || []).length })
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+    const [{ data: allTime }, { data: today }, { data: week }, { data: wallet }, { data: waitingBonusRows }] = await Promise.all([
+      supabase.from('delivery_assignments').select('resolved_at, orders(delivery_fee)').eq('delivery_agent_id', agentId).eq('status', 'delivered'),
+      supabase.from('delivery_assignments').select('orders(delivery_fee)').eq('delivery_agent_id', agentId).eq('status', 'delivered').gte('resolved_at', todayStart),
+      supabase.from('delivery_assignments').select('orders(delivery_fee)').eq('delivery_agent_id', agentId).eq('status', 'delivered').gte('resolved_at', weekStart),
+      supabase.from('wallets').select('balance').eq('user_id', userId).maybeSingle(),
+      supabase.from('wallet_transactions').select('amount, wallets!inner(user_id)').eq('reference_type', 'waiting_fine').eq('wallets.user_id', userId).eq('type', 'credit'),
+    ])
+
+    const total = (allTime || []).reduce((sum, a) => sum + Number(a.orders?.delivery_fee || 0), 0)
+    const todayTotal = (today || []).reduce((sum, a) => sum + Number(a.orders?.delivery_fee || 0), 0)
+    const weekTotal = (week || []).reduce((sum, a) => sum + Number(a.orders?.delivery_fee || 0), 0)
+    const waitingBonus = (waitingBonusRows || []).reduce((sum, r) => sum + Number(r.amount || 0), 0)
+
+    setEarnings({
+      total,
+      count: (allTime || []).length,
+      today: todayTotal,
+      todayCount: (today || []).length,
+      thisWeek: weekTotal,
+      weekCount: (week || []).length,
+      waitingBonus,
+      waitingBonusCount: (waitingBonusRows || []).length,
+      walletBalance: wallet?.balance || 0,
+    })
   }
 
   useEffect(() => {
@@ -57,7 +79,8 @@ export default function DeliveryAgentDashboard() {
   useEffect(() => {
     if (agent?.id) {
       loadAssignments(agent.id)
-      loadEarnings(agent.id)
+      loadEarnings(agent.id, agent.user_id)
+      supabase.rpc('get_delivery_agent_performance', { p_agent_id: agent.id }).then(({ data }) => setPerformance(data?.[0] || null))
     }
   }, [agent])
 
@@ -71,13 +94,12 @@ export default function DeliveryAgentDashboard() {
     if (!error) setAgent((prev) => ({ ...prev, is_online: !prev.is_online }))
   }
 
-  async function handleMarkDelivered(orderId, assignmentId) {
-    const { error } = await supabase.rpc('mark_order_delivered', { p_order_id: orderId })
-    if (!error) loadAssignments(agent.id)
-  }
-
   async function handleRecordArrival(assignmentId) {
-    await supabase.rpc('record_agent_arrival', { p_assignment_id: assignmentId })
+    const { error } = await supabase.rpc('record_agent_arrival', { p_assignment_id: assignmentId })
+    if (error) {
+      alert(error.message)
+      return
+    }
     loadAssignments(agent.id)
   }
 
@@ -86,7 +108,7 @@ export default function DeliveryAgentDashboard() {
     if (!error) {
       alert(data > 0 ? `₦${Number(data).toLocaleString()} waiting fine charged.` : 'Still within the 10-minute free window — no fine yet.')
       loadAssignments(agent.id)
-      loadEarnings(agent.id)
+      loadEarnings(agent.id, agent.user_id)
     }
   }
 
@@ -112,7 +134,11 @@ export default function DeliveryAgentDashboard() {
 
   async function submitIncidentReport(assignmentId) {
     if (!incidentText.trim()) return
-    await supabase.rpc('file_incident_report', { p_assignment_id: assignmentId, p_description: incidentText })
+    const { error } = await supabase.rpc('file_incident_report', { p_assignment_id: assignmentId, p_description: incidentText })
+    if (error) {
+      alert(error.message)
+      return
+    }
     setReportingFor(null)
     setIncidentText('')
   }
@@ -122,9 +148,17 @@ export default function DeliveryAgentDashboard() {
     setUploadingPhotoFor(assignmentId)
     const path = `${agent.id}/${assignmentId}-${Date.now()}.${photoFile.name.split('.').pop()}`
     const { error: uploadError } = await supabase.storage.from('delivery-proof').upload(path, photoFile)
-    if (!uploadError) {
-      const { data: urlData } = supabase.storage.from('delivery-proof').getPublicUrl(path)
-      await supabase.rpc('record_proof_photo', { p_assignment_id: assignmentId, p_photo_url: urlData.publicUrl })
+    if (uploadError) {
+      setUploadingPhotoFor(null)
+      alert(uploadError.message)
+      return
+    }
+    const { data: urlData } = supabase.storage.from('delivery-proof').getPublicUrl(path)
+    const { error: rpcError } = await supabase.rpc('record_proof_photo', { p_assignment_id: assignmentId, p_photo_url: urlData.publicUrl })
+    if (rpcError) {
+      setUploadingPhotoFor(null)
+      alert(rpcError.message)
+      return
     }
     setUploadingPhotoFor(null)
     setPhotoFile(null)
@@ -143,9 +177,6 @@ export default function DeliveryAgentDashboard() {
     )
   }
 
-  const acceptanceRate =
-    agent.total_assignments > 0 ? Math.round((100 * agent.total_fulfilled) / agent.total_assignments) : null
-
   return (
     <div className="p-4 max-w-md mx-auto">
       <div className="flex items-center justify-between mb-1">
@@ -163,19 +194,62 @@ export default function DeliveryAgentDashboard() {
         </span>
       </div>
 
-      {acceptanceRate != null && (
-        <p className="text-sm text-ink/50 mb-4">
-          {agent.total_fulfilled} of {agent.total_assignments} completed · {acceptanceRate}% follow-through
-        </p>
+      {performance && (
+        <div className="rounded bg-surface border border-ink/10 p-3 mb-4 text-center">
+          <p className="text-xs text-ink/50 mb-1">Your overall rating</p>
+          {Number(performance.rating_count) > 0 ? (
+            <>
+              <p className="text-3xl font-bold text-gold-dark">{Number(performance.avg_rating).toFixed(1)}</p>
+              <p className="text-gold text-sm">{'★'.repeat(Math.round(performance.avg_rating))}{'☆'.repeat(5 - Math.round(performance.avg_rating))}</p>
+              <p className="text-xs text-ink/50">Based on {performance.rating_count} buyer rating{performance.rating_count === 1 ? '' : 's'}</p>
+            </>
+          ) : (
+            <p className="text-xs text-ink/40">No ratings yet</p>
+          )}
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            <div>
+              <p className="text-lg font-semibold text-market-green">{performance.total_deliveries}</p>
+              <p className="text-xs text-ink/40">Deliveries</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-market-green">{performance.completion_rate != null ? `${performance.completion_rate}%` : '—'}</p>
+              <p className="text-xs text-ink/40">Completion</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-market-green">{performance.on_time_rate != null ? `${performance.on_time_rate}%` : '—'}</p>
+              <p className="text-xs text-ink/40">On-time</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {earnings && (
-        <div className="rounded bg-market-green/10 px-4 py-3 mb-4">
-          <p className="text-xs text-ink/50">Earnings from {earnings.count} completed {earnings.count === 1 ? 'delivery' : 'deliveries'}</p>
-          <p className="font-mono text-xl text-market-green">₦{earnings.total.toLocaleString()}</p>
-          <p className="text-xs text-ink/40 mt-1">
-            The delivery fee from each order you've actually delivered — there's no separate payout field, this is
-            the real figure.
+        <div className="mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <div className="rounded bg-market-green/10 px-3 py-2 text-center">
+              <p className="text-xs text-ink/50">Today's earnings</p>
+              <p className="font-mono text-lg text-market-green">₦{earnings.today.toLocaleString()}</p>
+              <p className="text-xs text-ink/40">{earnings.todayCount} {earnings.todayCount === 1 ? 'delivery' : 'deliveries'}</p>
+            </div>
+            <div className="rounded bg-gold/10 px-3 py-2 text-center">
+              <p className="text-xs text-ink/50">Waiting time bonus</p>
+              <p className="font-mono text-lg text-gold-dark">₦{earnings.waitingBonus.toLocaleString()}</p>
+              <p className="text-xs text-ink/40">From {earnings.waitingBonusCount} late {earnings.waitingBonusCount === 1 ? 'buyer' : 'buyers'}</p>
+            </div>
+            <div className="rounded bg-market-green/10 px-3 py-2 text-center">
+              <p className="text-xs text-ink/50">This week</p>
+              <p className="font-mono text-lg text-market-green">₦{earnings.thisWeek.toLocaleString()}</p>
+              <p className="text-xs text-ink/40">{earnings.weekCount} {earnings.weekCount === 1 ? 'delivery' : 'deliveries'}</p>
+            </div>
+            <div className="rounded bg-market-green/10 px-3 py-2 text-center">
+              <p className="text-xs text-ink/50">Wallet balance</p>
+              <p className="font-mono text-lg text-market-green">₦{Number(earnings.walletBalance).toLocaleString()}</p>
+              <p className="text-xs text-ink/40">Available to withdraw</p>
+            </div>
+          </div>
+          <p className="text-xs text-ink/40">
+            All-time: ₦{earnings.total.toLocaleString()} from {earnings.count} completed {earnings.count === 1 ? 'delivery' : 'deliveries'} — the real
+            delivery fee from each order you've actually delivered, no invented payout field.
           </p>
         </div>
       )}
@@ -211,7 +285,7 @@ export default function DeliveryAgentDashboard() {
 
       <div className="space-y-2">
         {assignments.map((a) => (
-          <div key={a.id} className="rounded border border-ink/10 bg-white px-3 py-2">
+          <div key={a.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <p className="text-sm font-medium">{a.orders?.delivery_address || 'No address on file'}</p>
             <p className="text-xs text-ink/50 capitalize">{a.orders?.delivery_type?.replace('_', ' ')}</p>
             <p className="font-mono text-sm text-indigo mt-1">
@@ -289,12 +363,12 @@ export default function DeliveryAgentDashboard() {
               </button>
             )}
 
-            <button
-              onClick={() => handleMarkDelivered(a.orders.id, a.id)}
-              className="w-full mt-2 text-xs bg-market-green text-white rounded py-1.5"
-            >
-              Na kai — mark delivered, buyer confirmed receipt
-            </button>
+            {a.arrived_at && (
+              <p className="w-full mt-2 text-xs bg-market-green/10 text-market-green rounded py-2 px-2 text-center">
+                ✓ Arrival recorded — the buyer now sees a real "Confirm received" prompt in their app. Funds settle
+                once they confirm, or automatically after 48 hours if they don't respond.
+              </p>
+            )}
           </div>
         ))}
       </div>

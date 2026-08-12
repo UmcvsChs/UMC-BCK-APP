@@ -57,7 +57,7 @@ export default function Verify() {
           value={reference}
           onChange={(e) => setReference(e.target.value)}
           placeholder={mode === 'transaction' ? 'Order/transaction ID' : '15-digit IMEI'}
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono"
         />
         <button
           type="submit"

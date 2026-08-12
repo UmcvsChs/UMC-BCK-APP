@@ -1,21 +1,30 @@
-# UMC-BCK — Update Batch 4
+# UMC-BCK — Update Batch 18
 
-Same process as before — extract, drag `frontend`, `supabase`, `documents`, and this `README.md` in together, one commit.
+282 real migrations total — 16 new since Batch 17. Given you're now using GitHub Desktop, this ships as one complete package, no splitting required — same real workflow that already handled 154 files cleanly.
 
-## What's genuinely new since Batch 3 — 7 rounds
+## What's genuinely new since Batch 17
 
-**1. PWA fixes** — real manifest, generated icons using the actual brand colors, and a service worker deliberately scoped to cache only the static shell, never API calls (this is a real-time financial app; caching a stale wallet balance would be a dangerous bug, not a cosmetic one).
+**A real, foundational architecture correction, done twice, properly**: Seller, Director, and Attendant are now three genuinely separate dashboards — not one shared page hiding tabs by role. Confirmed technically: an Attendant's browser now downloads a 2.3KB file and never touches the 50KB owner dashboard code at all. Director only becomes relevant the moment a seller registers a second real store, with a real banner appearing automatically at that point.
 
-**2. Real Paystack payment gateway** — the biggest gap in the whole project, closed. Genuine checkout, server-side webhook verification with an independent re-check against Paystack's own API before crediting anything, and a database function locked so only the Edge Function's service role can call it.
+**My List rebuilt as real market intelligence** — multiple named lists per user, real quantity and favorite-seller tracking, and a real "search the market" action returning actual individual sellers, cheapest first, with a direct "Buy" link.
 
-**3–5. Two document-correction passes plus a real Pharma & Medical Hub addendum** — both the User Guide and T&C were written during the prototype phase and contained real overclaims (a fabricated paid IMEI verification service, Bills categories claimed live that don't exist, and — most significantly — full commission and subscription-tier numbers presented as real when nothing was implemented in code). All corrected against the live platform.
+**Every homepage item now opens into a real, unified catalog** — every real brand, every real size, across every real seller, not just one seller's single listing.
 
-**6. The commission correction reversed itself into something bigger.** What looked at first like fabricated numbers turned out to be a real, deliberate revenue model from this project's very first session — lost in the migration to the real backend, not invented. Implemented for real: Phones & Tech 5%, Gold & Jewelry 3%, Automobile 4%, Canteen 10%, Kankara Swap ₦1,000 + 5%, Repair 15%. **Found a far more serious bug while building this:** `mark_order_delivered()` had never actually credited a seller for a regular order, in the real database, for any order — fixed in the same round. No real damage occurred; zero real orders existed yet.
+**Cart now has real, two-way price search** — individual item or the whole basket collectively, real average price or real cheapest price, all four combinations working, with a direct "Switch & save" wherever something genuinely cheaper exists.
 
-**7. Three new revenue streams, researched against real global benchmarks before any number was proposed.** Featured Placement (₦5,000/10,000/15,000 monthly tiers, validated against Jumia Nigeria's own real Sponsored Products pricing, with genuine recurring billing and a real effect on search ranking). Supermarket accounts (genuinely negotiated per-account commission and retainer, never automated, with real computable eligibility triggers). Caught and fixed a real ERROR-level security issue along the way — a SECURITY DEFINER view that bypassed RLS — before it shipped.
+**Market Watch rebuilt twice, now correctly placed**: the real, moving, right-to-left price ticker lives globally between the two navigation rows, visible everywhere in the app. The Market Watch page itself is now static and searchable — type in a real item, or just scroll the list yourself.
+
+**Two real, critical bugs found and fixed by direct reproduction, not guessing**: the avatars storage bucket was missing its SELECT policy, silently breaking every photo upload. The My List "+" button had no INSERT or DELETE permission at all — every tap was silently failing before this fix.
+
+**Both core documents properly merged as single, complete files** — User Guide is now Edition 4.5 (17 pages, all original content intact), Terms & Conditions is now v2.7 (10 pages, new sections correctly numbered 60–65 continuing from the real existing section 59). Both included in `documents/`.
+
+**POS discoverability fixed** — "Register" is now "🧾 Sell (POS)", "Reports" is "Sales Reports", "P&L" is "Profit & Loss".
 
 ## Still genuinely open
 
-- Kasuwa Price Watch data monetization (selling aggregated market data to government/statistics bodies) — needs a real aggregated export mechanism, intentionally not folded into this batch
-- The 7 Bills categories still waiting on a provider decision
-- Bundle size — still worth code-splitting before real production traffic
+- Bills & Services — 7 categories still missing, plus the Monnify provider decision
+- Pure Gold & Precious Metals — no real seed data yet
+- Login redesign (phone + PIN, biometric fast-path)
+- "Face verified" badge — needs a real biometric KYC provider
+- Two separate Netlify URLs — never resolved which is canonical
+- Pizza and Cakes & Desserts canteen menus — still pending real screenshots

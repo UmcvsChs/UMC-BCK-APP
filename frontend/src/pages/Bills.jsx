@@ -17,6 +17,9 @@ const CATEGORIES = [
 export default function Bills() {
   const [category, setCategory] = useState(CATEGORIES[0].value)
   const [provider, setProvider] = useState('')
+  useEffect(() => {
+    setProvider('')
+  }, [category])
   const [accountReference, setAccountReference] = useState('')
   const [amount, setAmount] = useState('')
   const [error, setError] = useState(null)
@@ -74,7 +77,7 @@ export default function Bills() {
             id="category"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           >
             {CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>
@@ -88,14 +91,30 @@ export default function Bills() {
           <label htmlFor="provider" className="block text-sm font-medium mb-1">
             Provider
           </label>
-          <input
-            id="provider"
-            required
-            value={provider}
-            onChange={(e) => setProvider(e.target.value)}
-            placeholder="e.g. MTN, KEDCO, DSTV"
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
-          />
+          {category === 'airtime' || category === 'data' ? (
+            <select
+              id="provider"
+              required
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+            >
+              <option value="">-- Select network --</option>
+              <option value="MTN">MTN</option>
+              <option value="Glo">Glo</option>
+              <option value="Airtel">Airtel</option>
+              <option value="9mobile">9mobile</option>
+            </select>
+          ) : (
+            <input
+              id="provider"
+              required
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              placeholder="e.g. KEDCO, DSTV"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+            />
+          )}
         </div>
 
         <div>
@@ -107,7 +126,7 @@ export default function Bills() {
             required
             value={accountReference}
             onChange={(e) => setAccountReference(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           />
         </div>
 
@@ -122,7 +141,7 @@ export default function Bills() {
             required
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none font-mono"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono"
           />
         </div>
 
@@ -145,7 +164,7 @@ export default function Bills() {
       {myBills.length === 0 && <p className="text-sm text-ink/50">No bill payments yet.</p>}
       <div className="space-y-2">
         {myBills.map((b) => (
-          <div key={b.id} className="rounded border border-ink/10 bg-white px-3 py-2 flex items-center justify-between">
+          <div key={b.id} className="rounded border border-ink/10 bg-surface px-3 py-2 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">
                 {CATEGORIES.find((c) => c.value === b.category)?.label || b.category}

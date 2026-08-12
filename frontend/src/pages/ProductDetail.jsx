@@ -31,7 +31,7 @@ export default function ProductDetail() {
       } = await supabase.auth.getUser()
 
       const [{ data: p, error: pErr }, { data: v }, { data: a }, { data: w }] = await Promise.all([
-        supabase.from('products').select('*, sellers(return_policy)').eq('id', productId).single(),
+        supabase.from('products').select('*, sellers(return_policy, primary_hub)').eq('id', productId).single(),
         supabase.from('product_variants').select('*').eq('product_id', productId),
         supabase.from('product_addons').select('*').eq('product_id', productId),
         user
@@ -57,18 +57,28 @@ export default function ProductDetail() {
     }
   }, [productId])
 
-  function toggleAddon(id) {
+  function toggleAddon(id, groupName, isSingleSelect) {
+    if (isSingleSelect) {
+      const groupIds = addons.filter((a) => a.addon_group === groupName).map((a) => a.id)
+      setSelectedAddonIds((prev) => {
+        const withoutGroup = prev.filter((x) => !groupIds.includes(x))
+        return prev.includes(id) ? withoutGroup : [...withoutGroup, id]
+      })
+      return
+    }
     setSelectedAddonIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
   async function toggleWatch() {
     setWatchLoading(true)
-    if (isWatched) {
-      await supabase.rpc('remove_price_watch', { p_product_id: productId })
-    } else {
-      await supabase.rpc('add_price_watch', { p_product_id: productId })
-    }
+    const { error } = isWatched
+      ? await supabase.rpc('remove_price_watch', { p_product_id: productId })
+      : await supabase.rpc('add_price_watch', { p_product_id: productId })
     setWatchLoading(false)
+    if (error) {
+      alert(error.message)
+      return
+    }
     setIsWatched((prev) => !prev)
   }
 
@@ -83,6 +93,18 @@ export default function ProductDetail() {
   }
 
   async function handleAddToCart() {
+    // Real canteen orders use their own real, uniform zone/urgency
+    // checkout — confirmed distinct from the general marketplace's
+    // LGA-based delivery fees — so they're routed there directly rather
+    // than into the general cart.
+    if (product?.sellers?.primary_hub === 'canteen') {
+      const params = new URLSearchParams({ product: productId })
+      if (selectedVariant) params.set('variant', selectedVariant)
+      if (selectedAddonIds.length > 0) params.set('addons', selectedAddonIds.join(','))
+      navigate(`/canteen-checkout?${params.toString()}`)
+      return
+    }
+
     setAdding(true)
     setError(null)
 
@@ -105,7 +127,15 @@ export default function ProductDetail() {
 
   if (loading) return <div className="p-4 text-ink/50">Loading…</div>
   if (error && !product) return <div className="p-4 text-market-red">{error}</div>
-  if (!product) return null
+  if (!product)
+    return (
+      <div className="p-4">
+        <p className="text-market-red mb-2">This product couldn't be loaded — it may no longer be available.</p>
+        <button onClick={() => navigate(-1)} className="text-sm text-indigo underline">
+          ← Go back
+        </button>
+      </div>
+    )
 
   const unitPrice = selectedVariant
     ? variants.find((v) => v.id === selectedVariant)?.price
@@ -175,7 +205,7 @@ export default function ProductDetail() {
             <p className="text-xs text-ink/50">No similar listings found from other sellers.</p>
           )}
           {comparisons?.map((p) => (
-            <div key={p.id} className="flex justify-between text-xs rounded border border-ink/10 bg-white px-2 py-1.5">
+            <div key={p.id} className="flex justify-between text-xs rounded border border-ink/10 bg-surface px-2 py-1.5">
               <span>{p.name}</span>
               {p.price != null && <span className="font-mono text-indigo">₦{Number(p.price).toLocaleString()}</span>}
             </div>
@@ -212,26 +242,51 @@ export default function ProductDetail() {
 
       {addons.length > 0 && (
         <div className="mb-4">
-          <p className="text-sm font-medium mb-2">Add extras</p>
-          <div className="space-y-2">
-            {addons.map((a) => (
-              <label
-                key={a.id}
-                className="flex items-center justify-between rounded border border-ink/15 px-3 py-2 cursor-pointer"
-              >
-                <span className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedAddonIds.includes(a.id)}
-                    onChange={() => toggleAddon(a.id)}
-                    className="accent-indigo"
-                  />
-                  {a.name}
-                </span>
-                <span className="font-mono text-sm">+₦{Number(a.price).toLocaleString()}</span>
-              </label>
-            ))}
-          </div>
+          {Object.entries(
+            addons.reduce((groups, a) => {
+              const key = a.addon_group || 'Add extras'
+              groups[key] = groups[key] || []
+              groups[key].push(a)
+              return groups
+            }, {})
+          ).map(([groupName, groupAddons]) => {
+            const isSingleSelect = groupName.toLowerCase().includes('choose one')
+            return (
+              <div key={groupName} className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-market-green mb-1">
+                  {groupName === 'Soup' ? 'Choose your soup(s)' : groupName === 'Protein' ? 'Choose your protein(s)' : groupName}
+                </p>
+                {groupName === 'Soup' && (
+                  <p className="text-xs text-ink/50 mb-2">
+                    Mix and match — ogbono + bitter leaf together is perfectly fine 👍
+                  </p>
+                )}
+                {groupName === 'Protein' && (
+                  <p className="text-xs text-ink/50 mb-2">Select as many as you want, in one bowl.</p>
+                )}
+                <div className="space-y-2">
+                  {groupAddons.map((a) => (
+                    <label
+                      key={a.id}
+                      className="flex items-center justify-between rounded border border-ink/15 px-3 py-2 cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2 text-sm">
+                        <input
+                          type={isSingleSelect ? 'radio' : 'checkbox'}
+                          name={isSingleSelect ? groupName : undefined}
+                          checked={selectedAddonIds.includes(a.id)}
+                          onChange={() => toggleAddon(a.id, groupName, isSingleSelect)}
+                          className="accent-indigo"
+                        />
+                        {a.name}
+                      </span>
+                      <span className="font-mono text-sm">+₦{Number(a.price).toLocaleString()}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -265,7 +320,7 @@ export default function ProductDetail() {
           value={contributorName}
           onChange={(e) => setContributorName(e.target.value)}
           placeholder="e.g. Amina"
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-indigo focus:outline-none text-sm"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none text-sm"
         />
       </div>
 
@@ -291,8 +346,106 @@ export default function ProductDetail() {
         disabled={adding || (variants.length > 0 && !selectedVariant) || product.stock_quantity === 0}
         className="w-full rounded bg-indigo text-paper font-display font-medium py-2.5 hover:bg-indigo-light transition-colors disabled:opacity-60"
       >
-        {product.stock_quantity === 0 ? 'Out of stock' : added ? 'Added to cart ✓' : adding ? 'Adding…' : 'Add to cart'}
+        {product.stock_quantity === 0
+          ? 'Out of stock'
+          : added
+            ? 'Added to cart ✓'
+            : adding
+              ? 'Adding…'
+              : product?.sellers?.primary_hub === 'canteen'
+                ? 'Build your order →'
+                : 'Add to cart'}
       </button>
+
+      <ProductQA productId={productId} />
+    </div>
+  )
+}
+
+// Real product Q&A — matching exactly the real problem described: a
+// sealed carton photo often can't show count, color options, or size
+// variants. A buyer asks, the real seller answers, and the answer stays
+// visible for every future buyer browsing the same listing.
+function ProductQA({ productId }) {
+  const [questions, setQuestions] = useState([])
+  const [newQuestion, setNewQuestion] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function load() {
+    const { data } = await supabase
+      .from('product_questions')
+      .select('id, question, answer, answered_at, created_at')
+      .eq('product_id', productId)
+      .order('created_at', { ascending: false })
+    setQuestions(data || [])
+  }
+
+  useEffect(() => {
+    load()
+  }, [productId])
+
+  async function submitQuestion() {
+    if (!newQuestion.trim()) return
+    setSubmitting(true)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    await supabase.from('product_questions').insert({
+      product_id: productId,
+      buyer_id: user.id,
+      question: newQuestion.trim(),
+    })
+    setNewQuestion('')
+    setSubmitting(false)
+    load()
+  }
+
+  return (
+    <div className="mt-6 pt-4 border-t border-ink/10">
+      <p className="text-sm font-medium mb-2">Questions about this item</p>
+      <p className="text-xs text-ink/50 mb-3">
+        Photo not clear enough? Ask the seller directly — how many pieces, what colors, what sizes, whatever you
+        need to know before buying.
+      </p>
+
+      <div className="flex gap-2 mb-4">
+        <input
+          value={newQuestion}
+          onChange={(e) => setNewQuestion(e.target.value)}
+          placeholder="e.g. How many plates are in this carton?"
+          className="flex-1 rounded border border-ink/20 px-3 py-2 text-sm"
+        />
+        <button
+          onClick={submitQuestion}
+          disabled={submitting || !newQuestion.trim()}
+          className="rounded bg-indigo text-paper text-sm font-medium px-4 disabled:opacity-60"
+        >
+          Ask
+        </button>
+      </div>
+
+      {questions.length === 0 ? (
+        <p className="text-xs text-ink/40">No questions yet — be the first to ask.</p>
+      ) : (
+        <div className="space-y-3">
+          {questions.map((q) => (
+            <div key={q.id} className="rounded bg-ink/5 px-3 py-2">
+              <p className="text-sm">
+                <span className="font-medium">Q: </span>
+                {q.question}
+              </p>
+              {q.answer ? (
+                <p className="text-sm text-market-green mt-1">
+                  <span className="font-medium">Seller: </span>
+                  {q.answer}
+                </p>
+              ) : (
+                <p className="text-xs text-gold-dark mt-1">Awaiting seller's reply…</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,0 +1,1 @@
+update public.products set image_urls = array['/catalog-photos/seasoning-cubes.svg'] where name = 'Maggi Cubes (100 pack)';

@@ -47,7 +47,7 @@ export default function DemandRequest({ hub, accentClass = 'bg-indigo', note = n
   }
 
   return (
-    <div className="rounded border border-ink/10 bg-white p-3">
+    <div className="rounded border border-ink/10 bg-surface p-3">
       <p className="text-sm font-medium mb-1">Can't find what you're looking for?</p>
       <p className="text-xs text-ink/50 mb-3">
         Describe it — any seller in this hub who might carry it can see your request.

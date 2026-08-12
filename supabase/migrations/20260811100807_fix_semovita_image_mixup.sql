@@ -1,0 +1,1 @@
+update public.products set image_urls = array['/branded-photos/semovita_umc.png'] where id = '37316088-fa5d-41ea-929a-198eba511efe';

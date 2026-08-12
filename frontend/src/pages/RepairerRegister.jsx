@@ -110,7 +110,7 @@ export default function RepairerRegister() {
             min="0"
             value={yearsExperience}
             onChange={(e) => setYearsExperience(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-white focus:border-hub-phones focus:outline-none"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-hub-phones focus:outline-none"
           />
         </div>
 
