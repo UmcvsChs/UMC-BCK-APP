@@ -28,6 +28,10 @@ export default function SignUp() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
+    if (!/^\d{6}$/.test(password)) {
+      setError('Your PIN must be exactly 6 digits.')
+      return
+    }
     setLoading(true)
 
     // full_name, phone, and primary_role all travel in metadata — the
@@ -47,6 +51,7 @@ export default function SignUp() {
       setError(readableAuthError(error))
       return
     }
+    localStorage.setItem('umc_bck_remembered_phone', phone.trim())
     navigate('/marketplace')
   }
 
@@ -73,11 +78,12 @@ export default function SignUp() {
 
           <div>
             <label htmlFor="phone" className="block text-sm font-medium mb-1">
-              Phone number
+              Phone number — this is what you'll use to sign in
             </label>
             <input
               id="phone"
               type="tel"
+              required
               placeholder="080..."
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -115,21 +121,25 @@ export default function SignUp() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
             />
+            <p className="text-xs text-ink/40 mt-1">A real backup for account recovery — your phone number is what you'll actually sign in with day to day.</p>
           </div>
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium mb-1">
-              Password
+              Choose a 6-digit PIN
             </label>
             <input
               id="password"
               type="password"
+              inputMode="numeric"
               required
-              minLength={6}
+              pattern="\d{6}"
+              maxLength={6}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+              onChange={(e) => setPassword(e.target.value.replace(/\D/g, ''))}
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono text-center text-xl tracking-[0.5em]"
             />
+            <p className="text-xs text-ink/40 mt-1">Real, exactly 6 digits — this is what you'll enter alongside your phone number to sign in.</p>
           </div>
 
           <fieldset>

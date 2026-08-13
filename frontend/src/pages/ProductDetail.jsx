@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import GroupBuyPanel from '../components/GroupBuyPanel'
 
 export default function ProductDetail() {
   const { productId } = useParams()
@@ -31,7 +32,7 @@ export default function ProductDetail() {
       } = await supabase.auth.getUser()
 
       const [{ data: p, error: pErr }, { data: v }, { data: a }, { data: w }] = await Promise.all([
-        supabase.from('products').select('*, sellers(return_policy, primary_hub)').eq('id', productId).single(),
+        supabase.from('products').select('*, sellers(return_policy, primary_hub, wholesale_min_quantity)').eq('id', productId).single(),
         supabase.from('product_variants').select('*').eq('product_id', productId),
         supabase.from('product_addons').select('*').eq('product_id', productId),
         user
@@ -340,6 +341,8 @@ export default function ProductDetail() {
           {product.sellers.return_policy}
         </div>
       )}
+
+      <GroupBuyPanel productId={productId} wholesaleMinQuantity={product.sellers?.wholesale_min_quantity} />
 
       <button
         onClick={handleAddToCart}

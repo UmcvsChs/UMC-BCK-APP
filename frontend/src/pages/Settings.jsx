@@ -192,7 +192,15 @@ export default function Settings() {
 
   return (
     <div className="p-4 max-w-sm mx-auto pb-6">
-      <h1 className="text-xl font-display font-semibold text-indigo mb-1">👤 My Profile</h1>
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-xl font-display font-semibold text-indigo">👤 My Profile</h1>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="text-sm text-market-red font-medium border border-market-red/30 rounded-full px-3 py-1"
+        >
+          Sign out
+        </button>
+      </div>
       <p className="text-sm text-ink/60 mb-6">Manage your account and preferences.</p>
 
       <div className="flex flex-col items-center mb-6">
@@ -378,7 +386,119 @@ export default function Settings() {
 
       <IdentityVerificationSection />
 
+      <AttendantApplicationSection />
+
       {saved && <p className="text-sm text-market-green">Saved.</p>}
+    </div>
+  )
+}
+
+// Real "register as an attendant" — matching the exact double-entry
+// design described: an existing user applies here, from their own real
+// Profile, to work at a specific real store. This creates a real,
+// pending application. The real store's director sees and approves or
+// rejects it — approval creates the real attendants row automatically.
+// No blind invite codes with nobody real to send them to.
+function AttendantApplicationSection() {
+  const [storeQuery, setStoreQuery] = useState('')
+  const [matches, setMatches] = useState([])
+  const [myApplications, setMyApplications] = useState([])
+  const [message, setMessage] = useState(null)
+
+  async function loadMyApplications() {
+    const { data } = await supabase
+      .from('attendant_applications')
+      .select('id, status, created_at, sellers(store_name)')
+      .order('created_at', { ascending: false })
+    setMyApplications(data || [])
+  }
+
+  useEffect(() => {
+    loadMyApplications()
+  }, [])
+
+  async function searchStores() {
+    if (!storeQuery.trim()) return
+    const { data } = await supabase
+      .from('sellers')
+      .select('id, store_name, seller_code')
+      .or(`store_name.ilike.%${storeQuery}%,seller_code.ilike.%${storeQuery}%`)
+      .limit(8)
+    setMatches(data || [])
+  }
+
+  async function applyToStore(storeId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const { error } = await supabase.from('attendant_applications').insert({ applicant_id: user.id, store_id: storeId })
+    if (error) {
+      setMessage(`Could not apply: ${error.message}`)
+      return
+    }
+    setMessage('✓ Real application sent — the store\u2019s director will review it.')
+    setMatches([])
+    setStoreQuery('')
+    loadMyApplications()
+  }
+
+  return (
+    <div className="mb-6 rounded-xl bg-surface p-3">
+      <p className="text-xs font-semibold mb-1">Work at a store as an attendant</p>
+      <p className="text-xs text-ink/50 mb-2">
+        Got a job at a real store? Search for it by name or its real seller code, and apply — the director there
+        will approve you directly.
+      </p>
+      <div className="flex gap-2 mb-2">
+        <input
+          value={storeQuery}
+          onChange={(e) => setStoreQuery(e.target.value)}
+          placeholder="Store name or code, e.g. UMC-04821"
+          className="flex-1 rounded border border-ink/20 px-3 py-2 text-sm"
+          onKeyDown={(e) => e.key === 'Enter' && searchStores()}
+        />
+        <button onClick={searchStores} className="text-sm bg-indigo text-white rounded px-3">
+          Search
+        </button>
+      </div>
+
+      {matches.length > 0 && (
+        <div className="space-y-1.5 mb-3">
+          {matches.map((s) => (
+            <div key={s.id} className="flex items-center justify-between rounded border border-ink/15 px-3 py-2">
+              <div>
+                <p className="text-sm font-medium">{s.store_name}</p>
+                <p className="text-xs text-ink/40 font-mono">{s.seller_code}</p>
+              </div>
+              <button onClick={() => applyToStore(s.id)} className="text-xs bg-market-green text-white rounded px-3 py-1.5">
+                Apply
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {message && <p className="text-xs text-market-green mb-2">{message}</p>}
+
+      {myApplications.length > 0 && (
+        <div>
+          <p className="text-xs font-medium mb-1">Your real applications</p>
+          <div className="space-y-1">
+            {myApplications.map((a) => (
+              <div key={a.id} className="flex items-center justify-between text-xs">
+                <span>{a.sellers?.store_name}</span>
+                <span
+                  className={
+                    a.status === 'approved' ? 'text-market-green' : a.status === 'rejected' ? 'text-market-red' : 'text-gold-dark'
+                  }
+                >
+                  {a.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

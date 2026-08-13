@@ -1,21 +1,20 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import SalesRegister from '../components/attendant/SalesRegister'
-import RestockRequests from '../components/attendant/RestockRequests'
-import CreditSaleRequests from '../components/attendant/CreditSaleRequests'
+import MyStoreStock from '../components/attendant/MyStoreStock'
+import ApprenticeshipCredential from '../components/attendant/ApprenticeshipCredential'
+import SubmitCreditSaleRequest from '../components/attendant/SubmitCreditSaleRequest'
+import SubmitRestockRequest from '../components/attendant/SubmitRestockRequest'
 import StoreMessages from '../components/attendant/StoreMessages'
 
-// Real, genuinely independent Attendant dashboard — a completely
-// separate real page, not a hidden view inside the Seller/Director
-// dashboard. An attendant only ever loads this file and the four real,
-// scoped components it imports — never any part of the owner-facing
-// code, by construction, not just by hiding tabs. This is the real
-// difference between "an attendant can't see it right now" and "an
-// attendant's browser was never given it at all."
+// Real, genuinely independent Attendant dashboard — rebuilt to match
+// the real reference exactly: one continuous scrollable page (Stock →
+// Record a sale → Request credit → Request restock → Messages), not
+// separate tabs. Real submission forms, not the director's approval
+// view reused by mistake.
 export default function AttendantDashboard() {
   const [stores, setStores] = useState([])
   const [selectedStoreId, setSelectedStoreId] = useState(null)
-  const [tab, setTab] = useState('register')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -27,11 +26,9 @@ export default function AttendantDashboard() {
         setLoading(false)
         return
       }
-      // Real, direct query — only real, active attendant assignments,
-      // nothing about ownership, nothing about other stores.
       const { data } = await supabase
         .from('attendants')
-        .select('store_id, sellers(id, store_name, is_open, primary_hub)')
+        .select('store_id, sellers(id, store_name, is_open, primary_hub, market)')
         .eq('user_id', user.id)
         .eq('is_active', true)
 
@@ -61,13 +58,13 @@ export default function AttendantDashboard() {
 
   return (
     <div className="max-w-md mx-auto">
-      <div className="px-4 pt-4 pb-2">
-        <h1 className="text-xl font-display font-semibold text-indigo mb-1">🧑‍💼 Attendant</h1>
+      <div className="bg-ink text-paper px-4 py-3">
+        <p className="text-lg font-display font-semibold">👤 Shop Attendant</p>
         {stores.length > 1 ? (
           <select
             value={selectedStoreId || ''}
             onChange={(e) => setSelectedStoreId(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 text-sm mb-2"
+            className="w-full rounded border border-paper/20 bg-ink text-paper px-2 py-1 text-sm mt-1"
           >
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
@@ -76,31 +73,19 @@ export default function AttendantDashboard() {
             ))}
           </select>
         ) : (
-          <p className="text-sm text-ink/60 mb-2">
-            {store.store_name} — {store.is_open ? 'Store open' : 'Store closed'}
+          <p className="text-xs text-paper/60">
+            {store.store_name} {store.market && `— ${store.market}`}
           </p>
         )}
       </div>
 
-      <div className="flex gap-1 border-b border-ink/10 px-4 overflow-x-auto">
-        {['register', 'restock', 'creditreqs', 'messages'].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`shrink-0 px-3 py-2 text-sm font-medium ${
-              tab === t ? 'text-indigo border-b-2 border-indigo font-bold' : 'text-ink/50'
-            }`}
-          >
-            {t === 'register' ? '🧾 Sell (POS)' : t === 'restock' ? 'Restock' : t === 'creditreqs' ? 'Credit Requests' : 'Messages'}
-          </button>
-        ))}
-      </div>
-
-      <div className="p-4">
-        {tab === 'register' && <SalesRegister key={store.id} sellerId={store.id} />}
-        {tab === 'restock' && <RestockRequests key={store.id} sellerId={store.id} />}
-        {tab === 'creditreqs' && <CreditSaleRequests key={store.id} sellerId={store.id} />}
-        {tab === 'messages' && <StoreMessages key={store.id} storeId={store.id} />}
+      <div className="p-4 space-y-4">
+        <ApprenticeshipCredential />
+        <MyStoreStock key={`stock-${store.id}`} sellerId={store.id} />
+        <SalesRegister key={`sell-${store.id}`} sellerId={store.id} />
+        <SubmitCreditSaleRequest key={`credit-${store.id}`} sellerId={store.id} />
+        <SubmitRestockRequest key={`restock-${store.id}`} sellerId={store.id} />
+        <StoreMessages key={`msg-${store.id}`} storeId={store.id} />
       </div>
     </div>
   )

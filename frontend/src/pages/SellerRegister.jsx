@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const HUBS = [
@@ -24,7 +24,7 @@ export default function SellerRegister() {
   const [lgas, setLgas] = useState([])
   const [storeName, setStoreName] = useState('')
   const [tier, setTier] = useState('individual')
-  const [primaryHub, setPrimaryHub] = useState('general_marketplace')
+  const [selectedCategories, setSelectedCategories] = useState(['general_marketplace'])
   const [sellingMode, setSellingMode] = useState('retail_only')
   const [wholesaleMinQty, setWholesaleMinQty] = useState('')
   const [wholesaleMinDesc, setWholesaleMinDesc] = useState('')
@@ -33,6 +33,20 @@ export default function SellerRegister() {
   const [lgaId, setLgaId] = useState('')
   const [market, setMarket] = useState('')
   const [stallNumber, setStallNumber] = useState('')
+  const [priorCredential, setPriorCredential] = useState(null)
+
+  useEffect(() => {
+    async function checkCredential() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.rpc('get_apprenticeship_credential', { p_user_id: user.id })
+      const cred = data?.[0]
+      if (cred?.credential_tier?.startsWith('Verified')) setPriorCredential(cred)
+    }
+    checkCredential()
+  }, [])
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
@@ -86,11 +100,17 @@ export default function SellerRegister() {
       data: { user },
     } = await supabase.auth.getUser()
 
-    const { error } = await supabase.from('sellers').insert({
+    // Real, direct architecture match: multiple selected categories
+    // means multiple real stores, one per category, matching exactly
+    // what was described — "you will have boutique interface set up
+    // first before you now set up the other interfaces." All under the
+    // same real account, using the same already-proven multi-store
+    // ownership model.
+    const rows = selectedCategories.map((hub) => ({
       user_id: user.id,
       store_name: storeName,
       tier,
-      primary_hub: primaryHub,
+      primary_hub: hub,
       lga_id: lgaId,
       market: market || null,
       stall_number: stallNumber || null,
@@ -99,7 +119,9 @@ export default function SellerRegister() {
       wholesale_min_description: sellingMode !== 'retail_only' ? wholesaleMinDesc || null : null,
       wholesale_discount_type: sellingMode !== 'retail_only' ? wholesaleDiscountType || null : null,
       wholesale_discount_details: sellingMode !== 'retail_only' ? wholesaleDiscountDetails || null : null,
-    })
+    }))
+
+    const { error } = await supabase.from('sellers').insert(rows)
 
     setSubmitting(false)
     if (error) {
@@ -126,7 +148,21 @@ export default function SellerRegister() {
   return (
     <div className="p-4 max-w-md mx-auto">
       <h1 className="text-xl font-display font-semibold text-indigo mb-1">Register your store</h1>
-      <p className="text-sm text-ink/60 mb-6">Every store is reviewed before it goes live.</p>
+      <p className="text-sm text-ink/60 mb-4">Every store is reviewed before it goes live.</p>
+
+      <Link to="/demand-signals" className="block rounded bg-indigo/5 border border-indigo/20 px-3 py-2 text-sm text-indigo font-medium mb-4">
+        📢 See what real buyers are already asking for →
+      </Link>
+
+      {priorCredential && (
+        <div className="rounded border-2 border-gold bg-gold/10 px-3 py-2 mb-4">
+          <p className="text-sm font-semibold text-gold-dark">🏅 {priorCredential.credential_tier}</p>
+          <p className="text-xs text-ink/60 mt-0.5">
+            Your real {priorCredential.total_days_active} days and {priorCredential.total_real_sales_recorded} genuine
+            recorded sales as an attendant travel with you — this is recognized on your new store from day one.
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -143,8 +179,8 @@ export default function SellerRegister() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2">Business type</label>
-          <div className="grid grid-cols-3 gap-2">
+          <label className="block text-sm font-medium mb-2">Registration type</label>
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setTier('individual')}
@@ -158,46 +194,49 @@ export default function SellerRegister() {
               onClick={() => setTier('business')}
               className={`rounded-lg border-2 p-3 text-center ${tier === 'business' ? 'border-market-green bg-market-green/10' : 'border-ink/15'}`}
             >
-              <p className="text-2xl mb-1">🏪</p>
-              <p className="text-xs font-semibold">Business</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setTier('supermarket')}
-              className={`rounded-lg border-2 p-3 text-center ${tier === 'supermarket' ? 'border-market-green bg-market-green/10' : 'border-ink/15'}`}
-            >
               <p className="text-2xl mb-1">🏬</p>
-              <p className="text-xs font-semibold">Supermarket</p>
+              <p className="text-xs font-semibold">Multi-Store</p>
             </button>
           </div>
           {tier === 'individual' && (
-            <p className="text-xs text-ink/50 mt-2">Market stall or home seller. Free to start, up to 200 listings, NIN verification only.</p>
+            <p className="text-xs text-ink/50 mt-2">A single real store. Free to start, up to 200 listings, NIN verification only.</p>
           )}
-          {tier === 'supermarket' && (
+          {tier === 'business' && (
             <p className="text-xs text-ink/50 mt-2">
-              This describes your business type only — it doesn't automatically change your commission or add a
-              retainer. If your store qualifies for negotiated Supermarket terms (multiple stores, or over ₦1M in
-              stock), UMC-BCK Admin will reach out separately to discuss real rates.
+              You'll get a real Director dashboard for managing multiple real stores, assigning attendants across
+              locations, and adding stock without re-uploading. If your combined stock qualifies for negotiated
+              terms (over ₦1M in stock), UMC-BCK Admin will reach out separately to discuss real rates.
             </p>
           )}
         </div>
 
         <div>
-          <label htmlFor="hub" className="block text-sm font-medium mb-1">
-            Which market are you joining?
-          </label>
-          <select
-            id="hub"
-            value={primaryHub}
-            onChange={(e) => setPrimaryHub(e.target.value)}
-            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
-          >
+          <label className="block text-sm font-medium mb-2">Which real categories does your business belong to?</label>
+          <p className="text-xs text-ink/50 mb-2">
+            Select as many as genuinely apply — you'll get a real, separate tailored dashboard set up for each one.
+          </p>
+          <div className="grid grid-cols-2 gap-1.5">
             {HUBS.map((h) => (
-              <option key={h.value} value={h.value}>
+              <label
+                key={h.value}
+                className={`flex items-center gap-2 rounded border px-2 py-1.5 text-xs cursor-pointer ${
+                  selectedCategories.includes(h.value) ? 'border-market-green bg-market-green/10' : 'border-ink/15'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedCategories.includes(h.value)}
+                  onChange={() =>
+                    setSelectedCategories((prev) =>
+                      prev.includes(h.value) ? prev.filter((c) => c !== h.value) : [...prev, h.value]
+                    )
+                  }
+                  className="accent-market-green"
+                />
                 {h.label}
-              </option>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
 
         <div className="rounded border border-ink/15 p-3">

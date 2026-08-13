@@ -16,7 +16,7 @@ export default function Admin() {
       <AdminOwnAccountLinks />
 
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
-        {['analytics', 'revenue', 'supermarket', 'marketdata', 'registrations', 'idverify', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
+        {['analytics', 'revenue', 'supermarket', 'marketdata', 'registrations', 'idverify', 'faceverify', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -34,7 +34,9 @@ export default function Admin() {
                     ? 'Market Data Clients'
                     : t === 'idverify'
                       ? 'Identity Verification'
-                      : t === 'prescriptions'
+                      : t === 'faceverify'
+                        ? 'Face Verification'
+                        : t === 'prescriptions'
                       ? 'Prescription requests'
                       : t === 'bills'
                         ? 'Bill payments'
@@ -60,6 +62,7 @@ export default function Admin() {
       {tab === 'supermarket' && <SupermarketAccounts />}
       {tab === 'marketdata' && <MarketDataClients />}
       {tab === 'idverify' && <IdentityVerifications />}
+      {tab === 'faceverify' && <FaceVerifications />}
       {tab === 'registrations' && <PendingRegistrations />}
       {tab === 'listings' && <PendingListings />}
       {tab === 'prescriptions' && <PendingPrescriptions />}
@@ -1416,6 +1419,90 @@ function IdentityVerifications() {
               className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
             />
             <button onClick={() => resolve(v.id, false)} disabled={acting === v.id} className="text-xs bg-market-red text-white rounded px-3 py-1">
+              Reject
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Real Face Verification review — the honest, admin-reviewed check.
+// Genuinely compares a real submitted selfie against the agent's real ID
+// photo already on file — not an automated match, since no real
+// biometric provider is connected yet.
+function FaceVerifications() {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [acting, setActing] = useState(null)
+
+  async function load() {
+    const { data } = await supabase
+      .from('delivery_agents')
+      .select('id, face_photo_url, user_id, profiles(full_name, phone)')
+      .eq('face_verification_status', 'pending')
+      .order('updated_at', { ascending: true })
+
+    // Real ID photo lives in the separate identity_verifications table,
+    // not on delivery_agents directly — fetched separately per agent
+    // since it's a real, different real table with its own real record.
+    const withIdPhotos = await Promise.all(
+      (data || []).map(async (agent) => {
+        const { data: idv } = await supabase
+          .from('identity_verifications')
+          .select('id_photo_url')
+          .eq('user_id', agent.user_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        return { ...agent, id_photo_url: idv?.id_photo_url }
+      })
+    )
+    setItems(withIdPhotos)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function resolve(id, approve) {
+    setActing(id)
+    const { error } = await supabase.rpc('resolve_face_verification', { p_agent_id: id, p_approve: approve })
+    setActing(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+  if (items.length === 0) return <p className="text-ink/50 text-sm">No pending face verifications.</p>
+
+  return (
+    <div className="space-y-3">
+      {items.map((v) => (
+        <div key={v.id} className="rounded border border-ink/10 p-3">
+          <p className="text-sm font-medium mb-2">{v.profiles?.full_name} · {v.profiles?.phone}</p>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div>
+              <p className="text-xs text-ink/50 mb-1">Real submitted selfie</p>
+              <img src={v.face_photo_url} alt="Submitted real selfie" className="w-full rounded border border-ink/10" />
+            </div>
+            {v.id_photo_url && (
+              <div>
+                <p className="text-xs text-ink/50 mb-1">Real ID on file</p>
+                <img src={v.id_photo_url} alt="Real ID document on file" className="w-full rounded border border-ink/10" />
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => resolve(v.id, true)} disabled={acting === v.id} className="flex-1 text-xs bg-market-green text-white rounded px-3 py-1.5">
+              Approve — genuinely matches
+            </button>
+            <button onClick={() => resolve(v.id, false)} disabled={acting === v.id} className="flex-1 text-xs bg-market-red text-white rounded px-3 py-1.5">
               Reject
             </button>
           </div>

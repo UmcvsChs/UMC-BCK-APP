@@ -4,6 +4,7 @@ import { useAuth } from './lib/useAuth'
 import { useProfile } from './lib/useProfile'
 import { supabase } from './lib/supabase'
 import HubRail from './components/HubRail'
+import HausaVoiceNav from './components/HausaVoiceNav'
 
 // Lazy-loaded so each route ships as its own chunk instead of one giant
 // bundle everyone downloads on first visit — this was flagged repeatedly
@@ -49,6 +50,7 @@ const MarketWatch = lazy(() => import('./pages/MarketWatch'))
 const AttendantDashboard = lazy(() => import('./pages/AttendantDashboard'))
 const DirectorDashboard = lazy(() => import('./pages/DirectorDashboard'))
 const CommodityCatalog = lazy(() => import('./pages/CommodityCatalog'))
+const DemandSignals = lazy(() => import('./pages/DemandSignals'))
 const CanteenCheckout = lazy(() => import('./pages/CanteenCheckout'))
 const Bills = lazy(() => import('./pages/Bills'))
 const Verify = lazy(() => import('./pages/Verify'))
@@ -157,6 +159,8 @@ function ProtectedLayout({ children }) {
           </>
         )}
       </div>
+
+      <HausaVoiceNav />
 
       {children}
 
@@ -350,6 +354,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <CommodityCatalog />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/demand-signals"
+          element={
+            <ProtectedLayout>
+              <DemandSignals />
             </ProtectedLayout>
           }
         />

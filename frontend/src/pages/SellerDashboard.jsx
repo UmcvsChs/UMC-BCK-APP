@@ -46,6 +46,16 @@ const CATEGORIES_BY_HUB = {
 // including perishables and consumables where 'fairly used' makes no
 // sense at all. Only categories where used/refurbished stock genuinely
 // exists as real inventory get this field.
+// Real, common market sizes and variations — matching exactly what was
+// described: real, structured options, not free-text guessing, with a
+// genuine "Other" fallback for anything unusual.
+const UNIT_OPTIONS = [
+  'Per piece', 'Per unit', 'Per pack',
+  '1kg', '2kg', '5kg', '10kg', '25kg', '50kg',
+  '1 litre', '2 litres', '4 litres (rubber/paint rubber)', '5 litres', '10 litres', '25 litres',
+  'Per bag', 'Per basket', 'Half basket', 'Per carton', 'Per crate', 'Per dozen', 'Per bunch', 'Per tuber',
+]
+
 const CONDITION_RELEVANT_CATEGORIES = [
   'Automobile & spare parts', 'Computers, tablets & peripherals', 'Phones & accessories',
   'Home appliances', 'Electricals, lighting & fittings', 'Hospital & surgical instruments',
@@ -210,8 +220,8 @@ export default function SellerDashboard() {
 
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
         {[
-          'overview', 'listings', 'add', 'orders', 'questions', 'register', 'reports', 'restock', 'creditreqs', 'messages',
-          'tradeins', 'pl', 'featured',
+          'overview', 'listings', 'add', 'pl', 'orders', 'questions', 'register', 'reports', 'restock', 'creditreqs', 'messages',
+          'tradeins', 'featured',
         ].map((t) => (
           <button
             key={t}
@@ -695,20 +705,33 @@ function AddListing({ sellerId, hub, approved }) {
     setTimeout(() => setSuccess(false), 3000)
   }
 
-  async function searchCatalog(q) {
-    setCatalogSearch(q)
-    if (!q.trim()) {
-      setCatalogResults([])
-      return
-    }
-    const { data } = await supabase
+  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState('')
+
+  async function loadCatalog(q, categoryFilter) {
+    let query = supabase
       .from('master_catalog_items')
       .select('id, base_item, variant_name, brand, suggested_price, unit, category')
       .eq('hub', hub)
-      .ilike('base_item', `%${q}%`)
       .order('base_item')
-      .limit(15)
+      .limit(250)
+    if (q && q.trim()) query = query.ilike('base_item', `%${q.trim()}%`)
+    if (categoryFilter) query = query.eq('category', categoryFilter)
+    const { data } = await query
     setCatalogResults(data || [])
+  }
+
+  useEffect(() => {
+    loadCatalog('', '')
+  }, [hub])
+
+  function searchCatalog(q) {
+    setCatalogSearch(q)
+    loadCatalog(q, catalogCategoryFilter)
+  }
+
+  function filterCatalogByCategory(cat) {
+    setCatalogCategoryFilter(cat)
+    loadCatalog(catalogSearch, cat)
   }
 
   async function pickFromCatalog(item, stockQuantity) {
@@ -724,33 +747,55 @@ function AddListing({ sellerId, hub, approved }) {
       return
     }
     setCatalogMessage(`${item.variant_name} listed — adjust the price anytime from My Listings if it differs.`)
-    setCatalogSearch('')
-    setCatalogResults([])
+    loadCatalog(catalogSearch, catalogCategoryFilter)
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
       <div className="rounded border border-gold/30 bg-gold/10 p-3">
         <p className="text-xs font-medium mb-2">
-          Real pre-registered items — pick one instead of typing everything from scratch
+          Select product from your catalog — pick any real item below, or search to filter
         </p>
         <input
           value={catalogSearch}
           onChange={(e) => searchCatalog(e.target.value)}
-          placeholder="Search Rice, Flour, Onions…"
+          placeholder="Search Rice, Flour, Onions… or just browse below"
           className="w-full text-sm rounded border border-ink/20 px-3 py-2 mb-2"
         />
-        {catalogResults.length > 0 && (
-          <div className="rounded border border-ink/10 bg-white divide-y divide-ink/5 max-h-64 overflow-y-auto">
+        {categories.length > 1 && (
+          <div className="flex gap-1 overflow-x-auto mb-2 pb-1">
+            <button
+              type="button"
+              onClick={() => filterCatalogByCategory('')}
+              className={`shrink-0 rounded-full px-2 py-1 text-xs ${!catalogCategoryFilter ? 'bg-indigo text-white' : 'border border-ink/20 text-ink/60'}`}
+            >
+              All
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => filterCatalogByCategory(c)}
+                className={`shrink-0 rounded-full px-2 py-1 text-xs ${catalogCategoryFilter === c ? 'bg-indigo text-white' : 'border border-ink/20 text-ink/60'}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+        {catalogResults.length > 0 ? (
+          <div className="rounded border border-ink/10 bg-white divide-y divide-ink/5 max-h-80 overflow-y-auto">
             {catalogResults.map((item) => (
               <CatalogPickRow key={item.id} item={item} onPick={pickFromCatalog} />
             ))}
           </div>
+        ) : (
+          <p className="text-xs text-ink/40">No real catalog items match "{catalogSearch}" for this market yet.</p>
         )}
         {catalogMessage && <p className="text-xs text-market-green mt-2">{catalogMessage}</p>}
       </div>
 
-      <p className="text-xs text-ink/40">— or list something new below —</p>
+      <p className="text-xs text-ink/40">— Not in the catalog? List something new below —</p>
 
       <div>
         <label htmlFor="name" className="block text-sm font-medium mb-1">
@@ -854,7 +899,7 @@ function AddListing({ sellerId, hub, approved }) {
 
       <div>
         <label htmlFor="price" className="block text-sm font-medium mb-1">
-          Price (₦)
+          Retail price (₦) — if sold as a single piece/unit
         </label>
         <input
           id="price"
@@ -903,15 +948,31 @@ function AddListing({ sellerId, hub, approved }) {
 
       <div>
         <label htmlFor="unit" className="block text-sm font-medium mb-1">
-          Unit of sale (optional — e.g. per bag, per kg, per crate)
+          Size / variation — real quantity this price is for
         </label>
-        <input
+        <select
           id="unit"
-          value={unit}
-          onChange={(e) => setUnit(e.target.value)}
-          placeholder="per piece"
-          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
-        />
+          value={UNIT_OPTIONS.includes(unit) ? unit : unit ? 'Other' : ''}
+          onChange={(e) => setUnit(e.target.value === 'Other' ? '' : e.target.value)}
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none mb-2"
+        >
+          <option value="">-- Select size / variation --</option>
+          {UNIT_OPTIONS.map((u) => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+          <option value="Other">Other (type your own)</option>
+        </select>
+        {(!UNIT_OPTIONS.includes(unit)) && (
+          <input
+            id="unit-other"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            placeholder="e.g. per 4-litre rubber, per crate of 24"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+          />
+        )}
       </div>
 
       <div>
@@ -928,13 +989,16 @@ function AddListing({ sellerId, hub, approved }) {
       </div>
 
       <div className="rounded border border-ink/10 bg-paper/50 p-3">
-        <p className="text-xs font-medium mb-2">Bulk pricing (optional)</p>
+        <p className="text-xs font-medium mb-1">Wholesale price (optional)</p>
+        <p className="text-xs text-ink/50 mb-2">
+          If you sell this cheaper when someone buys in bulk, set that real price and the real minimum quantity here.
+        </p>
         <div className="grid grid-cols-2 gap-2">
           <input
             type="number"
             value={bulkPrice}
             onChange={(e) => setBulkPrice(e.target.value)}
-            placeholder="Bulk price/unit (₦)"
+            placeholder="Wholesale price (₦)"
             className="rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono text-sm"
           />
           <input
@@ -1458,18 +1522,7 @@ function StoreOverview({ sellerId, setTab }) {
         P&L tab to work out actual profit.
       </p>
 
-      <div className="col-span-2 pt-3 border-t border-ink/10">
-        <p className="text-sm font-medium mb-1">Your Seller ID — for buyers to add you as a favourite</p>
-        <p className="font-mono text-xs bg-surface rounded p-2 break-all mb-2">{sellerId}</p>
-        <img
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(sellerId)}`}
-          alt="Scannable QR code for this store's Seller ID"
-          className="rounded border border-ink/10"
-          width={140}
-          height={140}
-        />
-        <p className="text-xs text-ink/40 mt-1">A genuinely scannable code — scanning it reads your real Seller ID.</p>
-      </div>
+      <SellerIdentityQR sellerId={sellerId} />
 
       <div className="col-span-2 pt-3 border-t border-ink/10">
         <label className="block text-sm font-medium mb-1">Return policy</label>
@@ -1488,6 +1541,48 @@ function StoreOverview({ sellerId, setTab }) {
           {savingPolicy ? 'Saving…' : policySaved ? 'Saved ✓' : 'Save return policy'}
         </button>
       </div>
+    </div>
+  )
+}
+
+// Real seller identity — a real, short, human-readable code and a real
+// scannable QR code, matching the reference exactly: shown on request
+// via a real button, not permanently taking up space.
+function SellerIdentityQR({ sellerId }) {
+  const [sellerCode, setSellerCode] = useState(null)
+  const [showQR, setShowQR] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.from('sellers').select('seller_code').eq('id', sellerId).single()
+      setSellerCode(data?.seller_code)
+    }
+    load()
+  }, [sellerId])
+
+  return (
+    <div className="col-span-2 rounded border-2 border-gold/40 bg-gold/10 px-3 py-3 mt-1">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-sm font-medium">Your seller identity</p>
+        <p className="font-mono text-sm font-bold text-gold-dark">{sellerCode || '…'}</p>
+      </div>
+      <p className="text-xs text-ink/50 mb-2">
+        Print your QR code and paste it in your store. Buyers scan it to go directly to your listings on UMC-BCK —
+        no searching needed.
+      </p>
+      {showQR ? (
+        <img
+          src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(sellerCode || sellerId)}`}
+          alt="Scannable real QR code for this store"
+          className="rounded border border-ink/10 mx-auto"
+          width={140}
+          height={140}
+        />
+      ) : (
+        <button onClick={() => setShowQR(true)} className="w-full text-sm bg-gold text-ink font-medium rounded py-2">
+          📱 Show my QR code to print
+        </button>
+      )}
     </div>
   )
 }

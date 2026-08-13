@@ -1,0 +1,1 @@
+update public.sellers set wholesale_min_quantity = 10 where id = 'ac9ebb70-90f6-4306-a8b9-ce2ea69bf790';

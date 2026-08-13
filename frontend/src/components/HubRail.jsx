@@ -138,7 +138,7 @@ function GlobalPriceTicker() {
     <div className="overflow-hidden bg-indigo-dark py-1 border-b border-gold/30">
       <div
         className="flex gap-6 whitespace-nowrap px-4"
-        style={{ animation: `marketScroll ${Math.max(50, goods.length * 3)}s linear infinite` }}
+        style={{ animation: `scroll ${Math.max(50, goods.length * 3)}s linear infinite` }}
       >
         {[...goods, ...goods].map((g, i) => (
           <span key={i} className="text-xs text-paper/85 shrink-0">

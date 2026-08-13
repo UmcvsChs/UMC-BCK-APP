@@ -1,0 +1,1 @@
+update public.sellers set verification_status = 'approved', is_open = true where store_name = 'prince john variety store sabo';

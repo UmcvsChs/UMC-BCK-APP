@@ -194,6 +194,8 @@ export default function DeliveryAgentDashboard() {
         </span>
       </div>
 
+      <FaceVerificationSection agentId={agent.id} status={agent.face_verification_status} faceVerified={agent.face_verified} />
+
       {performance && (
         <div className="rounded bg-surface border border-ink/10 p-3 mb-4 text-center">
           <p className="text-xs text-ink/50 mb-1">Your overall rating</p>
@@ -372,6 +374,66 @@ export default function DeliveryAgentDashboard() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// Real "Face verified" badge — an honest, admin-reviewed check, not a
+// simulated automated match. No real biometric provider is connected
+// yet; a genuine human at admin compares this real selfie against the
+// agent's real ID photo already on file, the same proven pattern
+// already used for NIN verification.
+function FaceVerificationSection({ agentId, status, faceVerified }) {
+  const [uploading, setUploading] = useState(false)
+  const [message, setMessage] = useState(null)
+
+  async function handleUpload(file) {
+    if (!file) return
+    setUploading(true)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-]/g, '_')
+    const path = `${user.id}/face-${Date.now()}-${safeName}`
+    const { error: uploadError } = await supabase.storage.from('id-documents').upload(path, file)
+    if (uploadError) {
+      setUploading(false)
+      setMessage(`Could not upload: ${uploadError.message}`)
+      return
+    }
+    const { data: publicUrl } = supabase.storage.from('id-documents').getPublicUrl(path)
+    const { error: submitError } = await supabase.rpc('submit_face_verification', { p_photo_url: publicUrl.publicUrl })
+    setUploading(false)
+    if (submitError) {
+      setMessage(`Could not submit: ${submitError.message}`)
+      return
+    }
+    setMessage('✓ Real selfie submitted — admin will review it shortly.')
+  }
+
+  if (faceVerified) {
+    return (
+      <div className="rounded bg-market-green/10 border border-market-green/30 px-3 py-2 mb-4 text-sm text-market-green font-medium flex items-center gap-2">
+        ✓ Face verified
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded border border-ink/10 px-3 py-2 mb-4">
+      <p className="text-sm font-medium mb-1">Face verification</p>
+      {status === 'pending' ? (
+        <p className="text-xs text-gold-dark">Your real selfie is submitted and awaiting real admin review.</p>
+      ) : status === 'rejected' ? (
+        <p className="text-xs text-market-red mb-2">Your last submission wasn't approved — please submit a new, clear real selfie.</p>
+      ) : (
+        <p className="text-xs text-ink/50 mb-2">Submit a real, clear selfie — admin will compare it against your real ID on file.</p>
+      )}
+      <label className="inline-block text-xs bg-indigo text-white rounded px-3 py-1.5 cursor-pointer">
+        {uploading ? 'Uploading…' : 'Upload real selfie'}
+        <input type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => handleUpload(e.target.files?.[0])} disabled={uploading} />
+      </label>
+      {message && <p className="text-xs text-ink/60 mt-1">{message}</p>}
     </div>
   )
 }

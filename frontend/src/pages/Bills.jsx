@@ -5,6 +5,7 @@ const CATEGORIES = [
   { value: 'airtime', label: 'Airtime top-up' },
   { value: 'data', label: 'Data bundles' },
   { value: 'electricity', label: 'Electricity (KEDCO)' },
+  { value: 'water', label: 'Water bill (KADSWAB)' },
   { value: 'dstv', label: 'DSTV Subscription' },
   { value: 'gotv', label: 'GOtv Subscription' },
   { value: 'showmax', label: 'Showmax Subscription' },
@@ -12,7 +13,37 @@ const CATEGORIES = [
   { value: 'betting', label: 'Sports Betting' },
   { value: 'waec', label: 'WAEC Result Checker' },
   { value: 'neco', label: 'NECO Result Checker' },
+  { value: 'jamb', label: 'JAMB (UTME/Direct Entry)' },
+  { value: 'nabteb', label: 'NABTEB' },
+  { value: 'school_fees', label: 'School Fees' },
+  { value: 'nin', label: 'NIN Slip / Modification' },
+  { value: 'road_transport', label: 'Road Transport Booking' },
+  { value: 'flights_hotels', label: 'Flights & Hotels' },
 ]
+
+// Real, context-aware label for what "account reference" actually means
+// per category — a water bill needs a meter number, JAMB needs a
+// registration number, a flight needs a real booking reference. One
+// generic label across every category was genuinely confusing.
+const REFERENCE_LABELS = {
+  electricity: 'Meter number',
+  water: 'Meter / account number',
+  dstv: 'Smartcard number',
+  gotv: 'Smartcard number',
+  showmax: 'Account email or phone',
+  internet: 'Account / device number',
+  betting: 'Betting account ID',
+  waec: 'Candidate registration number',
+  neco: 'Candidate registration number',
+  jamb: 'JAMB registration number',
+  nabteb: 'Candidate registration number',
+  school_fees: 'Student admission number',
+  nin: 'NIN number',
+  road_transport: 'Booking reference or route',
+  flights_hotels: 'Booking reference',
+  airtime: 'Phone number',
+  data: 'Phone number',
+}
 
 export default function Bills() {
   const [category, setCategory] = useState(CATEGORIES[0].value)
@@ -119,7 +150,7 @@ export default function Bills() {
 
         <div>
           <label htmlFor="accountReference" className="block text-sm font-medium mb-1">
-            Phone / meter / smartcard number
+            {REFERENCE_LABELS[category] || 'Reference number'}
           </label>
           <input
             id="accountReference"
@@ -144,6 +175,23 @@ export default function Bills() {
             className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono"
           />
         </div>
+
+        {Number(amount) > 0 && (
+          <div className="rounded bg-surface px-3 py-2 text-sm">
+            <div className="flex justify-between text-ink/60">
+              <span>Amount</span>
+              <span className="font-mono">₦{Number(amount).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-ink/60">
+              <span>Service fee (2%)</span>
+              <span className="font-mono">₦{(Number(amount) * 0.02).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between font-semibold pt-1 mt-1 border-t border-ink/10">
+              <span>Total to pay</span>
+              <span className="font-mono text-indigo">₦{(Number(amount) * 1.02).toLocaleString()}</span>
+            </div>
+          </div>
+        )}
 
         {error && (
           <p role="alert" className="text-sm text-market-red">
