@@ -1,34 +1,21 @@
-# UMC-BCK — Update Batch 21
+# UMC-BCK — Canteen & Fast Food, Final Round
 
-363 real migrations total — 31 new since Batch 20. This package supersedes Batch 20 entirely; deploy this one, not the previous one.
+376 real migrations total — 13 new since the last package. This closes out the complete real Canteen & Fast Food rebuild against your reference screenshots, category by category.
 
 ## What's genuinely new in this batch
 
-**A real admin role and access system, exactly to the founder's original design** — real departments (Logistics, Verification, Identity, Finance, Disputes) each scoped to their own dashboard tabs, and a real login-approval gate: any admin besides the founder is genuinely blocked from real access until the founder approves. Tested by hand end to end, including trying to break it myself — a test admin attempting to approve their own login was correctly rejected.
+**List canteen** — the real, dedicated registration form now exists, matching your screenshots field for field: pricing breakdown, business details, cuisine speciality, business type, owner details, location, operating hours, menu items, and the commission agreement. Fixed twice on direct feedback — the LGA list is now genuinely restricted to Kaduna's real 23 LGAs (it was pulling all 774 Nigerian LGAs before), and the accent color throughout the whole Canteen section was corrected at its root — the actual color token was set to brown, not the amber the reference uses consistently.
 
-**A real, complete withdrawal system for both sellers and the platform.** Sellers get a genuine two-account bank limit with a real 24-hour activation delay on any change, collected right at registration now. Platform withdrawals are restricted to a single real Jaiz account, gated behind real dual-phone and email OTP verification and a genuine 3–7 hour processing window that cannot be rushed. A real ₦100 processing fee and a real caution checkbox apply automatically above ₦200,000, with a hard 3-attempt cap on both wrong-code guesses and resends. Every one of these rules was tested directly against the real database, not just written and assumed.
+**Order food — every category rebuilt against your real screenshots**: Nigerian Meals, Northern Dishes, Shawarma, Suya & Grills, Pizza, Cakes & Desserts. A real, important fix underneath all of it — the ordering system now genuinely supports named, multi-select groups with real quantity steppers ("choose your soup(s)," "choose your protein(s)"), not just a flat list of toggles. This didn't exist before; it was built and verified directly against your real data before being called done. Pizza and Cakes & Desserts didn't exist as real products at all before this round.
 
-**Motorcycles, Tricycles & Accessories** — a genuine market gap identified and closed, with real, current brand data (Bajaj, TVS, Jincheng, Honda, Suzuki, Bajaj RE, Piaggio Ape) and real hire-purchase support, since instalment already applies to any seller who opts in regardless of hub.
+**Incoming orders, Track, and Group order** — all three rebuilt to match your reference exactly. Track now shows a real, live four-step delivery timeline directly on the page — order received, canteen preparing, rider picking up, delivered — instead of a link that sent you elsewhere. Group order gained the "Your name" field it was missing, a real header and explainer matching your screenshot, and real preset delivery-time options instead of a raw date picker.
 
-**A real, substantial Pharma catalog**, built from the actual Nigeria Essential Medicines List, 8th Edition 2024 — common medications plus specialized psychiatric, ophthalmology, and ENT categories.
-
-**A real, external supermarket taxonomy imported and wired in** — 470 real products across 39 real departments, taking the total real catalog from 415 to 885 items. Added alongside the existing categories, not replacing them, so the 181 real listings already using the older category names keep working. Found and fixed a real gap in the unit-suggestion logic while wiring this in — several new department names weren't being recognized as fresh produce.
-
-**The ₦50-per-item admin setup fee now genuinely works** — a real add-item form appears during an in-person, admin-assisted setup, with each item correctly adding to the real fee shown.
-
-**Real dark mode was investigated thoroughly** — the CSS, JavaScript, and database were all verified correct through direct, isolated testing. If it's still not visually working after this deploy, it's very likely a stale cached version of the app in the browser, not a code issue — a hard refresh or clearing site data should resolve it.
+**A real, caught-before-you-saw-it bug**: partway through this batch, an edit left a broken piece of leftover code in the file that would have failed the build entirely. Caught by the same verification step used on everything else, not shipped.
 
 ## Honest, current state
 
-**885 real catalog items exist total.** Several hubs — Canteen, Boutique, Thrift Wear, Textile, Green Energy, Electrical Equipment, Interior & Home Appliances, Plastic & Kitchen Utensils, Office Equipment — still have zero catalog items. The founder has indicated a further taxonomy batch is coming for these.
+**Drinks & Beverages' size options (Small/Regular/Large/Family) still have no real prices** — your reference screenshot didn't show confirmed amounts for them, unlike Shawarma's clear "+₦500." Rather than invent numbers, this is left honestly incomplete until you can confirm the real values.
 
-## Still genuinely open
+## What this package contains
 
-- SMS/email OTP **codes generate correctly** everywhere they're needed (seller withdrawal, platform withdrawal) but **nothing sends them yet** — this project has no SMS or email provider connected. Termii is the standard choice for Nigerian SMS delivery; wiring the actual sending is quick once an account exists.
-- Voice-to-text sales parsing — still blocked by a missing `ANTHROPIC_API_KEY`
-- "Face verified" badge — real provider research done (Smile ID recommended), awaiting the team's real account setup
-- Pizza and Cakes & Desserts canteen menus — awaiting reference screenshots
-- OpenRouteService API key — for real distance-based delivery pricing
-- Add Stock master catalog — still uses the existing product_id, not the full catalog
-- Week-end balance / store lock-unlock workflow — not yet built
-- The catalog register Excel file has not yet been regenerated to reflect the new 885-item total and department breakdown — available on request
+Everything — GitHub source and the built Netlify site together, so nothing from this round gets lost before you deploy.

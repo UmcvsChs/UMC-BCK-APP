@@ -1,0 +1,1 @@
+update public.product_addons set addon_type = 'size' where product_id = '3ecf2631-0c22-4b6e-9179-b75c53434b54' and name in ('Large', 'Family (×2)');

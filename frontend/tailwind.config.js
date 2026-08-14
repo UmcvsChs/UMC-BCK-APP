@@ -24,7 +24,7 @@ export default {
         },
         hub: {
           marketplace: '#35825B',
-          canteen: '#824C35',
+          canteen: '#EF9F27',
           phones: '#355B82',
           gold: '#826B35',
           automobile: '#553582',

@@ -1,0 +1,1 @@
+drop function public.start_group_order(uuid, text, timestamptz);
