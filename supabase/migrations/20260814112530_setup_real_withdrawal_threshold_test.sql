@@ -1,0 +1,1 @@
+update public.wallets set balance = 500000 where user_id = '9a41dc9a-cb41-4216-966d-f967de6b2ddd';

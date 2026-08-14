@@ -1,0 +1,1 @@
+update public.seller_bank_accounts set status = 'active' where id = '4c97b569-c420-4af9-94fb-1b364336c003';

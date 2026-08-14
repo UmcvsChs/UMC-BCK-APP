@@ -1,0 +1,1 @@
+update public.profiles set theme_preference = 'dark' where id = (select id from auth.users where email = 'amina.attendant@umcbck.ng');

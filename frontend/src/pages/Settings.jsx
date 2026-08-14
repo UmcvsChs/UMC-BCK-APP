@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { applyTheme } from '../lib/theme'
 
 const LANGUAGES = [
   { value: 'en', label: 'English' },
@@ -26,6 +28,31 @@ export default function Settings() {
   const [addresses, setAddresses] = useState([])
   const [newLabel, setNewLabel] = useState('')
   const [newAddress, setNewAddress] = useState('')
+  const [lgas, setLgas] = useState([])
+  const [selectedLgaId, setSelectedLgaId] = useState('')
+  const [neighborhoods, setNeighborhoods] = useState([])
+  const [selectedNeighborhoodId, setSelectedNeighborhoodId] = useState('')
+
+  useEffect(() => {
+    async function loadLgas() {
+      const { data } = await supabase.from('local_government_areas').select('id, name').order('name')
+      setLgas(data || [])
+    }
+    loadLgas()
+  }, [])
+
+  useEffect(() => {
+    async function loadNeighborhoods() {
+      if (!selectedLgaId) {
+        setNeighborhoods([])
+        return
+      }
+      const { data } = await supabase.from('neighborhood_areas').select('id, name').eq('lga_id', selectedLgaId).order('name')
+      setNeighborhoods(data || [])
+    }
+    loadNeighborhoods()
+  }, [selectedLgaId])
+
   const [favourites, setFavourites] = useState([])
   const [favSellerId, setFavSellerId] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
@@ -128,6 +155,8 @@ export default function Settings() {
       p_label: newLabel.trim(),
       p_full_address: newAddress.trim(),
       p_is_default: addresses.length === 0,
+      p_lga_id: selectedLgaId || null,
+      p_neighborhood_id: selectedNeighborhoodId || null,
     })
     if (error) {
       alert(error.message)
@@ -135,6 +164,8 @@ export default function Settings() {
     }
     setNewLabel('')
     setNewAddress('')
+    setSelectedLgaId('')
+    setSelectedNeighborhoodId('')
     loadAll()
   }
 
@@ -282,6 +313,21 @@ export default function Settings() {
             placeholder="House no., street, area, LGA"
             className="w-full rounded border border-ink/20 px-3 py-2 bg-white text-sm"
           />
+          <div className="grid grid-cols-2 gap-2">
+            <select value={selectedLgaId} onChange={(e) => { setSelectedLgaId(e.target.value); setSelectedNeighborhoodId('') }} className="rounded border border-ink/20 px-2 py-2 bg-white text-sm">
+              <option value="">LGA (optional)</option>
+              {lgas.map((l) => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+            <select value={selectedNeighborhoodId} onChange={(e) => setSelectedNeighborhoodId(e.target.value)} disabled={!selectedLgaId} className="rounded border border-ink/20 px-2 py-2 bg-white text-sm disabled:opacity-50">
+              <option value="">Neighborhood (optional)</option>
+              {neighborhoods.map((n) => (
+                <option key={n.id} value={n.id}>{n.name}</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-xs text-ink/40">Real, precise neighborhood helps us match you with the closest genuine delivery agent.</p>
           <button type="submit" className="w-full rounded border border-dashed border-ink/30 py-2 text-sm text-ink/60">
             + Add address
           </button>
@@ -369,6 +415,7 @@ export default function Settings() {
           onChange={(e) => {
             setTheme(e.target.value)
             save('theme_preference', e.target.value)
+            applyTheme(e.target.value)
           }}
           className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
         >
@@ -379,10 +426,18 @@ export default function Settings() {
           ))}
         </select>
         <p className="text-xs text-ink/50 mt-1">
-          Saved for when dark mode styling is built — the app is light-only right now, so this doesn't visually
-          change anything yet.
+          "Match system" follows your real device setting automatically, even if you change it later without coming
+          back here.
         </p>
       </div>
+
+      <Link to="/account-settings" className="block rounded-xl bg-surface p-3 mb-3 text-sm font-medium text-indigo">
+        ⚙️ Account settings — change your real PIN, legal information →
+      </Link>
+
+      <Link to="/my-instalments" className="block rounded-xl bg-surface p-3 mb-6 text-sm font-medium text-gold-dark">
+        💳 My Instalments — real active plans, payments, and balances →
+      </Link>
 
       <IdentityVerificationSection />
 

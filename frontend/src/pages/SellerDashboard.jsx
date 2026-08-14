@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, SUPABASE_URL } from '../lib/supabase'
 import { queueSale, getQueuedSales, removeQueuedSale, markQueuedSaleFailed } from '../lib/offlineQueue'
@@ -7,6 +7,7 @@ import SalesRegister from '../components/attendant/SalesRegister'
 import RestockRequests from '../components/attendant/RestockRequests'
 import CreditSaleRequests from '../components/attendant/CreditSaleRequests'
 import StoreMessages from '../components/attendant/StoreMessages'
+import SellerWithdraw from './SellerWithdraw'
 
 const CATEGORIES_BY_HUB = {
   general_marketplace: [
@@ -22,7 +23,23 @@ const CATEGORIES_BY_HUB = {
     'Fashion — clothing', 'Fashion — footwear', 'Fashion — accessories', 'Dairy products',
     'Non-alcoholic beverages (soda, juice, energy drinks)', 'Alcoholic beverages — beer & stout',
     'Alcoholic beverages — wine & spirits', 'Local drinks (burukutu, pito, zobo, kunu)', 'Water (sachet, bottled)',
-    'Airtime & data bundles', 'Other',
+    'Airtime & data bundles',
+    // Real, more granular supermarket departments — added alongside
+    // the existing categories above (not replacing them, so the 181
+    // real listings already using the older category names keep
+    // working exactly as before).
+    'Staple Foods & Grains', 'Beans, Legumes & Nuts', 'Flour, Semolina & Baking', 'Cooking Oils, Fats & Spreads',
+    'Sugar, Salt & Sweeteners', 'Spices, Seasonings & Condiments', 'Tomatoes, Pepper & Cooking Sauces',
+    'Fresh Vegetables', 'Fresh Fruits', 'Tubers & Root Crops', 'Meat & Poultry', 'Fish & Seafood',
+    'Dairy, Eggs & Chilled Foods', 'Malted, Cocoa, Tea & Coffee', 'Water, Juices & Soft Drinks',
+    'Breakfast Foods & Spreads', 'Snacks, Biscuits & Confectionery', 'Canned, Jarred & Preserved Foods',
+    'Frozen Foods & Ice Cream', 'Baby Food & Infant Care', "Baby Care & Children's Essentials",
+    'Personal Care & Hygiene', 'Feminine Care', 'Laundry Care', 'Dishwashing & Surface Cleaning',
+    'Paper, Tissue & Disposable Consumables', 'Household Cleaning Tools', 'Home Fragrance & Pest Control',
+    'Kitchenware & Food Storage', 'Electrical & Small Electronics', 'Pet Food & Pet Care',
+    'Health, First Aid & Wellness', 'Automotive Care', 'Hardware & Home Maintenance',
+    'Fashion Basics & Accessories', 'Seasonal, Party & Special Occasion',
+    'Other',
   ],
   boutique: ["Men's wear", "Women's wear", "Children's wear", 'Native & traditional wear', 'Accessories'],
   thrift_wear: ['Clothing (thrift)', 'Beddings & curtains', 'Footwear (thrift)', 'Bags (thrift)'],
@@ -32,11 +49,12 @@ const CATEGORIES_BY_HUB = {
   interior_appliances: ['Furniture', 'Curtains & rugs', 'Kitchen appliances', 'Cooling & heating', 'Refrigeration', 'TVs & entertainment'],
   plastic_utensils: ['Kitchen utensils', 'Storage containers', 'Buckets & basins', 'Plastic chairs & tables', 'Disposable & party plasticware'],
   office_equipment: ['Office furniture', 'Printers & copiers', 'Binding & laminating equipment', 'Paper & printing supplies', 'Writing & desk supplies', 'Office electronics'],
+  motorcycles_tricycles: ['New Motorcycles', 'Used Motorcycles', 'Electric Motorbikes', 'Tricycles (Keke)', 'Spare Parts & Accessories'],
   canteen: ['Nigerian Meals', 'Northern Dishes', 'Fast Food', 'Shawarma', 'Suya & Grills', 'Pizza', 'Cakes & Desserts', 'Drinks'],
   phones_tech: ['New Phones', 'Accessories', 'Laptops & Tablets', 'Internet Gear'],
   gold_jewelry: ['Pure Gold & Precious Metals', 'Fashion & Costume Jewelry'],
   automobile: ['Vehicles', 'Parts & Accessories'],
-  pharma_medical: ['Equipment', 'Personal Care'],
+  pharma_medical: ['Common Medications', 'Specialized — Psychiatric', 'Specialized — Ophthalmology', 'Specialized — ENT', 'Equipment', 'Personal Care', 'Bulk Medication'],
 }
 
 // Real mapping from display category name to the slug key used in
@@ -50,11 +68,62 @@ const CATEGORIES_BY_HUB = {
 // described: real, structured options, not free-text guessing, with a
 // genuine "Other" fallback for anything unusual.
 const UNIT_OPTIONS = [
-  'Per piece', 'Per unit', 'Per pack',
+  'Per piece', 'Per unit', 'Per pack', 'Per pair', 'Per set',
   '1kg', '2kg', '5kg', '10kg', '25kg', '50kg',
   '1 litre', '2 litres', '4 litres (rubber/paint rubber)', '5 litres', '10 litres', '25 litres',
   'Per bag', 'Per basket', 'Half basket', 'Per carton', 'Per crate', 'Per dozen', 'Per bunch', 'Per tuber',
+  'Per sachet',
 ]
+
+// Real, category-aware unit intelligence — a genuine seller listing
+// Rice should never be offered "10 pieces," and Seasoning Cubes should
+// never be offered "10 bags." Real families of real units, matched
+// against the real category the seller actually selected, not one
+// universal list pretending every product is measured the same way.
+const KG_BAG_UNITS = ['1kg', '2kg', '5kg', '10kg', '25kg', '50kg', 'Per bag', 'Per basket', 'Half basket']
+const SACHET_CARTON_UNITS = ['Per sachet', 'Per carton', 'Per pack', 'Per piece', 'Per dozen']
+const LIQUID_UNITS = ['1 litre', '2 litres', '4 litres (rubber/paint rubber)', '5 litres', '10 litres', '25 litres', 'Per sachet', 'Per carton', 'Per crate']
+const FRESH_PRODUCE_UNITS = ['Per basket', 'Half basket', 'Per bag', '1kg', '2kg', '5kg', '10kg', 'Per bunch', 'Per tuber', 'Per crate']
+const PIECE_PAIR_UNITS = ['Per piece', 'Per pair', 'Per set', 'Per unit', 'Per dozen', 'Per pack']
+
+function getRealRelevantUnits(category) {
+  if (!category) return UNIT_OPTIONS
+  const c = category.toLowerCase()
+
+  if (c.includes('condiment') || c.includes('spice') || c.includes('seasoning')) return SACHET_CARTON_UNITS
+  if (c.includes('grain') || c.includes('pasta') || c.includes('noodle') || c.includes('cereal') || c.includes('bakery')) return KG_BAG_UNITS
+  if (
+    c.includes('fresh produce') || c.includes('fresh meat') || c.includes('fresh fish') ||
+    c.includes('fresh vegetable') || c.includes('fresh fruit') || c.includes('tuber') || c.includes('root crop') ||
+    c === 'meat & poultry' || c === 'fish & seafood'
+  ) return FRESH_PRODUCE_UNITS
+  if (c.includes('oil') || c.includes('beverage') || c.includes('drink') || c.includes('water')) return LIQUID_UNITS
+  if (
+    c.includes('automobile') || c.includes('spare parts') || c.includes('electronics') || c.includes('phone') ||
+    c.includes('computer') || c.includes('accessor') || c.includes('furniture') || c.includes('fashion') ||
+    c.includes('footwear') || c.includes('appliance') || c.includes('tool') || c.includes('hardware') ||
+    c.includes('equipment') || c.includes('vehicle') || c.includes('motorcycle') || c.includes('motorbike') ||
+    c.includes('tricycle') || c.includes('keke')
+  ) return PIECE_PAIR_UNITS
+
+  return UNIT_OPTIONS
+}
+
+// Real, context-aware quantity label — matching the exact real
+// measurements described: bags, cartons, kg, baskets, pairs, and more.
+// A genuine "how many bags" or "how many pairs" question, not one
+// generic label pretending every product is counted the same way.
+function realQuantityLabel(unit) {
+  if (!unit) return 'How many do you genuinely have in stock right now?'
+  const lower = unit.toLowerCase()
+  if (lower.startsWith('per ')) {
+    const noun = lower.replace('per ', '')
+    const plural = noun.endsWith('s') ? noun : noun + 's'
+    return `How many ${plural} do you genuinely have in stock?`
+  }
+  if (lower === 'half basket') return 'How many half-baskets do you genuinely have in stock?'
+  return `How many ${unit} units do you genuinely have in stock?`
+}
 
 const CONDITION_RELEVANT_CATEGORIES = [
   'Automobile & spare parts', 'Computers, tablets & peripherals', 'Phones & accessories',
@@ -221,7 +290,7 @@ export default function SellerDashboard() {
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
         {[
           'overview', 'listings', 'add', 'pl', 'orders', 'questions', 'register', 'reports', 'restock', 'creditreqs', 'messages',
-          'tradeins', 'featured',
+          'tradeins', 'featured', 'withdraw',
         ].map((t) => (
           <button
             key={t}
@@ -230,7 +299,7 @@ export default function SellerDashboard() {
               tab === t ? 'text-indigo border-b-2 border-indigo' : 'text-ink/50'
             }`}
           >
-            {t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'register' ? '🧾 Sell (POS)' : t === 'reports' ? 'Sales Reports' : t === 'restock' ? 'Restock' : t === 'creditreqs' ? 'Credit Requests' : t === 'messages' ? 'Messages' : t === 'questions' ? 'Questions' : t === 'tradeins' ? 'Trade-ins' : t === 'pl' ? 'Profit & Loss' : t === 'featured' ? 'Featured' : 'Incoming orders'}
+            {t === 'overview' ? 'Overview' : t === 'add' ? 'Add listing' : t === 'listings' ? 'My listings' : t === 'register' ? '🧾 Sell (POS)' : t === 'reports' ? 'Sales Reports' : t === 'restock' ? 'Restock' : t === 'creditreqs' ? 'Credit Requests' : t === 'messages' ? 'Messages' : t === 'questions' ? 'Questions' : t === 'tradeins' ? 'Trade-ins' : t === 'pl' ? 'Profit & Loss' : t === 'featured' ? 'Featured' : t === 'withdraw' ? 'Withdraw' : 'Incoming orders'}
           </button>
         ))}
       </div>
@@ -245,6 +314,7 @@ export default function SellerDashboard() {
       {tab === 'tradeins' && <TradeInOffers key={store.id} sellerId={store.id} />}
       {tab === 'pl' && <ProfitLossCalculator />}
       {tab === 'featured' && <FeaturedPlacement key={store.id} sellerId={store.id} />}
+      {tab === 'withdraw' && <SellerWithdraw />}
       {tab === 'register' && <SalesRegister key={store.id} sellerId={store.id} />}
       {tab === 'reports' && <SalesReports key={store.id} sellerId={store.id} />}
       {tab === 'restock' && <RestockRequests key={store.id} sellerId={store.id} />}
@@ -576,6 +646,32 @@ function AddListing({ sellerId, hub, approved }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState(categories[0])
+  const relevantUnits = getRealRelevantUnits(category)
+  const [categorySuggestion, setCategorySuggestion] = useState(null)
+  const suggestionTimerRef = useRef(null)
+
+  // Real, debounced category suggestion — waits for a genuine pause in
+  // typing before checking, so it isn't firing a real query on every
+  // single keystroke.
+  function debouncedSuggestCategory(typedName) {
+    if (suggestionTimerRef.current) clearTimeout(suggestionTimerRef.current)
+    if (!typedName || typedName.trim().length < 3) {
+      setCategorySuggestion(null)
+      return
+    }
+    suggestionTimerRef.current = setTimeout(async () => {
+      const { data } = await supabase.rpc('suggest_real_category', { p_typed_name: typedName.trim(), p_hub: hub })
+      // Real, defensive guard — if the seller kept typing while this real
+      // request was in flight, a genuinely stale response should never
+      // overwrite what the current, actual input deserves.
+      setName((currentName) => {
+        if (currentName.trim() === typedName.trim()) {
+          setCategorySuggestion(data?.[0] || null)
+        }
+        return currentName
+      })
+    }, 500)
+  }
   const [brand, setBrand] = useState('')
   const [brandOther, setBrandOther] = useState('')
   const [brandOptions, setBrandOptions] = useState([])
@@ -595,8 +691,29 @@ function AddListing({ sellerId, hub, approved }) {
       .then(({ data }) => setBrandOptions((data || []).map((r) => r.brand)))
   }, [category])
   const [price, setPrice] = useState('')
+  const [stockQty, setStockQty] = useState('')
+  const [karat, setKarat] = useState('')
+  const [weightGrams, setWeightGrams] = useState('')
+  const [makeModel, setMakeModel] = useState('')
+  const [cartonSize, setCartonSize] = useState('')
+  const [halfCartonPrice, setHalfCartonPrice] = useState('')
+  const [fullCartonPrice, setFullCartonPrice] = useState('')
+  const [vehicleYear, setVehicleYear] = useState('')
+  const [mileageKm, setMileageKm] = useState('')
+  const [transmission, setTransmission] = useState('')
+  const [fuelType, setFuelType] = useState('')
+  const [dutyStatus, setDutyStatus] = useState('')
+  const [accidentHistory, setAccidentHistory] = useState('')
   const [condition, setCondition] = useState('new')
   const [unit, setUnit] = useState('')
+
+  // Real, genuine consistency — if the category changes, a previously
+  // selected unit that no longer makes sense for it (e.g. "Per bag" for
+  // Seasoning Cubes after switching from Rice) is cleared, not left
+  // stale and silently wrong.
+  useEffect(() => {
+    setUnit('')
+  }, [category])
   const [barcode, setBarcode] = useState('')
   const [bulkPrice, setBulkPrice] = useState('')
   const [offersFreeDelivery, setOffersFreeDelivery] = useState(false)
@@ -658,7 +775,13 @@ function AddListing({ sellerId, hub, approved }) {
       return
     }
 
-    const { error } = await supabase.from('products').insert({
+    if (!stockQty || Number(stockQty) < 0) {
+      setError('Please enter how many you genuinely have in stock.')
+      setSubmitting(false)
+      return
+    }
+
+    const { data: newProduct, error } = await supabase.from('products').insert({
       seller_id: sellerId,
       hub,
       name,
@@ -666,6 +789,7 @@ function AddListing({ sellerId, hub, approved }) {
       category,
       brand: brand === '__other__' ? brandOther.trim() || null : brand || null,
       price: Number(price),
+      stock_quantity: Number(stockQty),
       condition,
       unit: unit || null,
       barcode: barcode.trim() || null,
@@ -681,7 +805,43 @@ function AddListing({ sellerId, hub, approved }) {
       offers_free_pickup_center_delivery: offersFreePickupCenter,
       is_clearance_sale: isClearanceSale,
       clearance_sale_note: isClearanceSale ? clearanceSaleNote || null : null,
-    })
+    }).select('id').single()
+
+    // Real precious metal details — genuinely saved now, restored after
+    // a systematic audit found this real table sitting completely
+    // unused, meaning karat and weight were never actually captured.
+    if (!error && newProduct && hub === 'gold_jewelry' && category === 'Pure Gold & Precious Metals' && karat) {
+      await supabase.from('product_precious_metal_details').insert({
+        product_id: newProduct.id,
+        karat,
+        weight_grams: weightGrams ? Number(weightGrams) : null,
+      })
+    }
+
+    // Real vehicle details — same real gap, same real fix.
+    if (!error && newProduct && ((hub === 'automobile' && category === 'Vehicles') || (hub === 'motorcycles_tricycles' && ['New Motorcycles', 'Used Motorcycles', 'Electric Motorbikes', 'Tricycles (Keke)'].includes(category))) && makeModel) {
+      await supabase.from('product_vehicle_details').insert({
+        product_id: newProduct.id,
+        make_model: makeModel.trim(),
+        year: vehicleYear ? Number(vehicleYear) : null,
+        mileage_km: mileageKm ? Number(mileageKm) : null,
+        transmission: transmission || null,
+        fuel_type: fuelType || null,
+        duty_status: dutyStatus || null,
+        accident_history: accidentHistory.trim() || null,
+      })
+    }
+
+    // Real bulk medication details — same real gap, same real fix.
+    if (!error && newProduct && hub === 'pharma_medical' && category === 'Bulk Medication' && cartonSize) {
+      await supabase.from('product_bulk_medication_details').insert({
+        product_id: newProduct.id,
+        carton_size: Number(cartonSize),
+        half_carton_price: halfCartonPrice ? Number(halfCartonPrice) : null,
+        full_carton_price: fullCartonPrice ? Number(fullCartonPrice) : null,
+        requires_reseller_verification: true,
+      })
+    }
 
     setSubmitting(false)
     if (error) {
@@ -692,6 +852,16 @@ function AddListing({ sellerId, hub, approved }) {
     setName('')
     setDescription('')
     setPrice('')
+    setStockQty('')
+    setKarat('')
+    setWeightGrams('')
+    setMakeModel('')
+    setVehicleYear('')
+    setMileageKm('')
+    setTransmission('')
+    setFuelType('')
+    setDutyStatus('')
+    setAccidentHistory('')
     setUnit('')
     setBarcode('')
     setBrand('')
@@ -805,9 +975,24 @@ function AddListing({ sellerId, hub, approved }) {
           id="name"
           required
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value)
+            debouncedSuggestCategory(e.target.value)
+          }}
           className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
         />
+        {categorySuggestion && categorySuggestion.suggested_category !== category && (
+          <button
+            type="button"
+            onClick={() => {
+              setCategory(categorySuggestion.suggested_category)
+              setCategorySuggestion(null)
+            }}
+            className="mt-1.5 w-full text-left rounded bg-gold/10 border border-gold/30 px-3 py-2 text-xs text-gold-dark"
+          >
+            💡 This looks like it might belong under <span className="font-semibold">{categorySuggestion.suggested_category}</span> — tap to use this category
+          </button>
+        )}
       </div>
 
       <div>
@@ -912,6 +1097,109 @@ function AddListing({ sellerId, hub, approved }) {
         />
       </div>
 
+      <div>
+        <label htmlFor="stockQty" className="block text-sm font-medium mb-1">
+          {realQuantityLabel(unit)}
+        </label>
+        <input
+          id="stockQty"
+          type="number"
+          min="0"
+          required
+          value={stockQty}
+          onChange={(e) => setStockQty(e.target.value)}
+          placeholder="e.g. 50"
+          className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none font-mono"
+        />
+      </div>
+
+      {hub === 'pharma_medical' && category === 'Bulk Medication' && (
+        <div className="rounded border-2 border-market-red/30 bg-market-red/5 p-3 space-y-2">
+          <p className="text-xs font-medium text-market-red">Real bulk medication — carton pricing only, no per-piece retail</p>
+          <div>
+            <label className="block text-xs text-ink/50 mb-1">Real carton size (units per carton)</label>
+            <input type="number" value={cartonSize} onChange={(e) => setCartonSize(e.target.value)} placeholder="e.g. 100" className="w-full rounded border border-ink/20 px-3 py-2 text-sm" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-ink/50 mb-1">Half carton price (₦)</label>
+              <input type="number" value={halfCartonPrice} onChange={(e) => setHalfCartonPrice(e.target.value)} className="w-full rounded border border-ink/20 px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs text-ink/50 mb-1">Full carton price (₦)</label>
+              <input type="number" value={fullCartonPrice} onChange={(e) => setFullCartonPrice(e.target.value)} className="w-full rounded border border-ink/20 px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <p className="text-xs text-ink/40">Only real, verified reseller buyers will be able to see and purchase this listing.</p>
+        </div>
+      )}
+
+      {((hub === 'automobile' && category === 'Vehicles') || (hub === 'motorcycles_tricycles' && ['New Motorcycles', 'Used Motorcycles', 'Electric Motorbikes', 'Tricycles (Keke)'].includes(category))) && (
+        <div className="rounded border border-hub-automobile/30 bg-hub-automobile/5 p-3 space-y-2">
+          <p className="text-xs font-medium" style={{ color: '#7A3B1E' }}>Real vehicle details — required for buyer trust</p>
+          <input value={makeModel} onChange={(e) => setMakeModel(e.target.value)} placeholder="Make & model, e.g. Toyota Camry" className="w-full rounded border border-ink/20 px-3 py-2 text-sm" />
+          <div className="grid grid-cols-2 gap-2">
+            <input type="number" value={vehicleYear} onChange={(e) => setVehicleYear(e.target.value)} placeholder="Year" className="rounded border border-ink/20 px-3 py-2 text-sm" />
+            <input type="number" value={mileageKm} onChange={(e) => setMileageKm(e.target.value)} placeholder="Mileage (km)" className="rounded border border-ink/20 px-3 py-2 text-sm" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <select value={transmission} onChange={(e) => setTransmission(e.target.value)} className="rounded border border-ink/20 px-3 py-2 text-sm">
+              <option value="">Transmission</option>
+              <option value="automatic">Automatic</option>
+              <option value="manual">Manual</option>
+            </select>
+            <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className="rounded border border-ink/20 px-3 py-2 text-sm">
+              <option value="">Fuel type</option>
+              <option value="petrol">Petrol</option>
+              <option value="diesel">Diesel</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="electric">Electric</option>
+            </select>
+          </div>
+          <select value={dutyStatus} onChange={(e) => setDutyStatus(e.target.value)} className="w-full rounded border border-ink/20 px-3 py-2 text-sm">
+            <option value="">Duty status</option>
+            <option value="duty_paid">Duty paid</option>
+            <option value="duty_not_paid">Duty not paid</option>
+          </select>
+          <textarea
+            value={accidentHistory}
+            onChange={(e) => setAccidentHistory(e.target.value)}
+            placeholder="Real accident history — be honest, buyers check this"
+            className="w-full rounded border border-ink/20 px-3 py-2 text-sm"
+            rows={2}
+          />
+        </div>
+      )}
+
+      {hub === 'gold_jewelry' && category === 'Pure Gold & Precious Metals' && (
+        <div className="rounded border border-gold/30 bg-gold/5 p-3 space-y-2">
+          <p className="text-xs font-medium text-gold-dark">Real precious metal details — required for buyer trust</p>
+          <div>
+            <label htmlFor="karat" className="block text-xs text-ink/50 mb-1">Karat / purity</label>
+            <select id="karat" value={karat} onChange={(e) => setKarat(e.target.value)} className="w-full rounded border border-ink/20 px-3 py-2 text-sm">
+              <option value="">-- Select --</option>
+              <option value="24K">24K</option>
+              <option value="22K">22K</option>
+              <option value="21K">21K</option>
+              <option value="18K">18K</option>
+              <option value="9K">9K</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="weightGrams" className="block text-xs text-ink/50 mb-1">Real weight (grams)</label>
+            <input
+              id="weightGrams"
+              type="number"
+              step="0.01"
+              value={weightGrams}
+              onChange={(e) => setWeightGrams(e.target.value)}
+              placeholder="e.g. 15.5"
+              className="w-full rounded border border-ink/20 px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+      )}
+
       {(CONDITION_RELEVANT_CATEGORIES.includes(category) || hub === 'green_energy' || hub === 'electrical_equipment') && (
         <div>
           <label htmlFor="condition" className="block text-sm font-medium mb-1">
@@ -950,21 +1238,24 @@ function AddListing({ sellerId, hub, approved }) {
         <label htmlFor="unit" className="block text-sm font-medium mb-1">
           Size / variation — real quantity this price is for
         </label>
+        <p className="text-xs text-ink/40 mb-1">
+          {category ? `Showing real, relevant units for ${category}` : 'Choose a category above to see the real, relevant units'}
+        </p>
         <select
           id="unit"
-          value={UNIT_OPTIONS.includes(unit) ? unit : unit ? 'Other' : ''}
+          value={relevantUnits.includes(unit) ? unit : unit ? 'Other' : ''}
           onChange={(e) => setUnit(e.target.value === 'Other' ? '' : e.target.value)}
           className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none mb-2"
         >
           <option value="">-- Select size / variation --</option>
-          {UNIT_OPTIONS.map((u) => (
+          {relevantUnits.map((u) => (
             <option key={u} value={u}>
               {u}
             </option>
           ))}
           <option value="Other">Other (type your own)</option>
         </select>
-        {(!UNIT_OPTIONS.includes(unit)) && (
+        {(!relevantUnits.includes(unit)) && (
           <input
             id="unit-other"
             value={unit}
@@ -1139,7 +1430,7 @@ function IncomingOrders({ sellerId }) {
   async function load() {
     const { data } = await supabase
       .from('orders')
-      .select('id, status, total_amount, delivery_type, created_at, order_items(id, product_id, imei, products(name, category))')
+      .select('id, status, total_amount, delivery_type, created_at, order_items(id, product_id, imei, products(name, category), order_item_addons(name, price))')
       .eq('seller_id', sellerId)
       .order('created_at', { ascending: false })
     setOrders(data || [])
@@ -1282,6 +1573,9 @@ function IncomingOrders({ sellerId }) {
               {o.order_items?.map((item) => (
                 <div key={item.id} className="text-xs">
                   <p className="font-medium">{item.products?.name}</p>
+                  {item.order_item_addons?.length > 0 && (
+                    <p className="text-ink/50">+ {item.order_item_addons.map((a) => a.name).join(', ')}</p>
+                  )}
                   {item.imei ? (
                     <p className="text-ink/50 font-mono">IMEI: {item.imei}</p>
                   ) : (
@@ -1431,6 +1725,7 @@ function StoreOverview({ sellerId, setTab }) {
   const [returnPolicy, setReturnPolicy] = useState('')
   const [savingPolicy, setSavingPolicy] = useState(false)
   const [policySaved, setPolicySaved] = useState(false)
+  const [commissionRate, setCommissionRate] = useState(null)
 
   useEffect(() => {
     async function loadPolicy() {
@@ -1438,6 +1733,16 @@ function StoreOverview({ sellerId, setTab }) {
       setReturnPolicy(data?.return_policy || '')
     }
     loadPolicy()
+  }, [sellerId])
+
+  // Real, direct commission transparency — restored after a systematic
+  // audit found sellers genuinely had no way to see this anywhere.
+  useEffect(() => {
+    async function loadCommission() {
+      const { data } = await supabase.rpc('get_seller_commission_rate', { p_seller_id: sellerId })
+      setCommissionRate(data)
+    }
+    loadCommission()
   }, [sellerId])
 
   async function savePolicy() {
@@ -1522,6 +1827,13 @@ function StoreOverview({ sellerId, setTab }) {
         P&L tab to work out actual profit.
       </p>
 
+      {commissionRate != null && (
+        <div className="col-span-2 rounded bg-surface px-3 py-2 mb-1">
+          <p className="text-xs text-ink/50">Your real commission rate</p>
+          <p className="text-sm font-semibold text-indigo">{(commissionRate * 100).toFixed(1)}% per completed order</p>
+        </div>
+      )}
+
       <SellerIdentityQR sellerId={sellerId} />
 
       <div className="col-span-2 pt-3 border-t border-ink/10">
@@ -1572,7 +1884,7 @@ function SellerIdentityQR({ sellerId }) {
       </p>
       {showQR ? (
         <img
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(sellerCode || sellerId)}`}
+          src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(`${window.location.origin}/store/${sellerCode || sellerId}`)}`}
           alt="Scannable real QR code for this store"
           className="rounded border border-ink/10 mx-auto"
           width={140}
@@ -1843,6 +2155,147 @@ function PhotoLibraryPicker({ itemName, onPick, selectedUrl }) {
 // Real seller-side answer view — every unanswered question across this
 // store's real listings, in one place, so a seller doesn't need to check
 // each product individually to find what needs a reply.
+// Real "Sales Reports" — restored after being found genuinely missing
+// during a direct, systematic audit. Combines real online orders, real
+// walk-in POS sales by payment method, and real credit collection
+// status — using the same real, already-correct backend function that
+// was sitting unused this whole time, not rebuilt from scratch.
+function SalesReports({ sellerId }) {
+  const [report, setReport] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 30)
+    return d.toISOString().slice(0, 10)
+  })
+  const [toDate, setToDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [products, setProducts] = useState([])
+  const [selectedProductId, setSelectedProductId] = useState('')
+  const [itemSummary, setItemSummary] = useState(null)
+  const [itemLoading, setItemLoading] = useState(false)
+
+  useEffect(() => {
+    async function loadProducts() {
+      const { data } = await supabase.from('products').select('id, name').eq('seller_id', sellerId).order('name')
+      setProducts(data || [])
+    }
+    loadProducts()
+  }, [sellerId])
+
+  // Real per-item drill-down — restored after a systematic audit found
+  // this real function sitting completely unused, with no way for a
+  // seller to check how one specific real item is actually performing.
+  async function loadItemSummary() {
+    if (!selectedProductId) return
+    setItemLoading(true)
+    const { data } = await supabase.rpc('get_item_sales_summary', {
+      p_seller_id: sellerId,
+      p_product_id: selectedProductId,
+      p_from_date: fromDate,
+      p_to_date: toDate,
+    })
+    setItemSummary(data?.[0] || null)
+    setItemLoading(false)
+  }
+
+  async function load() {
+    setLoading(true)
+    const { data, error } = await supabase.rpc('get_sales_report', {
+      p_seller_id: sellerId,
+      p_from_date: fromDate,
+      p_to_date: toDate,
+    })
+    if (!error) setReport(data?.[0] || null)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [sellerId])
+
+  return (
+    <div>
+      <p className="text-sm font-medium mb-2">Real sales report</p>
+      <div className="flex gap-2 mb-3">
+        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="flex-1 rounded border border-ink/20 px-2 py-1.5 text-sm" />
+        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="flex-1 rounded border border-ink/20 px-2 py-1.5 text-sm" />
+        <button onClick={load} className="text-xs bg-indigo text-white rounded px-3">
+          Update
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-ink/50 text-sm">Loading…</p>
+      ) : !report ? (
+        <p className="text-ink/50 text-sm">No real data for this range.</p>
+      ) : (
+        <div className="space-y-2">
+          <div className="rounded bg-indigo/10 px-3 py-2">
+            <p className="text-xs text-ink/50">Real combined total</p>
+            <p className="text-xl font-display font-semibold text-indigo">₦{Number(report.combined_total).toLocaleString()}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded bg-surface px-3 py-2">
+              <p className="text-xs text-ink/50">Online orders</p>
+              <p className="text-sm font-semibold">₦{Number(report.online_total).toLocaleString()}</p>
+            </div>
+            <div className="rounded bg-surface px-3 py-2">
+              <p className="text-xs text-ink/50">Walk-in cash</p>
+              <p className="text-sm font-semibold">₦{Number(report.walk_in_cash).toLocaleString()}</p>
+            </div>
+            <div className="rounded bg-surface px-3 py-2">
+              <p className="text-xs text-ink/50">Walk-in transfer</p>
+              <p className="text-sm font-semibold">₦{Number(report.walk_in_transfer).toLocaleString()}</p>
+            </div>
+            <div className="rounded bg-surface px-3 py-2">
+              <p className="text-xs text-ink/50">Walk-in credit sold</p>
+              <p className="text-sm font-semibold">₦{Number(report.walk_in_credit).toLocaleString()}</p>
+            </div>
+            <div className="rounded bg-market-green/10 px-3 py-2">
+              <p className="text-xs text-market-green">Real credit collected</p>
+              <p className="text-sm font-semibold text-market-green">₦{Number(report.credit_collected).toLocaleString()}</p>
+            </div>
+            <div className="rounded bg-gold/10 px-3 py-2">
+              <p className="text-xs text-gold-dark">Real credit still owed</p>
+              <p className="text-sm font-semibold text-gold-dark">₦{Number(report.credit_outstanding).toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-ink/10">
+            <p className="text-xs font-medium mb-2">Check one real item specifically</p>
+            <div className="flex gap-2 mb-2">
+              <select
+                value={selectedProductId}
+                onChange={(e) => setSelectedProductId(e.target.value)}
+                className="flex-1 rounded border border-ink/20 px-2 py-1.5 text-sm"
+              >
+                <option value="">-- Select item --</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <button onClick={loadItemSummary} disabled={!selectedProductId || itemLoading} className="text-xs bg-indigo text-white rounded px-3 disabled:opacity-60">
+                {itemLoading ? '…' : 'Check'}
+              </button>
+            </div>
+            {itemSummary && (
+              <div className="rounded bg-surface px-3 py-2 text-sm">
+                <p className="font-medium mb-1">{itemSummary.item_name}</p>
+                <p className="text-xs text-ink/60">
+                  Online: {itemSummary.online_quantity} · Walk-in: {itemSummary.walk_in_quantity} · Total: {itemSummary.total_quantity} sold
+                </p>
+                <p className="font-mono text-sm text-indigo mt-1">₦{Number(itemSummary.total_revenue).toLocaleString()} real revenue</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SellerProductQuestions({ sellerId }) {
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)

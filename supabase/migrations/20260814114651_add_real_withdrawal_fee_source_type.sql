@@ -1,0 +1,3 @@
+alter table public.platform_revenue_ledger drop constraint platform_revenue_ledger_source_type_check;
+alter table public.platform_revenue_ledger add constraint platform_revenue_ledger_source_type_check
+  check (source_type = any (array['order_commission', 'trade_in_fee', 'swap_fee', 'repair_commission', 'waiting_fine_platform_share', 'featured_placement', 'supermarket_retainer', 'bill_payment', 'withdrawal_processing_fee']));

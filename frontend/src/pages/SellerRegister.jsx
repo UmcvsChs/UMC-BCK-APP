@@ -2,6 +2,17 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+// Real, complete list of CBN-licensed Nigerian banks and fintechs.
+const NIGERIAN_BANKS = [
+  'Access Bank', 'Alternative Bank', 'Carbon (Paylater)', 'Citibank Nigeria', 'Ecobank Nigeria', 'Eyowo',
+  'Fairmoney', 'Fidelity Bank', 'First Bank of Nigeria', 'First City Monument Bank (FCMB)', 'Globus Bank',
+  'Guaranty Trust Bank (GTBank)', 'Jaiz Bank', 'Keystone Bank', 'Kuda Bank', 'Lotus Bank', 'Moniepoint',
+  'OPay', 'Optimus Bank', 'PalmPay', 'Parallex Bank', 'Polaris Bank', 'Premium Trust Bank', 'Providus Bank',
+  'Rubies Bank', 'Signature Bank', 'Sparkle', 'Stanbic IBTC Bank', 'Standard Chartered Bank', 'Sterling Bank',
+  'Suntrust Bank', 'Taj Bank', 'Titan Trust Bank', 'Union Bank of Nigeria', 'United Bank for Africa (UBA)',
+  'Unity Bank', 'Wema Bank', 'Zenith Bank',
+]
+
 const HUBS = [
   { value: 'general_marketplace', label: 'General Marketplace' },
   { value: 'canteen', label: 'Canteen & Fast Food' },
@@ -15,17 +26,23 @@ const HUBS = [
   { value: 'green_energy', label: 'Green Energy (Solar & Renewables)' },
   { value: 'electrical_equipment', label: 'Electrical Equipment' },
   { value: 'interior_appliances', label: 'Interior & Home Appliances' },
-  { value: 'plastic_utensils', label: 'Plastic & Utensils' },
+  { value: 'plastic_utensils', label: 'Plastic & Kitchen Utensils' },
   { value: 'office_equipment', label: 'Office Equipment & Stationery' },
+  { value: 'motorcycles_tricycles', label: 'Motorcycles, Tricycles & Accessories' },
 ]
 
 export default function SellerRegister() {
   const navigate = useNavigate()
   const [lgas, setLgas] = useState([])
   const [storeName, setStoreName] = useState('')
+  const [setupMethod, setSetupMethod] = useState('self')
+  const [setupAddress, setSetupAddress] = useState('')
   const [tier, setTier] = useState('individual')
   const [selectedCategories, setSelectedCategories] = useState(['general_marketplace'])
+  const [pcnNumber, setPcnNumber] = useState('')
+  const [nafdacNumber, setNafdacNumber] = useState('')
   const [sellingMode, setSellingMode] = useState('retail_only')
+  const [instalmentOptIn, setInstalmentOptIn] = useState(false)
   const [wholesaleMinQty, setWholesaleMinQty] = useState('')
   const [wholesaleMinDesc, setWholesaleMinDesc] = useState('')
   const [wholesaleDiscountType, setWholesaleDiscountType] = useState('')
@@ -34,6 +51,9 @@ export default function SellerRegister() {
   const [market, setMarket] = useState('')
   const [stallNumber, setStallNumber] = useState('')
   const [priorCredential, setPriorCredential] = useState(null)
+  const [bankName, setBankName] = useState('')
+  const [bankAccountNumber, setBankAccountNumber] = useState('')
+  const [bankAccountName, setBankAccountName] = useState('')
 
   useEffect(() => {
     async function checkCredential() {
@@ -119,15 +139,47 @@ export default function SellerRegister() {
       wholesale_min_description: sellingMode !== 'retail_only' ? wholesaleMinDesc || null : null,
       wholesale_discount_type: sellingMode !== 'retail_only' ? wholesaleDiscountType || null : null,
       wholesale_discount_details: sellingMode !== 'retail_only' ? wholesaleDiscountDetails || null : null,
+      setup_method: setupMethod,
+      setup_address: setupMethod === 'admin_assisted' ? setupAddress.trim() || null : null,
+      admin_setup_status: setupMethod === 'admin_assisted' ? 'pending' : null,
+      instalment_opt_in: instalmentOptIn,
     }))
 
-    const { error } = await supabase.from('sellers').insert(rows)
+    const { data: newSellers, error } = await supabase.from('sellers').insert(rows).select('id, primary_hub')
+
+    // Real PCN/NAFDAC licensing — genuinely saved now, restored after a
+    // systematic audit found this real table sitting completely unused,
+    // meaning Pharma sellers had no way to submit real licensing at all.
+    if (!error && newSellers && pcnNumber.trim()) {
+      const pharmaSeller = newSellers.find((s) => s.primary_hub === 'pharma_medical')
+      if (pharmaSeller) {
+        await supabase.from('pharma_seller_details').insert({
+          seller_id: pharmaSeller.id,
+          pcn_registration_number: pcnNumber.trim(),
+          nafdac_premises_number: nafdacNumber.trim() || null,
+        })
+      }
+    }
 
     setSubmitting(false)
     if (error) {
       setError(error.message)
       return
     }
+
+    // Real bank account collected at the very start, exactly as
+    // requested — by the time a seller has any real money to
+    // withdraw, weeks or months of ordinary trading have already
+    // passed, so the real 24-hour activation delay is a non-issue by
+    // then, not friction.
+    if (bankName && bankAccountNumber.trim() && bankAccountName.trim()) {
+      await supabase.rpc('add_seller_bank_account', {
+        p_bank_name: bankName,
+        p_account_number: bankAccountNumber.trim(),
+        p_account_name: bankAccountName.trim(),
+      })
+    }
+
     setDone(true)
   }
 
@@ -176,6 +228,58 @@ export default function SellerRegister() {
             onChange={(e) => setStoreName(e.target.value)}
             className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           />
+        </div>
+
+        <label className="flex items-center gap-2 rounded border border-ink/15 px-3 py-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={instalmentOptIn}
+            onChange={(e) => setInstalmentOptIn(e.target.checked)}
+            className="accent-market-green"
+          />
+          <span className="text-sm">
+            Let real buyers pay for higher-value items in real instalments — deposit now, balance over time
+          </span>
+        </label>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">How do you want to set up your store?</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setSetupMethod('self')}
+              className={`rounded-lg border-2 p-3 text-center ${setupMethod === 'self' ? 'border-market-green bg-market-green/10' : 'border-ink/15'}`}
+            >
+              <p className="text-2xl mb-1">📱</p>
+              <p className="text-xs font-semibold">Set up myself</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSetupMethod('admin_assisted')}
+              className={`rounded-lg border-2 p-3 text-center ${setupMethod === 'admin_assisted' ? 'border-gold bg-gold/10' : 'border-ink/15'}`}
+            >
+              <p className="text-2xl mb-1">🧑‍💼</p>
+              <p className="text-xs font-semibold">Set up by admin</p>
+            </button>
+          </div>
+          {setupMethod === 'admin_assisted' && (
+            <div className="mt-2">
+              <p className="text-xs text-gold-dark mb-2">
+                A real UMC-BCK team member will visit and set your store up in person — real ₦50 per item they
+                configure for you. Please give us your real shop address so we can plan the visit.
+              </p>
+              <textarea
+                value={setupAddress}
+                onChange={(e) => setSetupAddress(e.target.value)}
+                placeholder="Your real shop address — market, area, landmark"
+                className="w-full rounded border border-ink/20 px-3 py-2 text-sm"
+                rows={2}
+              />
+            </div>
+          )}
+          {setupMethod === 'self' && (
+            <p className="text-xs text-ink/50 mt-2">You'll list your own items directly — free, no setup fee.</p>
+          )}
         </div>
 
         <div>
@@ -238,6 +342,33 @@ export default function SellerRegister() {
             ))}
           </div>
         </div>
+
+        {selectedCategories.includes('pharma_medical') && (
+          <div className="rounded border-2 border-market-red/30 bg-market-red/5 p-3 space-y-2">
+            <p className="text-xs font-medium text-market-red">
+              Real, legally required — Pharmaceuticals & Medical Devices Council of Nigeria licensing
+            </p>
+            <div>
+              <label className="block text-xs text-ink/50 mb-1">Real PCN registration number</label>
+              <input
+                value={pcnNumber}
+                onChange={(e) => setPcnNumber(e.target.value)}
+                placeholder="e.g. PCN/12345"
+                className="w-full rounded border border-ink/20 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-ink/50 mb-1">Real NAFDAC premises number</label>
+              <input
+                value={nafdacNumber}
+                onChange={(e) => setNafdacNumber(e.target.value)}
+                placeholder="e.g. NAFDAC/PREM/12345"
+                className="w-full rounded border border-ink/20 px-3 py-2 text-sm"
+              />
+            </div>
+            <p className="text-xs text-ink/40">A real UMC-BCK admin will verify this before your Pharma listings go live.</p>
+          </div>
+        )}
 
         <div className="rounded border border-ink/15 p-3">
           <label className="block text-sm font-medium mb-1">Are you a retail seller, wholesale seller, or both?</label>
@@ -333,6 +464,38 @@ export default function SellerRegister() {
             onChange={(e) => setStallNumber(e.target.value)}
             className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
           />
+        </div>
+
+        <div className="pt-4 border-t border-ink/10">
+          <p className="text-sm font-medium mb-1">Real bank account for withdrawals</p>
+          <p className="text-xs text-ink/50 mb-2">
+            The account your real earnings will be paid out to. You can add a second real account later — any
+            future change takes 24 hours to activate, to protect you if your account is ever compromised.
+          </p>
+          <div className="space-y-2">
+            <select
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+            >
+              <option value="">-- Select your bank --</option>
+              {NIGERIAN_BANKS.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+            <input
+              value={bankAccountNumber}
+              onChange={(e) => setBankAccountNumber(e.target.value)}
+              placeholder="Account number"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+            />
+            <input
+              value={bankAccountName}
+              onChange={(e) => setBankAccountName(e.target.value)}
+              placeholder="Account name"
+              className="w-full rounded border border-ink/20 px-3 py-2 bg-surface focus:border-indigo focus:outline-none"
+            />
+          </div>
         </div>
 
         <div className="pt-4 border-t border-ink/10">

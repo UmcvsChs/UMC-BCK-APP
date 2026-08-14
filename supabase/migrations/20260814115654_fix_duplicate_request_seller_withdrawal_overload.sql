@@ -1,0 +1,1 @@
+drop function public.request_seller_withdrawal(uuid, numeric);

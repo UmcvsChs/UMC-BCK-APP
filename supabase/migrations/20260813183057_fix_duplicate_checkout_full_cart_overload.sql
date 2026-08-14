@@ -1,0 +1,1 @@
+drop function public.checkout_full_cart(text, uuid, delivery_type, boolean, text, text, uuid);

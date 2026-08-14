@@ -3,6 +3,7 @@ import { lazy, Suspense, useState, useEffect } from 'react'
 import { useAuth } from './lib/useAuth'
 import { useProfile } from './lib/useProfile'
 import { supabase } from './lib/supabase'
+import { applyTheme, watchSystemTheme } from './lib/theme'
 import HubRail from './components/HubRail'
 import HausaVoiceNav from './components/HausaVoiceNav'
 
@@ -51,6 +52,11 @@ const AttendantDashboard = lazy(() => import('./pages/AttendantDashboard'))
 const DirectorDashboard = lazy(() => import('./pages/DirectorDashboard'))
 const CommodityCatalog = lazy(() => import('./pages/CommodityCatalog'))
 const DemandSignals = lazy(() => import('./pages/DemandSignals'))
+const SellerStorefront = lazy(() => import('./pages/SellerStorefront'))
+const AccountSettings = lazy(() => import('./pages/AccountSettings'))
+const Motorcycles = lazy(() => import('./pages/Motorcycles'))
+const MyInstalments = lazy(() => import('./pages/MyInstalments'))
+const Instalment = lazy(() => import('./pages/Instalment'))
 const CanteenCheckout = lazy(() => import('./pages/CanteenCheckout'))
 const Bills = lazy(() => import('./pages/Bills'))
 const Verify = lazy(() => import('./pages/Verify'))
@@ -146,7 +152,7 @@ function ProtectedLayout({ children }) {
                 </Link>
               )}
               <div className="border-t border-ink/10 my-1" />
-              <Link onClick={() => setMoreOpen(false)} to="/settings" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
+              <Link onClick={() => setMoreOpen(false)} to="/account-settings" className="block px-4 py-2 text-sm text-ink/70 hover:bg-paper">
                 ⚙️ Settings
               </Link>
               <button
@@ -197,6 +203,26 @@ function ProtectedLayout({ children }) {
 }
 
 export default function App() {
+  useEffect(() => {
+    async function loadRealTheme() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      let preference = 'light'
+      if (user) {
+        const { data } = await supabase.from('profiles').select('theme_preference').eq('id', user.id).single()
+        preference = data?.theme_preference || 'light'
+      }
+      applyTheme(preference)
+      return watchSystemTheme(preference, () => applyTheme(preference))
+    }
+    let cleanup
+    loadRealTheme().then((fn) => {
+      cleanup = fn
+    })
+    return () => cleanup && cleanup()
+  }, [])
+
   return (
     <BrowserRouter>
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-ink/50">Loading…</div>}>
@@ -362,6 +388,46 @@ export default function App() {
           element={
             <ProtectedLayout>
               <DemandSignals />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/store/:sellerCode"
+          element={
+            <ProtectedLayout>
+              <SellerStorefront />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/account-settings"
+          element={
+            <ProtectedLayout>
+              <AccountSettings />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/motorcycles"
+          element={
+            <ProtectedLayout>
+              <Motorcycles />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/my-instalments"
+          element={
+            <ProtectedLayout>
+              <MyInstalments />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/instalment"
+          element={
+            <ProtectedLayout>
+              <Instalment />
             </ProtectedLayout>
           }
         />

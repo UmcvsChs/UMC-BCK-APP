@@ -1,0 +1,2 @@
+insert into public.platform_bank_account (bank_name, account_number, account_name, set_by)
+values ('Jaiz Bank', '0000000000', 'STADT THELIMA TEST', (select id from auth.users where email = 'ruftims234@gmail.com'));

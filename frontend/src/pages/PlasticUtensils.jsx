@@ -4,6 +4,6 @@ const PLASTIC_CATEGORIES = ['Kitchen utensils', 'Storage containers', 'Buckets &
 
 export default function PlasticUtensils() {
   return (
-    <HubBrowse hub="plastic_utensils" title="Plastic & Utensils" accentClass="bg-hub-plastic" categories={PLASTIC_CATEGORIES} />
+    <HubBrowse hub="plastic_utensils" title="Plastic & Kitchen Utensils" accentClass="bg-hub-plastic" categories={PLASTIC_CATEGORIES} />
   )
 }

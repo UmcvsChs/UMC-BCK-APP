@@ -2,21 +2,81 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+// Real, direct mapping of which department can see which real tab.
+// 'super' always sees everything; 'analytics' stays visible to every
+// real admin as a genuine shared overview.
+const DEPARTMENT_TABS = {
+  super: ['analytics', 'revenue', 'supermarket', 'marketdata', 'registrations', 'setuprequests', 'topups', 'sellerwithdrawals', 'platformwithdrawal', 'idverify', 'faceverify', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud', 'team'],
+  logistics: ['analytics', 'deliveryfees', 'dispatch', 'accesslog'],
+  verification: ['analytics', 'registrations', 'setuprequests', 'listings', 'prescriptions'],
+  identity: ['analytics', 'idverify', 'faceverify'],
+  finance: ['analytics', 'revenue', 'topups', 'sellerwithdrawals', 'ledger', 'bills', 'promocodes', 'fraud'],
+  disputes: ['analytics', 'disputes'],
+}
+
 export default function Admin() {
+  const [access, setAccess] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function checkAccess() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        setLoading(false)
+        return
+      }
+      const { data } = await supabase.rpc('get_real_admin_access', { p_user_id: user.id })
+      const result = data?.[0]
+      setAccess(result)
+
+      // Real, automatic login request — fires the moment a non-super
+      // admin without recent approval loads this page, matching "I have
+      // to approve it, nobody can just log in at random."
+      if (result && !result.has_access && result.department && result.department !== 'super') {
+        await supabase.rpc('request_admin_login_approval')
+      }
+      setLoading(false)
+    }
+    checkAccess()
+  }, [])
+
+  if (loading) return <div className="p-4 text-ink/50">Checking real admin access…</div>
+
+  if (!access?.has_access) {
+    return (
+      <div className="p-4 max-w-sm mx-auto text-center py-16">
+        <p className="text-4xl mb-3">🔒</p>
+        <p className="text-lg font-display font-semibold text-indigo mb-2">Real access pending</p>
+        <p className="text-sm text-ink/60">{access?.reason || 'Checking your real access…'}</p>
+        {access?.department && access.department !== 'super' && (
+          <p className="text-xs text-ink/40 mt-3">A real request has been sent to the super admin. Try again once approved.</p>
+        )}
+      </div>
+    )
+  }
+
+  return <AdminDashboard department={access.department} />
+}
+
+function AdminDashboard({ department }) {
   const [tab, setTab] = useState('analytics')
+  const visibleTabs = DEPARTMENT_TABS[department] || DEPARTMENT_TABS.verification
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
       <h1 className="text-xl font-display font-semibold text-indigo mb-1">Admin Control Room</h1>
       <p className="text-sm text-ink/50 mb-4">
         Nothing goes live without passing through here — every registration and listing waits for review.
+        {department !== 'super' && <span className="block text-xs text-gold-dark mt-1">Real access scoped to: {department}</span>}
       </p>
 
       <PendingApprovalsBadge />
       <AdminOwnAccountLinks />
 
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
-        {['analytics', 'revenue', 'supermarket', 'marketdata', 'registrations', 'idverify', 'faceverify', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud'].map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -32,7 +92,15 @@ export default function Admin() {
                   ? 'Supermarket Accounts'
                   : t === 'marketdata'
                     ? 'Market Data Clients'
-                    : t === 'idverify'
+                    : t === 'setuprequests'
+                      ? 'Setup Requests'
+                      : t === 'topups'
+                        ? 'Wallet Top-ups'
+                        : t === 'sellerwithdrawals'
+                          ? 'Seller Withdrawals'
+                          : t === 'platformwithdrawal'
+                            ? 'Platform Withdrawal'
+                            : t === 'idverify'
                       ? 'Identity Verification'
                       : t === 'faceverify'
                         ? 'Face Verification'
@@ -52,18 +120,25 @@ export default function Admin() {
                                   ? 'Order dispatch'
                                   : t === 'fraud'
                                     ? 'Fraud alert'
-                                    : `Pending ${t}`}
+                                    : t === 'team'
+                                      ? 'Team & Access'
+                                      : `Pending ${t}`}
           </button>
         ))}
       </div>
 
       {tab === 'analytics' && <PlatformAnalytics />}
+      {tab === 'team' && <TeamAndAccess />}
       {tab === 'revenue' && <PlatformRevenue />}
       {tab === 'supermarket' && <SupermarketAccounts />}
       {tab === 'marketdata' && <MarketDataClients />}
       {tab === 'idverify' && <IdentityVerifications />}
       {tab === 'faceverify' && <FaceVerifications />}
       {tab === 'registrations' && <PendingRegistrations />}
+      {tab === 'setuprequests' && <SetupRequests />}
+      {tab === 'topups' && <WalletTopupRequests />}
+      {tab === 'sellerwithdrawals' && <SellerWithdrawalRequests />}
+      {tab === 'platformwithdrawal' && <PlatformWithdrawal />}
       {tab === 'listings' && <PendingListings />}
       {tab === 'prescriptions' && <PendingPrescriptions />}
       {tab === 'bills' && <PendingBills />}
@@ -74,6 +149,343 @@ export default function Admin() {
       {tab === 'deliveryfees' && <DeliveryFees />}
       {tab === 'dispatch' && <OrderDispatch />}
       {tab === 'fraud' && <FraudAlert />}
+    </div>
+  )
+}
+
+// Real Team & Access — the super admin's real control center for
+// everything just built: real pending logins to approve or reject, and
+// real department assignment for every admin on the team.
+function TeamAndAccess() {
+  const [pending, setPending] = useState([])
+  const [admins, setAdmins] = useState([])
+  const [newAdminEmail, setNewAdminEmail] = useState('')
+  const [newAdminDept, setNewAdminDept] = useState('logistics')
+  const [loading, setLoading] = useState(true)
+
+  async function load() {
+    const [{ data: pendingData }, { data: adminData }] = await Promise.all([
+      supabase
+        .from('admin_login_requests')
+        .select('id, user_id, requested_at, profiles(full_name, phone)')
+        .eq('status', 'pending')
+        .order('requested_at', { ascending: true }),
+      supabase
+        .from('admin_department_assignments')
+        .select('user_id, department, assigned_at, profiles(full_name, phone)'),
+    ])
+    setPending(pendingData || [])
+    setAdmins(adminData || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function resolveLogin(id, approve) {
+    await supabase.rpc('resolve_admin_login_request', { p_request_id: id, p_approve: approve })
+    load()
+  }
+
+  async function assignDepartment() {
+    if (!newAdminEmail.trim()) return
+    const { data: userRow } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('phone', newAdminEmail.trim())
+      .maybeSingle()
+    if (!userRow) {
+      alert('No real user found with that phone number. They must have a real account first.')
+      return
+    }
+    const { error } = await supabase.rpc('assign_admin_department', { p_user_id: userRow.id, p_department: newAdminDept })
+    if (error) {
+      alert(error.message)
+      return
+    }
+    setNewAdminEmail('')
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+
+  return (
+    <div className="space-y-4">
+      {pending.length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-gold-dark mb-2">Real pending logins ({pending.length})</p>
+          <div className="space-y-2">
+            {pending.map((p) => (
+              <div key={p.id} className="rounded border border-gold/40 bg-gold/10 px-3 py-2">
+                <p className="text-sm font-medium">{p.profiles?.full_name}</p>
+                <p className="text-xs text-ink/50">{p.profiles?.phone} · {new Date(p.requested_at).toLocaleString()}</p>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => resolveLogin(p.id, true)} className="flex-1 text-xs bg-market-green text-white rounded py-1.5">
+                    Approve real login
+                  </button>
+                  <button onClick={() => resolveLogin(p.id, false)} className="flex-1 text-xs bg-market-red/10 text-market-red rounded py-1.5">
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <p className="text-sm font-medium mb-2">Assign a real admin department</p>
+        <div className="flex gap-2 mb-2">
+          <input
+            value={newAdminEmail}
+            onChange={(e) => setNewAdminEmail(e.target.value)}
+            placeholder="Their real phone number"
+            className="flex-1 rounded border border-ink/20 px-3 py-2 text-sm"
+          />
+          <select value={newAdminDept} onChange={(e) => setNewAdminDept(e.target.value)} className="rounded border border-ink/20 px-2 py-2 text-sm">
+            <option value="logistics">Logistics</option>
+            <option value="verification">Verification</option>
+            <option value="identity">Identity</option>
+            <option value="finance">Finance</option>
+            <option value="disputes">Disputes</option>
+          </select>
+        </div>
+        <button onClick={assignDepartment} className="w-full text-xs bg-indigo text-white rounded py-2">
+          Assign real department
+        </button>
+      </div>
+
+      <div>
+        <p className="text-sm font-medium mb-2">Real current admin team</p>
+        <div className="space-y-1">
+          {admins.map((a) => (
+            <div key={a.user_id} className="flex items-center justify-between rounded border border-ink/10 px-3 py-2 text-sm">
+              <span>{a.profiles?.full_name} — {a.profiles?.phone}</span>
+              <span className="text-xs font-medium text-indigo capitalize">{a.department}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Real seller withdrawal approvals — the actual admin-side queue that
+// turns a wallet request into a real, human-confirmed bank payout.
+function SellerWithdrawalRequests() {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [actioning, setActioning] = useState(null)
+
+  async function load() {
+    const { data } = await supabase
+      .from('seller_withdrawal_requests')
+      .select('id, amount, processing_fee, otp_required, otp_verified_at, otp_locked_at, requested_at, sellers(store_name), seller_bank_accounts(bank_name, account_number, account_name)')
+      .eq('status', 'pending')
+      .order('requested_at', { ascending: true })
+    setRequests(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function resolve(id, approve) {
+    setActioning(id)
+    const { error } = await supabase.rpc('mark_seller_withdrawal_paid', { p_request_id: id, p_approve: approve })
+    setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+  if (requests.length === 0) return <p className="text-ink/50 text-sm">No real pending seller withdrawals right now.</p>
+
+  return (
+    <div className="space-y-2">
+      {requests.map((r) => {
+        const readyForPayout = !r.otp_required || (r.otp_verified_at && !r.otp_locked_at)
+        return (
+          <div key={r.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">{r.sellers?.store_name}</p>
+              <p className="font-mono text-sm text-market-green">₦{Number(r.amount).toLocaleString()}</p>
+            </div>
+            <p className="text-xs text-ink/60">
+              {r.seller_bank_accounts?.bank_name} — {r.seller_bank_accounts?.account_number} ({r.seller_bank_accounts?.account_name})
+            </p>
+            {r.processing_fee > 0 && <p className="text-xs text-ink/40">Real fee collected: ₦{Number(r.processing_fee).toLocaleString()}</p>}
+            {r.otp_required && !readyForPayout && (
+              <p className="text-xs text-gold-dark mt-1">
+                {r.otp_locked_at ? 'Locked — too many wrong attempts, contact the seller before proceeding' : 'Waiting on real seller OTP confirmation'}
+              </p>
+            )}
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => resolve(r.id, true)}
+                disabled={actioning === r.id || !readyForPayout}
+                className="flex-1 text-xs bg-market-green text-white rounded px-3 py-1.5 disabled:opacity-40"
+              >
+                {actioning === r.id ? 'Working…' : 'Mark real bank transfer sent'}
+              </button>
+              <button
+                onClick={() => resolve(r.id, false)}
+                disabled={actioning === r.id}
+                className="flex-1 text-xs bg-market-red/10 text-market-red rounded px-3 py-1.5"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Real platform withdrawal — the founder's own money, out to the one
+// real Jaiz account, gated behind the full real security flow: two
+// separate real phone OTPs, one real email OTP, then a genuine
+// 3-7 hour processing window before it can complete.
+function PlatformWithdrawal() {
+  const [account, setAccount] = useState(null)
+  const [pending, setPending] = useState([])
+  const [amount, setAmount] = useState('')
+  const [phone1, setPhone1] = useState('')
+  const [phone2, setPhone2] = useState('')
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  async function load() {
+    const [{ data: acct }, { data: reqs }] = await Promise.all([
+      supabase.from('platform_bank_account').select('bank_name, account_number, account_name').eq('is_active', true).maybeSingle(),
+      supabase.from('platform_withdrawal_requests').select('*').neq('status', 'completed').order('requested_at', { ascending: false }),
+    ])
+    setAccount(acct)
+    setPending(reqs || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function submitRequest(e) {
+    e.preventDefault()
+    setError(null)
+    if (!amount || !phone1.trim() || !phone2.trim()) {
+      setError('All fields are required')
+      return
+    }
+    const { error: reqError } = await supabase.rpc('request_platform_withdrawal', {
+      p_amount: Number(amount), p_phone_1: phone1.trim(), p_phone_2: phone2.trim(),
+    })
+    if (reqError) {
+      setError(reqError.message)
+      return
+    }
+    setAmount('')
+    setPhone1('')
+    setPhone2('')
+    load()
+  }
+
+  async function verifyStep(requestId, step, code) {
+    const { data: ok, error: verifyError } = await supabase.rpc('verify_platform_withdrawal_otp', { p_request_id: requestId, p_step: step, p_code: code })
+    if (verifyError) {
+      alert(verifyError.message)
+      return
+    }
+    if (!ok) {
+      alert('That code is not correct — please try again.')
+      return
+    }
+    load()
+  }
+
+  async function complete(requestId) {
+    const { error: completeError } = await supabase.rpc('complete_platform_withdrawal', { p_request_id: requestId })
+    if (completeError) {
+      alert(completeError.message)
+      return
+    }
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded bg-surface px-3 py-2">
+        <p className="text-xs text-ink/50">Real destination account — only one ever exists</p>
+        <p className="text-sm font-medium">
+          {account ? `${account.bank_name} — ${account.account_number} (${account.account_name})` : 'No real account set yet'}
+        </p>
+      </div>
+
+      <form onSubmit={submitRequest} className="rounded border border-ink/10 p-3 space-y-2">
+        <p className="text-sm font-medium">Start a real withdrawal</p>
+        <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" placeholder="Amount (₦)" className="w-full rounded border border-ink/20 px-3 py-2 text-sm" />
+        <input value={phone1} onChange={(e) => setPhone1(e.target.value)} placeholder="First real phone number" className="w-full rounded border border-ink/20 px-3 py-2 text-sm" />
+        <input value={phone2} onChange={(e) => setPhone2(e.target.value)} placeholder="Second real phone number (different)" className="w-full rounded border border-ink/20 px-3 py-2 text-sm" />
+        {error && <p className="text-xs text-market-red">{error}</p>}
+        <button type="submit" className="w-full bg-indigo text-white rounded py-2 text-sm font-medium">Request withdrawal</button>
+      </form>
+
+      {pending.map((r) => (
+        <PlatformWithdrawalCard key={r.id} request={r} onVerify={verifyStep} onComplete={complete} />
+      ))}
+    </div>
+  )
+}
+
+function PlatformWithdrawalCard({ request, onVerify, onComplete }) {
+  const [code1, setCode1] = useState('')
+  const [code2, setCode2] = useState('')
+  const [codeEmail, setCodeEmail] = useState('')
+  const ready = request.status === 'verified_processing'
+  const canComplete = ready && new Date(request.can_process_after) <= new Date()
+
+  return (
+    <div className="rounded border border-gold/40 bg-gold/10 px-3 py-3 space-y-2">
+      <p className="text-sm font-semibold">₦{Number(request.amount).toLocaleString()} — {request.status.replace('_', ' ')}</p>
+
+      {!ready && (
+        <div className="space-y-2">
+          {!request.phone_1_verified_at && (
+            <div className="flex gap-2">
+              <input value={code1} onChange={(e) => setCode1(e.target.value)} placeholder={`Code sent to ${request.phone_1}`} className="flex-1 rounded border border-ink/20 px-2 py-1.5 text-sm" />
+              <button onClick={() => onVerify(request.id, 'phone_1', code1)} className="text-xs bg-indigo text-white rounded px-3">Verify</button>
+            </div>
+          )}
+          {request.phone_1_verified_at && !request.phone_2_verified_at && (
+            <div className="flex gap-2">
+              <input value={code2} onChange={(e) => setCode2(e.target.value)} placeholder={`Code sent to ${request.phone_2}`} className="flex-1 rounded border border-ink/20 px-2 py-1.5 text-sm" />
+              <button onClick={() => onVerify(request.id, 'phone_2', code2)} className="text-xs bg-indigo text-white rounded px-3">Verify</button>
+            </div>
+          )}
+          {request.phone_1_verified_at && request.phone_2_verified_at && !request.email_verified_at && (
+            <div className="flex gap-2">
+              <input value={codeEmail} onChange={(e) => setCodeEmail(e.target.value)} placeholder="Code sent to your email" className="flex-1 rounded border border-ink/20 px-2 py-1.5 text-sm" />
+              <button onClick={() => onVerify(request.id, 'email', codeEmail)} className="text-xs bg-indigo text-white rounded px-3">Verify</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {ready && !canComplete && (
+        <p className="text-xs text-ink/60">Real processing window — available from {new Date(request.can_process_after).toLocaleString()}</p>
+      )}
+      {ready && canComplete && (
+        <button onClick={() => onComplete(request.id)} className="w-full bg-market-green text-white rounded py-2 text-sm font-medium">
+          Complete real withdrawal
+        </button>
+      )}
     </div>
   )
 }
@@ -170,6 +582,134 @@ function PendingPrescriptions() {
   )
 }
 
+// Real "Set up by admin" requests — sellers who genuinely can't operate
+// a phone or computer, requesting the real UMC-BCK team to visit and
+// configure their store in person. Shows the real shop address given so
+// a visit can actually be planned, and the real running ₦50-per-item
+// fee as the team genuinely does the work.
+function SetupRequests() {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  async function load() {
+    const { data } = await supabase
+      .from('sellers')
+      .select('id, store_name, setup_address, admin_setup_status, admin_setup_items_configured, created_at, profiles(full_name, phone)')
+      .eq('setup_method', 'admin_assisted')
+      .order('created_at', { ascending: false })
+    setRequests(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function updateStatus(sellerId, status) {
+    await supabase.from('sellers').update({ admin_setup_status: status }).eq('id', sellerId)
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+  if (requests.length === 0) return <p className="text-ink/50 text-sm">No real setup requests right now.</p>
+
+  return (
+    <div className="space-y-3">
+      {requests.map((r) => (
+        <div key={r.id} className="rounded border border-ink/10 p-3">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-medium">{r.store_name}</p>
+            <span
+              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                r.admin_setup_status === 'completed' ? 'bg-market-green/10 text-market-green' : 'bg-gold/10 text-gold-dark'
+              }`}
+            >
+              {r.admin_setup_status}
+            </span>
+          </div>
+          <p className="text-xs text-ink/50">{r.profiles?.full_name} · {r.profiles?.phone}</p>
+          <p className="text-xs text-ink/60 mt-1">📍 {r.setup_address || 'No real address given'}</p>
+          <p className="text-xs text-gold-dark mt-1">
+            Real fee so far: {r.admin_setup_items_configured} item(s) × ₦50 = ₦{(r.admin_setup_items_configured * 50).toLocaleString()}
+          </p>
+          <div className="flex gap-2 mt-2">
+            {r.admin_setup_status === 'pending' && (
+              <button onClick={() => updateStatus(r.id, 'scheduled')} className="text-xs bg-indigo text-white rounded px-3 py-1.5">
+                Mark scheduled
+              </button>
+            )}
+            {r.admin_setup_status === 'scheduled' && (
+              <button onClick={() => updateStatus(r.id, 'in_progress')} className="text-xs bg-gold text-ink rounded px-3 py-1.5">
+                Mark in progress
+              </button>
+            )}
+            {r.admin_setup_status === 'in_progress' && (
+              <button onClick={() => updateStatus(r.id, 'completed')} className="text-xs bg-market-green text-white rounded px-3 py-1.5">
+                Mark completed
+              </button>
+            )}
+          </div>
+          {r.admin_setup_status === 'in_progress' && <AdminAddSetupItem sellerId={r.id} onAdded={load} />}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Real, missing piece restored — while genuinely on-site with a
+// seller who can't operate a phone or computer, admin can now add
+// their real items directly, with each one correctly adding to the
+// real ₦50-per-item fee shown just above.
+function AdminAddSetupItem({ sellerId, onAdded }) {
+  const [name, setName] = useState('')
+  const [category, setCategory] = useState('')
+  const [price, setPrice] = useState('')
+  const [unit, setUnit] = useState('')
+  const [stock, setStock] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!name.trim() || !category.trim() || !price || !stock) return
+    setSubmitting(true)
+    const { error } = await supabase.rpc('admin_add_setup_item', {
+      p_seller_id: sellerId,
+      p_name: name.trim(),
+      p_category: category.trim(),
+      p_price: Number(price),
+      p_unit: unit.trim() || null,
+      p_stock_quantity: Number(stock),
+    })
+    setSubmitting(false)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    setName('')
+    setCategory('')
+    setPrice('')
+    setUnit('')
+    setStock('')
+    onAdded()
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-3 pt-3 border-t border-ink/10 space-y-2">
+      <p className="text-xs font-medium text-ink/60">Add a real item for this seller (adds ₦50 to the real fee)</p>
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" className="w-full rounded border border-ink/20 px-2 py-1.5 text-sm" />
+      <div className="grid grid-cols-2 gap-2">
+        <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="rounded border border-ink/20 px-2 py-1.5 text-sm" />
+        <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="Unit (e.g. per bag)" className="rounded border border-ink/20 px-2 py-1.5 text-sm" />
+        <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" placeholder="Price (₦)" className="rounded border border-ink/20 px-2 py-1.5 text-sm" />
+        <input value={stock} onChange={(e) => setStock(e.target.value)} type="number" placeholder="Stock quantity" className="rounded border border-ink/20 px-2 py-1.5 text-sm" />
+      </div>
+      <button type="submit" disabled={submitting} className="w-full bg-indigo text-white rounded py-1.5 text-xs font-medium disabled:opacity-60">
+        {submitting ? 'Adding…' : '+ Add item'}
+      </button>
+    </form>
+  )
+}
+
 function PendingRegistrations() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -228,6 +768,120 @@ function PendingRegistrations() {
               </button>
             </div>
           </div>
+          {r.registration_type === 'seller' && <PharmaLicenseCheck sellerId={r.id} />}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Real Pharma license check — only fetches and shows something if this
+// real seller genuinely submitted PCN/NAFDAC details. Restored after a
+// systematic audit found this real, legally significant table sitting
+// completely unused, with no admin visibility at all.
+function PharmaLicenseCheck({ sellerId }) {
+  const [details, setDetails] = useState(null)
+  const [checked, setChecked] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from('pharma_seller_details')
+        .select('pcn_registration_number, nafdac_premises_number, license_verified')
+        .eq('seller_id', sellerId)
+        .maybeSingle()
+      setDetails(data)
+      setChecked(true)
+    }
+    load()
+  }, [sellerId])
+
+  async function verify() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    await supabase
+      .from('pharma_seller_details')
+      .update({ license_verified: true, license_verified_by: user.id, license_verified_at: new Date().toISOString() })
+      .eq('seller_id', sellerId)
+    setDetails((d) => ({ ...d, license_verified: true }))
+  }
+
+  if (!checked || !details) return null
+
+  return (
+    <div className="mt-2 rounded bg-market-red/5 border border-market-red/20 px-2 py-1.5">
+      <p className="text-xs font-medium text-market-red">⚕️ Real Pharma licensing submitted</p>
+      <p className="text-xs text-ink/60">PCN: {details.pcn_registration_number}</p>
+      {details.nafdac_premises_number && <p className="text-xs text-ink/60">NAFDAC: {details.nafdac_premises_number}</p>}
+      {details.license_verified ? (
+        <p className="text-xs text-market-green mt-1">✓ Verified</p>
+      ) : (
+        <button onClick={verify} className="text-xs bg-market-red text-white rounded px-2 py-1 mt-1">
+          Mark license verified
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Real Wallet Top-up requests — restored after a systematic audit found
+// buyers could genuinely submit a real manual bank-transfer top-up
+// request, but no admin anywhere could see or confirm it, meaning real
+// money could get stuck with nobody able to act on it.
+function WalletTopupRequests() {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [actioning, setActioning] = useState(null)
+
+  async function load() {
+    const { data } = await supabase
+      .from('wallet_topup_requests')
+      .select('id, amount, payment_reference, status, gateway, created_at, wallets(profiles(full_name, phone))')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+    setRequests(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function confirm(id) {
+    setActioning(id)
+    const { error } = await supabase.rpc('confirm_wallet_topup', { p_topup_id: id })
+    setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+  if (requests.length === 0) return <p className="text-ink/50 text-sm">No real pending top-up requests right now.</p>
+
+  return (
+    <div className="space-y-2">
+      {requests.map((r) => (
+        <div key={r.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">{r.wallets?.profiles?.full_name || 'Unknown'}</p>
+              <p className="text-xs text-ink/50">{r.wallets?.profiles?.phone}</p>
+            </div>
+            <p className="font-mono text-sm text-market-green">₦{Number(r.amount).toLocaleString()}</p>
+          </div>
+          {r.payment_reference && <p className="text-xs text-ink/60 mt-1">Real reference: {r.payment_reference}</p>}
+          <p className="text-xs text-ink/40">{r.gateway || 'manual'} · {new Date(r.created_at).toLocaleString()}</p>
+          <button
+            onClick={() => confirm(r.id)}
+            disabled={actioning === r.id}
+            className="mt-2 text-xs bg-market-green text-white rounded px-3 py-1.5 disabled:opacity-60"
+          >
+            {actioning === r.id ? 'Confirming…' : 'Confirm real top-up'}
+          </button>
         </div>
       ))}
     </div>

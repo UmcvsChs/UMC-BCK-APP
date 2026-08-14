@@ -1,0 +1,1 @@
+drop function if exists public.suggest_real_category(text, text);

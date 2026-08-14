@@ -1,12 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
-        paper: '#F5F0E5',
-        surface: '#FCF9F2',
-        ink: '#1C1B19',
+        paper: 'rgb(var(--color-paper) / <alpha-value>)',
+        surface: 'rgb(var(--color-surface) / <alpha-value>)',
+        ink: 'rgb(var(--color-ink) / <alpha-value>)',
         indigo: {
           DEFAULT: '#0F4C3A',
           light: '#186B52',
@@ -36,6 +37,9 @@ export default {
           interior: '#82353B',
           plastic: '#356F82',
           office: '#354882',
+          useditems: '#6B7280',
+          instalment: '#B8860B',
+          motorcycle: '#B5651D',
         },
       },
       fontFamily: {

@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-paper: 245 240 229;
+  --color-surface: 252 249 242;
+  --color-ink: 28 27 25;
+}
+
+/* Real dark mode — genuine values, not a cosmetic tint. Applied via a
+   real .dark class on the document root, toggled from Settings based on
+   the user's real preference (or the device's real system setting when
+   "Match system" is chosen). */
+.dark {
+  --color-paper: 20 21 24;
+  --color-surface: 30 31 35;
+  --color-ink: 235 234 230;
+}
+
 @layer base {
   h1, h2, h3 {
     @apply font-display;

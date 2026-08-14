@@ -196,6 +196,8 @@ export default function DeliveryAgentDashboard() {
 
       <FaceVerificationSection agentId={agent.id} status={agent.face_verification_status} faceVerified={agent.face_verified} />
 
+      <CoverageAreasSection agentId={agent.id} />
+
       {performance && (
         <div className="rounded bg-surface border border-ink/10 p-3 mb-4 text-center">
           <p className="text-xs text-ink/50 mb-1">Your overall rating</p>
@@ -383,6 +385,103 @@ export default function DeliveryAgentDashboard() {
 // yet; a genuine human at admin compares this real selfie against the
 // agent's real ID photo already on file, the same proven pattern
 // already used for NIN verification.
+// Real coverage-area selection — restored after a systematic audit
+// found this real table sitting completely unused, meaning agents had
+// no way to specify which real neighborhoods they actually serve.
+function CoverageAreasSection({ agentId }) {
+  const [lgas, setLgas] = useState([])
+  const [selectedLga, setSelectedLga] = useState('')
+  const [neighborhoods, setNeighborhoods] = useState([])
+  const [myAreas, setMyAreas] = useState([])
+  const [expanded, setExpanded] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const [{ data: lgaData }, { data: myData }] = await Promise.all([
+        supabase.from('local_government_areas').select('id, name').order('name'),
+        supabase.from('delivery_agent_coverage_areas').select('neighborhood_area_id, neighborhood_areas(name, local_government_areas(name))').eq('delivery_agent_id', agentId),
+      ])
+      setLgas(lgaData || [])
+      setMyAreas(myData || [])
+    }
+    load()
+  }, [agentId])
+
+  useEffect(() => {
+    async function loadNeighborhoods() {
+      if (!selectedLga) {
+        setNeighborhoods([])
+        return
+      }
+      const { data } = await supabase.from('neighborhood_areas').select('id, name').eq('lga_id', selectedLga).order('name')
+      setNeighborhoods(data || [])
+    }
+    loadNeighborhoods()
+  }, [selectedLga])
+
+  async function toggleArea(neighborhoodId) {
+    const already = myAreas.some((a) => a.neighborhood_area_id === neighborhoodId)
+    if (already) {
+      await supabase.from('delivery_agent_coverage_areas').delete().eq('delivery_agent_id', agentId).eq('neighborhood_area_id', neighborhoodId)
+    } else {
+      await supabase.from('delivery_agent_coverage_areas').insert({ delivery_agent_id: agentId, neighborhood_area_id: neighborhoodId })
+    }
+    const { data } = await supabase
+      .from('delivery_agent_coverage_areas')
+      .select('neighborhood_area_id, neighborhood_areas(name, local_government_areas(name))')
+      .eq('delivery_agent_id', agentId)
+    setMyAreas(data || [])
+  }
+
+  return (
+    <div className="rounded bg-surface border border-ink/10 p-3 mb-4">
+      <button onClick={() => setExpanded((v) => !v)} className="w-full flex items-center justify-between">
+        <p className="text-sm font-medium">📍 My real coverage areas ({myAreas.length})</p>
+        <span className="text-xs text-ink/40">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {myAreas.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {myAreas.map((a) => (
+            <span key={a.neighborhood_area_id} className="text-xs bg-indigo/10 text-indigo rounded-full px-2 py-0.5">
+              {a.neighborhood_areas?.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {expanded && (
+        <div className="mt-3 pt-3 border-t border-ink/10">
+          <select value={selectedLga} onChange={(e) => setSelectedLga(e.target.value)} className="w-full rounded border border-ink/20 px-2 py-1.5 text-sm mb-2">
+            <option value="">-- Select real LGA --</option>
+            {lgas.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+          {neighborhoods.length > 0 && (
+            <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto">
+              {neighborhoods.map((n) => {
+                const covered = myAreas.some((a) => a.neighborhood_area_id === n.id)
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => toggleArea(n.id)}
+                    className={`text-xs rounded px-2 py-1 text-left ${covered ? 'bg-indigo text-white' : 'border border-ink/15 text-ink/60'}`}
+                  >
+                    {covered ? '✓ ' : ''}{n.name}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FaceVerificationSection({ agentId, status, faceVerified }) {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState(null)

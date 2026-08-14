@@ -13,6 +13,20 @@ export default function Cart() {
   const [lgas, setLgas] = useState([])
   const [fees, setFees] = useState({})
   const [lgaId, setLgaId] = useState('')
+  const [neighborhoodId, setNeighborhoodId] = useState('')
+  const [neighborhoods, setNeighborhoods] = useState([])
+
+  useEffect(() => {
+    async function loadNeighborhoods() {
+      if (!lgaId) {
+        setNeighborhoods([])
+        return
+      }
+      const { data } = await supabase.from('neighborhood_areas').select('id, name').eq('lga_id', lgaId).order('name')
+      setNeighborhoods(data || [])
+    }
+    loadNeighborhoods()
+  }, [lgaId])
   const [weightTier, setWeightTier] = useState('light')
   const [urgencyTier, setUrgencyTier] = useState('standard')
   const [deliveryType, setDeliveryType] = useState('home_delivery')
@@ -99,6 +113,7 @@ export default function Cart() {
       p_weight_tier: weightTier,
       p_urgency_tier: urgencyTier,
       p_group_order_id: activeGroup?.id || null,
+      p_delivery_neighborhood_id: neighborhoodId || null,
     })
 
     setCheckingOut(false)
@@ -215,7 +230,16 @@ export default function Cart() {
                     >
                       −
                     </button>
-                    <span className="font-mono text-sm">{item.quantity}</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => {
+                        const val = Number(e.target.value)
+                        if (val > 0) updateQuantity(item.id, val)
+                      }}
+                      className="w-12 text-center font-mono text-sm border border-ink/20 rounded py-0.5"
+                    />
                     <button
                       onClick={() => updateQuantity(item.id, item.quantity + 1)}
                       className="text-lg px-2"
@@ -270,7 +294,7 @@ export default function Cart() {
               <>
                 <select
                   value={lgaId}
-                  onChange={(e) => setLgaId(e.target.value)}
+                  onChange={(e) => { setLgaId(e.target.value); setNeighborhoodId('') }}
                   className="w-full text-sm rounded border border-ink/20 px-3 py-2"
                 >
                   <option value="">Select delivery LGA</option>
@@ -280,6 +304,20 @@ export default function Cart() {
                     </option>
                   ))}
                 </select>
+                {neighborhoods.length > 0 && (
+                  <select
+                    value={neighborhoodId}
+                    onChange={(e) => setNeighborhoodId(e.target.value)}
+                    className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+                  >
+                    <option value="">Neighborhood (optional, helps real dispatch)</option>
+                    {neighborhoods.map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {n.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <select
                   value={weightTier}
                   onChange={(e) => setWeightTier(e.target.value)}

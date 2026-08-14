@@ -25,8 +25,11 @@ const MORE_HUBS = [
   { path: '/green-energy', label: 'Green Energy', color: 'bg-hub-greenenergy' },
   { path: '/electrical-equipment', label: 'Electrical Equipment', color: 'bg-hub-electrical' },
   { path: '/interior-appliances', label: 'Interior & Home Appliances', color: 'bg-hub-interior' },
-  { path: '/plastic-utensils', label: 'Plastic & Utensils', color: 'bg-hub-plastic' },
+  { path: '/plastic-utensils', label: 'Plastic & Kitchen Utensils', color: 'bg-hub-plastic' },
   { path: '/office-equipment', label: 'Office Equipment & Stationery', color: 'bg-hub-office' },
+  { path: '/used-items', label: 'Used Items', color: 'bg-hub-useditems' },
+  { path: '/instalment', label: 'Instalment / BNPL', color: 'bg-hub-instalment' },
+  { path: '/motorcycles', label: 'Motorcycles, Tricycles & Accessories', color: 'bg-hub-motorcycle' },
 ]
 
 // Real, second row — the six real roles on this platform, exactly as

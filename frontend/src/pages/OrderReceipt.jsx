@@ -15,7 +15,7 @@ export default function OrderReceipt() {
     async function load() {
       const [{ data: o }, { data: i }, { data: p }, { data: da }] = await Promise.all([
         supabase.from('orders').select('*, sellers(store_name, primary_hub)').eq('id', orderId).single(),
-        supabase.from('order_items').select('*, products(name)').eq('order_id', orderId),
+        supabase.from('order_items').select('*, products(name), order_item_addons(name, price)').eq('order_id', orderId),
         supabase.from('order_payments').select('*').eq('order_id', orderId),
         supabase.from('delivery_assignments').select('status, assigned_at, arrived_at').eq('order_id', orderId).order('assigned_at', { ascending: false }).limit(1).maybeSingle(),
       ])
@@ -62,12 +62,19 @@ export default function OrderReceipt() {
 
         <div className="space-y-2 py-3 border-y border-ink/10">
           {items.map((item) => (
-            <div key={item.id} className="flex justify-between text-sm">
-              <span>
-                {item.products?.name} × {item.quantity}
-                {item.contributor_name && <span className="text-ink/40"> (for {item.contributor_name})</span>}
-              </span>
-              <span className="font-mono">₦{Number(item.line_total).toLocaleString()}</span>
+            <div key={item.id} className="text-sm">
+              <div className="flex justify-between">
+                <span>
+                  {item.products?.name} × {item.quantity}
+                  {item.contributor_name && <span className="text-ink/40"> (for {item.contributor_name})</span>}
+                </span>
+                <span className="font-mono">₦{Number(item.line_total).toLocaleString()}</span>
+              </div>
+              {item.order_item_addons?.length > 0 && (
+                <p className="text-xs text-ink/50 pl-2">
+                  + {item.order_item_addons.map((a) => a.name).join(', ')}
+                </p>
+              )}
             </div>
           ))}
         </div>
