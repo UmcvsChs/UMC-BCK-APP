@@ -2010,11 +2010,23 @@ function PendingApprovalsBadge() {
   )
 }
 
+// id-documents is a private bucket. Older rows (and getPublicUrl() calls
+// anywhere upstream) may have saved a "public" object URL, which 404s on a
+// private bucket. Pull the real storage path out of whatever was saved —
+// a bare path or a full public URL — so a signed URL can always be minted.
+function idDocumentStoragePath(saved) {
+  if (!saved) return null
+  const marker = '/id-documents/'
+  const idx = saved.indexOf(marker)
+  return idx >= 0 ? saved.slice(idx + marker.length) : saved
+}
+
 function IdentityVerifications() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(null)
   const [rejectReason, setRejectReason] = useState({})
+  const [signedUrls, setSignedUrls] = useState({})
 
   async function load() {
     const { data } = await supabase
@@ -2022,8 +2034,21 @@ function IdentityVerifications() {
       .select('id, id_type, id_number, id_photo_url, created_at, profiles(full_name, phone)')
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
-    setItems(data || [])
+    const rows = data || []
+    setItems(rows)
     setLoading(false)
+
+    // Resolve each document photo to a real, working signed URL — the
+    // private bucket means the raw saved value can never be used directly.
+    const resolved = await Promise.all(
+      rows.map(async (v) => {
+        const path = idDocumentStoragePath(v.id_photo_url)
+        if (!path) return [v.id, null]
+        const { data: signed } = await supabase.storage.from('id-documents').createSignedUrl(path, 3600)
+        return [v.id, signed?.signedUrl || null]
+      })
+    )
+    setSignedUrls(Object.fromEntries(resolved))
   }
 
   useEffect(() => {
@@ -2059,9 +2084,13 @@ function IdentityVerifications() {
           <p className="text-xs text-ink/70 mt-1">
             {ID_LABELS[v.id_type]} — <span className="font-mono">{v.id_number}</span>
           </p>
-          <a href={v.id_photo_url} target="_blank" rel="noreferrer" className="text-xs text-indigo underline">
-            View document photo
-          </a>
+          {signedUrls[v.id] ? (
+            <a href={signedUrls[v.id]} target="_blank" rel="noreferrer" className="text-xs text-indigo underline">
+              View document photo
+            </a>
+          ) : (
+            <span className="text-xs text-ink/40">Loading document photo…</span>
+          )}
           <div className="flex gap-1 mt-2">
             <button onClick={() => resolve(v.id, true)} disabled={acting === v.id} className="text-xs bg-market-green text-white rounded px-3 py-1">
               Approve
@@ -2090,6 +2119,8 @@ function FaceVerifications() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(null)
+  const [signedFaceUrls, setSignedFaceUrls] = useState({})
+  const [signedIdUrls, setSignedIdUrls] = useState({})
 
   async function load() {
     const { data } = await supabase
@@ -2115,6 +2146,29 @@ function FaceVerifications() {
     )
     setItems(withIdPhotos)
     setLoading(false)
+
+    // Both photos live in the private id-documents bucket. Resolve each
+    // saved value (bare path or legacy public URL) to a real signed URL.
+    const [faceEntries, idEntries] = await Promise.all([
+      Promise.all(
+        withIdPhotos.map(async (agent) => {
+          const path = idDocumentStoragePath(agent.face_photo_url)
+          if (!path) return [agent.id, null]
+          const { data: signed } = await supabase.storage.from('id-documents').createSignedUrl(path, 3600)
+          return [agent.id, signed?.signedUrl || null]
+        })
+      ),
+      Promise.all(
+        withIdPhotos.map(async (agent) => {
+          const path = idDocumentStoragePath(agent.id_photo_url)
+          if (!path) return [agent.id, null]
+          const { data: signed } = await supabase.storage.from('id-documents').createSignedUrl(path, 3600)
+          return [agent.id, signed?.signedUrl || null]
+        })
+      ),
+    ])
+    setSignedFaceUrls(Object.fromEntries(faceEntries))
+    setSignedIdUrls(Object.fromEntries(idEntries))
   }
 
   useEffect(() => {
@@ -2143,12 +2197,20 @@ function FaceVerifications() {
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div>
               <p className="text-xs text-ink/50 mb-1">Real submitted selfie</p>
-              <img src={v.face_photo_url} alt="Submitted real selfie" className="w-full rounded border border-ink/10" />
+              {signedFaceUrls[v.id] ? (
+                <img src={signedFaceUrls[v.id]} alt="Submitted real selfie" className="w-full rounded border border-ink/10" />
+              ) : (
+                <p className="text-xs text-ink/40">Loading photo…</p>
+              )}
             </div>
             {v.id_photo_url && (
               <div>
                 <p className="text-xs text-ink/50 mb-1">Real ID on file</p>
-                <img src={v.id_photo_url} alt="Real ID document on file" className="w-full rounded border border-ink/10" />
+                {signedIdUrls[v.id] ? (
+                  <img src={signedIdUrls[v.id]} alt="Real ID document on file" className="w-full rounded border border-ink/10" />
+                ) : (
+                  <p className="text-xs text-ink/40">Loading photo…</p>
+                )}
               </div>
             )}
           </div>

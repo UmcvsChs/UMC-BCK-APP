@@ -31,6 +31,41 @@ export default function Cart() {
   const [urgencyTier, setUrgencyTier] = useState('standard')
   const [deliveryType, setDeliveryType] = useState('home_delivery')
   const [deliveryAddress, setDeliveryAddress] = useState('')
+  const [primaryAddress, setPrimaryAddress] = useState(null)
+  const [useManualAddress, setUseManualAddress] = useState(false)
+
+  async function loadPrimaryAddress() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase
+      .from('delivery_addresses')
+      .select('id, label, full_address, lga_id, neighborhood_id')
+      .eq('user_id', user.id)
+      .eq('is_default', true)
+      .maybeSingle()
+    setPrimaryAddress(data || null)
+  }
+
+  // Real one-click checkout: when the primary address is in use, keep
+  // lgaId/neighborhoodId/deliveryAddress in sync with it automatically so
+  // checkout_full_cart still gets the right values without the user
+  // touching the manual fields.
+  useEffect(() => {
+    if (primaryAddress && !useManualAddress) {
+      setLgaId(primaryAddress.lga_id || '')
+      setNeighborhoodId(primaryAddress.neighborhood_id || '')
+      setDeliveryAddress(primaryAddress.full_address || '')
+    }
+  }, [primaryAddress, useManualAddress])
+
+  function switchToManualAddress() {
+    setUseManualAddress(true)
+    setLgaId('')
+    setNeighborhoodId('')
+    setDeliveryAddress('')
+  }
 
   async function loadLgasAndFees() {
     const [{ data: l }, { data: f }] = await Promise.all([
@@ -69,6 +104,7 @@ export default function Cart() {
   useEffect(() => {
     loadCart()
     loadLgasAndFees()
+    loadPrimaryAddress()
   }, [])
 
   async function updateQuantity(cartItemId, newQty) {
@@ -292,31 +328,69 @@ export default function Cart() {
 
             {deliveryType === 'home_delivery' && (
               <>
-                <select
-                  value={lgaId}
-                  onChange={(e) => { setLgaId(e.target.value); setNeighborhoodId('') }}
-                  className="w-full text-sm rounded border border-ink/20 px-3 py-2"
-                >
-                  <option value="">Select delivery LGA</option>
-                  {lgas.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name} {fees[l.id] != null ? `— ₦${Number(fees[l.id]).toLocaleString()}` : '— fee not set'}
-                    </option>
-                  ))}
-                </select>
-                {neighborhoods.length > 0 && (
-                  <select
-                    value={neighborhoodId}
-                    onChange={(e) => setNeighborhoodId(e.target.value)}
-                    className="w-full text-sm rounded border border-ink/20 px-3 py-2"
-                  >
-                    <option value="">Neighborhood (optional, helps real dispatch)</option>
-                    {neighborhoods.map((n) => (
-                      <option key={n.id} value={n.id}>
-                        {n.name}
-                      </option>
-                    ))}
-                  </select>
+                {primaryAddress && !useManualAddress ? (
+                  <div className="rounded border border-market-green/30 bg-market-green/5 p-3 space-y-1">
+                    <p className="text-xs font-semibold text-market-green">✓ Deliver to your primary address</p>
+                    <p className="text-sm">{primaryAddress.label}</p>
+                    <p className="text-xs text-ink/60">{primaryAddress.full_address}</p>
+                    <button
+                      type="button"
+                      onClick={switchToManualAddress}
+                      className="text-xs text-indigo underline"
+                    >
+                      Use a different address instead
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {primaryAddress && (
+                      <button
+                        type="button"
+                        onClick={() => setUseManualAddress(false)}
+                        className="text-xs text-indigo underline"
+                      >
+                        ← Deliver to your primary address ({primaryAddress.label})
+                      </button>
+                    )}
+                    <select
+                      value={lgaId}
+                      onChange={(e) => { setLgaId(e.target.value); setNeighborhoodId('') }}
+                      className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+                    >
+                      <option value="">Select delivery LGA</option>
+                      {lgas.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name} {fees[l.id] != null ? `— ₦${Number(fees[l.id]).toLocaleString()}` : '— fee not set'}
+                        </option>
+                      ))}
+                    </select>
+                    {neighborhoods.length > 0 && (
+                      <select
+                        value={neighborhoodId}
+                        onChange={(e) => setNeighborhoodId(e.target.value)}
+                        className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+                      >
+                        <option value="">Neighborhood (optional, helps real dispatch)</option>
+                        {neighborhoods.map((n) => (
+                          <option key={n.id} value={n.id}>
+                            {n.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <input
+                      placeholder="Delivery address"
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      className="w-full text-sm rounded border border-ink/20 px-3 py-2"
+                    />
+                    {!primaryAddress && (
+                      <p className="text-xs text-ink/40">
+                        Tip: add a primary address in <Link to="/settings" className="underline">Settings</Link> for
+                        one-click checkout next time.
+                      </p>
+                    )}
+                  </>
                 )}
                 <select
                   value={weightTier}
@@ -337,12 +411,6 @@ export default function Cart() {
                   <option value="express">Express — within 4 hours — +₦500</option>
                   <option value="urgent">Urgent — within 2 hours — +₦1,000</option>
                 </select>
-                <input
-                  placeholder="Delivery address"
-                  value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
-                  className="w-full text-sm rounded border border-ink/20 px-3 py-2"
-                />
                 {Object.keys(bySeller).length > 1 && (
                   <p className="text-xs text-ink/50">
                     One combined pickup run from all {Object.keys(bySeller).length} stores — a real, small multi-store
@@ -411,7 +479,7 @@ function DeliveryTermsGate({ accepted, onAccept }) {
         onClick={() => setOpen((prev) => !prev)}
         className="text-xs text-indigo underline"
       >
-        {open ? 'Hide delivery terms' : 'Read delivery terms to continue'}
+        {open ? 'Hide delivery terms' : 'Read and accept delivery terms before proceeding'}
       </button>
 
       {open && (
