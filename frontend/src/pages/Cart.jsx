@@ -523,9 +523,9 @@ function DeliveryTermsGate({ accepted, onAccept }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="text-xs text-indigo underline"
+        className="w-full text-sm font-bold text-gold-dark bg-gold/20 border-2 border-gold/50 rounded px-3 py-2.5 text-center"
       >
-        {open ? 'Hide delivery terms' : 'Read and accept delivery terms before proceeding'}
+        {open ? '▲ Hide delivery terms' : '⚠️ Read and accept delivery terms before proceeding'}
       </button>
 
       {open && (

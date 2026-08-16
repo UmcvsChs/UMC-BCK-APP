@@ -151,7 +151,7 @@ export default function HubBrowse({ hub, title, accentClass, categories = null, 
         {products.map((p) => (
           <div key={p.id} className="rounded border border-ink/10 bg-surface overflow-hidden hover:border-indigo transition-colors relative">
             <MarketListButton productId={p.id} productName={p.name} productCategory={p.category} />
-            <Link to={`/catalog/${encodeURIComponent(baseCommodityName(p.name))}`}>
+            <Link to={`/catalog/${encodeURIComponent(baseCommodityName(p.name))}?hub=${encodeURIComponent(hub)}`}>
               {p.image_urls?.[0] ? (
                 <img src={p.image_urls[0]} alt={p.name} className="w-full aspect-square object-cover" />
               ) : (

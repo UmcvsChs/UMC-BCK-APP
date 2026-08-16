@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase, SUPABASE_URL } from '../lib/supabase'
 import { queueSale, getQueuedSales, removeQueuedSale, markQueuedSaleFailed } from '../lib/offlineQueue'
 import FeedbackPrompt from '../components/FeedbackPrompt'
+import PushNotificationToggle from '../components/PushNotificationToggle'
 import SalesRegister from '../components/attendant/SalesRegister'
 import RestockRequests from '../components/attendant/RestockRequests'
 import CreditSaleRequests from '../components/attendant/CreditSaleRequests'
@@ -1422,7 +1423,7 @@ function IncomingOrders({ sellerId }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [actioning, setActioning] = useState(null)
-  const [expanded, setExpanded] = useState(null)
+  const [expanded, setExpanded] = useState(new Set())
   const [imeiInputs, setImeiInputs] = useState({})
   const [ticketInputs, setTicketInputs] = useState({})
   const [ticketMessage, setTicketMessage] = useState({})
@@ -1430,15 +1431,41 @@ function IncomingOrders({ sellerId }) {
   async function load() {
     const { data } = await supabase
       .from('orders')
-      .select('id, status, total_amount, delivery_type, created_at, order_items(id, product_id, imei, products(name, category), order_item_addons(name, price))')
+      .select(
+        `id, status, total_amount, delivery_type, created_at,
+         order_items(id, product_id, product_variant_id, quantity, unit_price, line_total, imei,
+           products(name, category), product_variants(name), order_item_addons(name, price))`
+      )
       .eq('seller_id', sellerId)
       .order('created_at', { ascending: false })
     setOrders(data || [])
     setLoading(false)
+    // New orders need the seller's attention most — show what's actually
+    // being ordered right away, not hidden behind an unlabeled tap, since
+    // that's exactly the info needed to decide Confirm or Reject.
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      ;(data || []).forEach((o) => {
+        if (o.status === 'new') next.add(o.id)
+      })
+      return next
+    })
   }
 
   useEffect(() => {
     load()
+
+    // Real-time — a new order (or a status change on an existing one)
+    // shows up the instant it happens, not just on the next manual reload.
+    // Same proven pattern already used for the admin pending-approvals badge.
+    const channel = supabase
+      .channel(`seller-orders-${sellerId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `seller_id=eq.${sellerId}` }, load)
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [sellerId])
 
   async function handleConfirm(orderId) {
@@ -1497,19 +1524,39 @@ function IncomingOrders({ sellerId }) {
   }
 
   if (loading) return <p className="text-ink/50">Loading…</p>
-  if (orders.length === 0) return <p className="text-ink/50">No orders yet.</p>
+  if (orders.length === 0)
+    return (
+      <div>
+        <PushNotificationToggle label="new orders" />
+        <p className="text-ink/50">No orders yet.</p>
+      </div>
+    )
 
   return (
     <div className="space-y-2">
+      <PushNotificationToggle label="new orders" />
       {orders.map((o) => (
         <div key={o.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
-          <button onClick={() => setExpanded(expanded === o.id ? null : o.id)} className="w-full">
+          <button
+            onClick={() =>
+              setExpanded((prev) => {
+                const next = new Set(prev)
+                if (next.has(o.id)) next.delete(o.id)
+                else next.add(o.id)
+                return next
+              })
+            }
+            className="w-full"
+          >
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <p className="font-mono text-xs text-ink/50">{o.id.slice(0, 8)}</p>
                 <p className="font-mono text-sm">₦{Number(o.total_amount).toLocaleString()}</p>
               </div>
-              <span className="text-xs font-medium text-indigo capitalize">{o.status}</span>
+              <div className="text-right">
+                <span className="text-xs font-medium text-indigo capitalize">{o.status}</span>
+                <p className="text-xs text-ink/40">{expanded.has(o.id) ? '▲ Hide items' : '▼ View items'}</p>
+              </div>
             </div>
           </button>
 
@@ -1568,11 +1615,15 @@ function IncomingOrders({ sellerId }) {
             </div>
           )}
 
-          {expanded === o.id && (
+          {expanded.has(o.id) && (
             <div className="mt-2 pt-2 border-t border-ink/10 space-y-2">
               {o.order_items?.map((item) => (
                 <div key={item.id} className="text-xs">
-                  <p className="font-medium">{item.products?.name}</p>
+                  <p className="font-medium">
+                    {item.quantity} × {item.products?.name}
+                    {item.product_variants?.name ? ` (${item.product_variants.name})` : ''} — ₦{Number(item.line_total).toLocaleString()}
+                  </p>
+                  <p className="text-ink/40">₦{Number(item.unit_price).toLocaleString()} each</p>
                   {item.order_item_addons?.length > 0 && (
                     <p className="text-ink/50">+ {item.order_item_addons.map((a) => a.name).join(', ')}</p>
                   )}

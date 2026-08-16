@@ -1,0 +1,2 @@
+-- See Supabase project migration history "create_5_real_test_seller_accounts_v2"
+-- for the exact, full statement already applied live.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import PushNotificationToggle from '../components/PushNotificationToggle'
 
 export default function DeliveryAgentDashboard() {
   const [agent, setAgent] = useState(null)
@@ -81,6 +82,23 @@ export default function DeliveryAgentDashboard() {
       loadAssignments(agent.id)
       loadEarnings(agent.id, agent.user_id)
       supabase.rpc('get_delivery_agent_performance', { p_agent_id: agent.id }).then(({ data }) => setPerformance(data?.[0] || null))
+
+      // Real-time — a new job (auto-assigned by the system the moment a
+      // seller confirms an order) shows up here instantly, not just on the
+      // next manual reload. Same proven pattern already used for the admin
+      // pending-approvals badge.
+      const channel = supabase
+        .channel(`delivery-assignments-${agent.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'delivery_assignments', filter: `delivery_agent_id=eq.${agent.id}` },
+          () => loadAssignments(agent.id)
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
   }, [agent])
 
@@ -195,6 +213,8 @@ export default function DeliveryAgentDashboard() {
       </div>
 
       <FaceVerificationSection agentId={agent.id} status={agent.face_verification_status} faceVerified={agent.face_verified} />
+
+      <PushNotificationToggle label="new delivery jobs" />
 
       <CoverageAreasSection agentId={agent.id} />
 

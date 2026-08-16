@@ -1,0 +1,1 @@
+-- Applied live via Supabase migration tool. See project migration history (populate_grains_groceries_oils_variants) for full content.

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 // Real, unified "every brand, every size" catalog — the actual real
@@ -9,6 +9,8 @@ import { supabase } from '../lib/supabase'
 // real option is chosen.
 export default function CommodityCatalog() {
   const { commodityName } = useParams()
+  const [searchParams] = useSearchParams()
+  const hub = searchParams.get('hub')
   const navigate = useNavigate()
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(true)
@@ -17,12 +19,15 @@ export default function CommodityCatalog() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.rpc('get_commodity_catalog', { p_search_term: commodityName })
+      // Real hub boundary — without this, "Rice" in the marketplace
+      // could pull in unrelated cooked canteen dishes that happen to
+      // share the word "rice" in their name.
+      const { data } = await supabase.rpc('get_commodity_catalog', { p_search_term: commodityName, p_hub: hub || null })
       setResults(data || [])
       setLoading(false)
     }
     load()
-  }, [commodityName])
+  }, [commodityName, hub])
 
   async function addToCart(item) {
     setAdding(item.product_id + (item.variant_id || ''))

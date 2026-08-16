@@ -6,11 +6,11 @@ import { supabase } from '../lib/supabase'
 // 'super' always sees everything; 'analytics' stays visible to every
 // real admin as a genuine shared overview.
 const DEPARTMENT_TABS = {
-  super: ['analytics', 'revenue', 'supermarket', 'marketdata', 'registrations', 'setuprequests', 'topups', 'sellerwithdrawals', 'platformwithdrawal', 'idverify', 'faceverify', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud', 'team'],
-  logistics: ['analytics', 'deliveryfees', 'dispatch', 'accesslog'],
+  super: ['analytics', 'orders', 'revenue', 'supermarket', 'marketdata', 'registrations', 'setuprequests', 'topups', 'sellerwithdrawals', 'platformwithdrawal', 'idverify', 'faceverify', 'listings', 'prescriptions', 'bills', 'ledger', 'disputes', 'promocodes', 'accesslog', 'deliveryfees', 'dispatch', 'fraud', 'team'],
+  logistics: ['analytics', 'orders', 'deliveryfees', 'dispatch', 'accesslog'],
   verification: ['analytics', 'registrations', 'setuprequests', 'listings', 'prescriptions'],
   identity: ['analytics', 'idverify', 'faceverify'],
-  finance: ['analytics', 'revenue', 'topups', 'sellerwithdrawals', 'ledger', 'bills', 'promocodes', 'fraud'],
+  finance: ['analytics', 'orders', 'revenue', 'topups', 'sellerwithdrawals', 'ledger', 'bills', 'promocodes', 'fraud'],
   disputes: ['analytics', 'disputes'],
 }
 
@@ -86,7 +86,9 @@ function AdminDashboard({ department }) {
           >
             {t === 'analytics'
               ? 'Analytics'
-              : t === 'revenue'
+              : t === 'orders'
+                ? 'Orders'
+                : t === 'revenue'
                 ? 'Platform Revenue'
                 : t === 'supermarket'
                   ? 'Supermarket Accounts'
@@ -128,6 +130,7 @@ function AdminDashboard({ department }) {
       </div>
 
       {tab === 'analytics' && <PlatformAnalytics />}
+      {tab === 'orders' && <OrdersOversight />}
       {tab === 'team' && <TeamAndAccess />}
       {tab === 'revenue' && <PlatformRevenue />}
       {tab === 'supermarket' && <SupermarketAccounts />}
@@ -1438,6 +1441,225 @@ function DeliveryFees() {
           <div key={l.id} className="flex justify-between text-xs">
             <span>{l.name}</span>
             <span className="font-mono">₦{Number(fees[l.id]).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Real, full order pipeline visibility for admin — every order, searchable,
+// filterable by status, live-updating the instant anything changes, with a
+// real drill-down into exactly what was paid, what's on hold, and where the
+// delivery stands. Built because admin previously had no way to look up a
+// specific transaction at all — only a bare count, or orders that happened
+// to already be assigned to a rider or under dispute.
+function OrdersOversight() {
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [expandedId, setExpandedId] = useState(null)
+  const [detail, setDetail] = useState({})
+
+  async function load() {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(
+        `id, status, subtotal, delivery_fee, buyer_service_charge, total_amount, is_instalment,
+         delivery_type, delivery_address, created_at, delivered_at,
+         profiles!orders_buyer_id_fkey(full_name, phone),
+         sellers(store_name)`
+      )
+      .order('created_at', { ascending: false })
+      .limit(200)
+    if (error) console.error('Failed to load orders:', error)
+    setOrders(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+
+    // Real-time — admin sees a new order, or any status change on an
+    // existing one, the instant it happens, not just on the next manual
+    // reload. This is the "involved from Pay to Delivered" visibility.
+    const channel = supabase
+      .channel('admin-orders-oversight')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, load)
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  async function loadDetail(orderId) {
+    if (detail[orderId]) return
+    const [{ data: items }, { data: payments }, { data: assignment }] = await Promise.all([
+      supabase
+        .from('order_items')
+        .select('id, quantity, unit_price, addon_total, line_total, products(name)')
+        .eq('order_id', orderId),
+      supabase.from('order_payments').select('amount, payment_type, created_at').eq('order_id', orderId),
+      supabase
+        .from('delivery_assignments')
+        .select('status, assigned_at, arrived_at, resolved_at, delivery_agents(user_id, profiles(full_name, phone))')
+        .eq('order_id', orderId)
+        .order('assigned_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+    setDetail((prev) => ({ ...prev, [orderId]: { items: items || [], payments: payments || [], assignment } }))
+  }
+
+  function toggleExpand(orderId) {
+    if (expandedId === orderId) {
+      setExpandedId(null)
+      return
+    }
+    setExpandedId(orderId)
+    loadDetail(orderId)
+  }
+
+  const STATUS_COLORS = {
+    new: 'text-gold-dark bg-gold/10',
+    confirmed: 'text-indigo bg-indigo/10',
+    preparing: 'text-indigo bg-indigo/10',
+    assigned: 'text-market-green bg-market-green/10',
+    delivered: 'text-market-green bg-market-green/10',
+    rejected: 'text-market-red bg-market-red/10',
+    failed: 'text-market-red bg-market-red/10',
+    disputed: 'text-market-red bg-market-red/10',
+    cancelled: 'text-ink/50 bg-ink/5',
+  }
+
+  const filtered = orders.filter((o) => {
+    if (statusFilter !== 'all' && o.status !== statusFilter) return false
+    if (!search.trim()) return true
+    const q = search.trim().toLowerCase()
+    return (
+      o.id.toLowerCase().includes(q) ||
+      o.profiles?.full_name?.toLowerCase().includes(q) ||
+      o.profiles?.phone?.toLowerCase().includes(q) ||
+      o.sellers?.store_name?.toLowerCase().includes(q)
+    )
+  })
+
+  if (loading) return <p className="text-ink/50">Loading…</p>
+
+  return (
+    <div>
+      <p className="text-xs text-ink/50 mb-3">
+        Every real order, live — from the moment a buyer pays to the moment it's delivered. Showing the most recent
+        200; search to find an older one by order ID, buyer name/phone, or store name.
+      </p>
+
+      <div className="flex gap-2 mb-3">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search order ID, buyer, or store…"
+          className="flex-1 text-sm rounded border border-ink/20 px-3 py-2"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="text-sm rounded border border-ink/20 px-2 py-2"
+        >
+          <option value="all">All statuses</option>
+          {['new', 'confirmed', 'preparing', 'assigned', 'delivered', 'rejected', 'failed', 'disputed', 'cancelled'].map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {filtered.length === 0 && <p className="text-sm text-ink/50">No orders match.</p>}
+
+      <div className="space-y-2">
+        {filtered.map((o) => (
+          <div key={o.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
+            <button onClick={() => toggleExpand(o.id)} className="w-full flex items-center justify-between text-left">
+              <div>
+                <p className="text-sm font-medium">{o.profiles?.full_name || 'Unknown buyer'}</p>
+                <p className="text-xs text-ink/50">
+                  {o.sellers?.store_name} · <span className="font-mono">{o.id.slice(0, 8)}</span> ·{' '}
+                  {new Date(o.created_at).toLocaleString()}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="font-mono text-sm">₦{Number(o.total_amount).toLocaleString()}</p>
+                <span className={`text-xs font-medium capitalize rounded px-1.5 ${STATUS_COLORS[o.status] || 'text-ink/60'}`}>
+                  {o.status}
+                </span>
+              </div>
+            </button>
+
+            {expandedId === o.id && (
+              <div className="mt-3 pt-3 border-t border-ink/10 text-xs space-y-2">
+                <div className="grid grid-cols-2 gap-1">
+                  <p className="text-ink/50">Subtotal</p>
+                  <p className="font-mono text-right">₦{Number(o.subtotal).toLocaleString()}</p>
+                  <p className="text-ink/50">Delivery fee</p>
+                  <p className="font-mono text-right">₦{Number(o.delivery_fee).toLocaleString()}</p>
+                  {Number(o.buyer_service_charge) > 0 && (
+                    <>
+                      <p className="text-ink/50">Service charge</p>
+                      <p className="font-mono text-right">₦{Number(o.buyer_service_charge).toLocaleString()}</p>
+                    </>
+                  )}
+                  <p className="text-ink/50 font-medium">Total</p>
+                  <p className="font-mono text-right font-medium">₦{Number(o.total_amount).toLocaleString()}</p>
+                </div>
+
+                <p className="text-ink/50">{o.delivery_type === 'store_pickup' ? 'Store pickup' : o.delivery_address}</p>
+
+                {!detail[o.id] ? (
+                  <p className="text-ink/40">Loading details…</p>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-ink/50 font-medium mb-1">Items</p>
+                      {detail[o.id].items.map((it) => (
+                        <p key={it.id}>
+                          {it.quantity} × {it.products?.name} — ₦{Number(it.line_total).toLocaleString()}
+                        </p>
+                      ))}
+                    </div>
+
+                    <div>
+                      <p className="text-ink/50 font-medium mb-1">Payment (wallet escrow)</p>
+                      {detail[o.id].payments.length === 0 ? (
+                        <p className="text-ink/40">No payment record found — worth investigating.</p>
+                      ) : (
+                        detail[o.id].payments.map((p, i) => (
+                          <p key={i}>
+                            ₦{Number(p.amount).toLocaleString()} held ({p.payment_type}) — {new Date(p.created_at).toLocaleString()}
+                          </p>
+                        ))
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-ink/50 font-medium mb-1">Delivery</p>
+                      {!detail[o.id].assignment ? (
+                        <p className="text-ink/40">Not yet assigned to a rider.</p>
+                      ) : (
+                        <>
+                          <p>
+                            {detail[o.id].assignment.delivery_agents?.profiles?.full_name || 'Rider'} —{' '}
+                            <span className="capitalize">{detail[o.id].assignment.status}</span>
+                          </p>
+                          <p className="text-ink/40">Assigned {new Date(detail[o.id].assignment.assigned_at).toLocaleString()}</p>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>

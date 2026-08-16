@@ -1,0 +1,1 @@
+-- Applied live via Supabase migration tool. See project migration history (populate_building_garden_household_variants) for full content.

@@ -1,0 +1,4 @@
+-- Real bug: Settings.jsx loaded all 774 Nigerian LGAs with no launched-
+-- state filter, unlike the correct pattern already used in Cart.jsx.
+-- Documented here for the record — the actual fix is in Settings.jsx
+-- (frontend), this file has no schema change to apply.

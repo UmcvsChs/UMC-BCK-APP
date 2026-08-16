@@ -1,0 +1,1 @@
+-- Applied live via Supabase migration tool. See project migration history (populate_fashion_baby_produce_pharmacy_variants) for full content.

@@ -16,6 +16,70 @@ const THEMES = [
   { value: 'system', label: 'Match system' },
 ]
 
+// Real, self-service fix for the address that predates the required-LGA
+// rule (or any future edge case that slips through) — no delete and
+// retype needed, just pick the real LGA and it's saved in place.
+function FixAddressLocation({ address, lgas, onFix }) {
+  const [lgaId, setLgaId] = useState('')
+  const [neighborhoodId, setNeighborhoodId] = useState('')
+  const [neighborhoods, setNeighborhoods] = useState([])
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    async function loadNeighborhoods() {
+      if (!lgaId) {
+        setNeighborhoods([])
+        return
+      }
+      const { data } = await supabase.from('neighborhood_areas').select('id, name').eq('lga_id', lgaId).order('name')
+      setNeighborhoods(data || [])
+    }
+    loadNeighborhoods()
+  }, [lgaId])
+
+  async function handleFix() {
+    setSaving(true)
+    await onFix(address.id, lgaId, neighborhoodId)
+    setSaving(false)
+  }
+
+  return (
+    <div className="mt-2 pt-2 border-t border-ink/10">
+      <p className="text-xs text-market-red mb-1">⚠️ Missing local government — required for delivery fees. Fix it now:</p>
+      <div className="grid grid-cols-2 gap-2 mb-2">
+        <select
+          value={lgaId}
+          onChange={(e) => { setLgaId(e.target.value); setNeighborhoodId('') }}
+          className="rounded border border-ink/20 px-2 py-1.5 bg-white text-xs"
+        >
+          <option value="">Select LGA</option>
+          {lgas.map((l) => (
+            <option key={l.id} value={l.id}>{l.name}</option>
+          ))}
+        </select>
+        <select
+          value={neighborhoodId}
+          onChange={(e) => setNeighborhoodId(e.target.value)}
+          disabled={!lgaId}
+          className="rounded border border-ink/20 px-2 py-1.5 bg-white text-xs disabled:opacity-50"
+        >
+          <option value="">Neighborhood (optional)</option>
+          {neighborhoods.map((n) => (
+            <option key={n.id} value={n.id}>{n.name}</option>
+          ))}
+        </select>
+      </div>
+      <button
+        onClick={handleFix}
+        disabled={!lgaId || saving}
+        className="w-full text-xs bg-indigo text-white rounded py-1.5 disabled:opacity-60"
+      >
+        {saving ? 'Saving…' : 'Save LGA'}
+      </button>
+    </div>
+  )
+}
+
 export default function Settings() {
   const [language, setLanguage] = useState('en')
   const [theme, setTheme] = useState('light')
@@ -35,7 +99,15 @@ export default function Settings() {
 
   useEffect(() => {
     async function loadLgas() {
-      const { data } = await supabase.from('local_government_areas').select('id, name').order('name')
+      // Real fix: only launched states' LGAs are actually deliverable —
+      // showing all 774 nationwide (instead of the real ~23 for a
+      // launched state like Kaduna) let people pick an LGA nobody could
+      // ever actually deliver to.
+      const { data } = await supabase
+        .from('local_government_areas')
+        .select('id, name, states!inner(is_launched)')
+        .eq('states.is_launched', true)
+        .order('name')
       setLgas(data || [])
     }
     loadLgas()
@@ -110,7 +182,7 @@ export default function Settings() {
     }
     const { data: addr } = await supabase
       .from('delivery_addresses')
-      .select('id, label, full_address, is_default')
+      .select('id, label, full_address, is_default, lga_id, neighborhood_id')
       .eq('user_id', user.id)
       .order('is_default', { ascending: false })
     setAddresses(addr || [])
@@ -151,11 +223,15 @@ export default function Settings() {
   async function addAddress(e) {
     e.preventDefault()
     if (!newLabel.trim() || !newAddress.trim()) return
+    if (!selectedLgaId) {
+      alert('Please select your real local government area — delivery fees are calculated from it, so it is required.')
+      return
+    }
     const { error } = await supabase.rpc('save_delivery_address', {
       p_label: newLabel.trim(),
       p_full_address: newAddress.trim(),
       p_is_default: addresses.length === 0,
-      p_lga_id: selectedLgaId || null,
+      p_lga_id: selectedLgaId,
       p_neighborhood_id: selectedNeighborhoodId || null,
     })
     if (error) {
@@ -166,6 +242,23 @@ export default function Settings() {
     setNewAddress('')
     setSelectedLgaId('')
     setSelectedNeighborhoodId('')
+    loadAll()
+  }
+
+  async function fixAddressLocation(addressId, lgaId, neighborhoodId) {
+    if (!lgaId) {
+      alert('Please select your real local government area first.')
+      return
+    }
+    const { error } = await supabase.rpc('update_delivery_address_location', {
+      p_address_id: addressId,
+      p_lga_id: lgaId,
+      p_neighborhood_id: neighborhoodId || null,
+    })
+    if (error) {
+      alert(error.message)
+      return
+    }
     loadAll()
   }
 
@@ -288,16 +381,19 @@ export default function Settings() {
       <div className="mb-6 rounded-xl bg-surface p-3">
         <p className="text-xs font-semibold mb-2">Delivery addresses</p>
         {addresses.map((a) => (
-          <div key={a.id} className="rounded bg-white px-3 py-2 mb-2 flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium">
-                {a.label} {a.is_default && <span className="text-xs bg-market-green/10 text-market-green rounded px-1.5 py-0.5 ml-1">Default</span>}
-              </p>
-              <p className="text-xs text-ink/50">{a.full_address}</p>
+          <div key={a.id} className="rounded bg-white px-3 py-2 mb-2">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium">
+                  {a.label} {a.is_default && <span className="text-xs bg-market-green/10 text-market-green rounded px-1.5 py-0.5 ml-1">Default</span>}
+                </p>
+                <p className="text-xs text-ink/50">{a.full_address}</p>
+              </div>
+              <button onClick={() => deleteAddress(a.id)} className="text-xs text-market-red">
+                Remove
+              </button>
             </div>
-            <button onClick={() => deleteAddress(a.id)} className="text-xs text-market-red">
-              Remove
-            </button>
+            {!a.lga_id && <FixAddressLocation address={a} lgas={lgas} onFix={fixAddressLocation} />}
           </div>
         ))}
         <form onSubmit={addAddress} className="space-y-2 mt-2">
@@ -315,7 +411,7 @@ export default function Settings() {
           />
           <div className="grid grid-cols-2 gap-2">
             <select value={selectedLgaId} onChange={(e) => { setSelectedLgaId(e.target.value); setSelectedNeighborhoodId('') }} className="rounded border border-ink/20 px-2 py-2 bg-white text-sm">
-              <option value="">LGA (optional)</option>
+              <option value="">LGA (required)</option>
               {lgas.map((l) => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
@@ -327,7 +423,7 @@ export default function Settings() {
               ))}
             </select>
           </div>
-          <p className="text-xs text-ink/40">Real, precise neighborhood helps us match you with the closest genuine delivery agent.</p>
+          <p className="text-xs text-ink/40">LGA is required for accurate delivery fees. Neighborhood is optional but helps match the closest agent.</p>
           <button type="submit" className="w-full rounded border border-dashed border-ink/30 py-2 text-sm text-ink/60">
             + Add address
           </button>

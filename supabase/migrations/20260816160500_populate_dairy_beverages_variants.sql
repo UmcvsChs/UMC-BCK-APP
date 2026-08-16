@@ -1,0 +1,1 @@
+-- Applied live via Supabase migration tool. See project migration history (populate_dairy_beverages_variants) for full content.

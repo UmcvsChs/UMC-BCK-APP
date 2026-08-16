@@ -1,0 +1,1 @@
+-- Applied live via Supabase migration tool. See project migration history (populate_books_tech_phones_appliances_variants) for full content.
