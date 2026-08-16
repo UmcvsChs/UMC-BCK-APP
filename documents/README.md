@@ -1,54 +1,51 @@
-# UMC-BCK — Update Package (3 fixes)
+# UMC-BCK — 5 new buyer test accounts + wallet now visible everywhere
 
-## What's in this package
+## Your 5 new buyer accounts — ready now, funded
 
-**frontend/** — 2 updated files:
-- `frontend/src/pages/Admin.jsx`
-- `frontend/src/pages/Cart.jsx`
+| Name | Phone (sign in with this) | PIN | Wallet balance |
+|---|---|---|---|
+| Ngozi Eze | 08061112223 | 111111 | ₦250,000 |
+| Tunde Bakare | 08062223334 | 222222 | ₦250,000 |
+| Halima Sule | 08063334445 | 333333 | ₦250,000 |
+| Chuka Obi | 08064445556 | 444444 | ₦250,000 |
+| Grace Adeyemi | 08065556667 | 555555 | ₦250,000 |
 
-**supabase/** — nothing to apply this round. No new migration was needed — both
-bugs were fixed in the app code, not the database. (Confirmed live against your
-Supabase project that the bucket privacy settings and permissions were already
-correct; only the code that generates the links needed fixing.)
+These are already live in your database right now — no deploy needed to
+use them. Sign in with the phone number and PIN exactly as shown.
 
-**documents/** — this README.
+I built these the same real way your existing wallets are funded — a
+genuine ledgered transaction, not a raw balance edit — so each one shows
+correctly in transaction history, exactly as if it were topped up for
+real. Verified each account's balance and sign-in lookup directly
+against the database before handing these over.
 
-## The three fixes, in plain terms
+## Why your original ₦250,000 wasn't visible as a buyer
 
-1. **Identity verification photos now load in the admin panel.** The photo link
-   was pointing to a "public" web address, but the storage folder holding those
-   photos is private — so it never worked. Fixed to generate a real, working
-   link each time an admin opens the page. Same bug was also found and fixed on
-   the face-verification photos (same cause, different screen).
+Good news: it wasn't a bug in the money itself. I traced your full wallet
+history — every transaction was correct, down to the naira. The real
+issue was pure visibility: the Wallet page has always existed, but it
+was tucked inside the "More" menu with nothing showing your balance
+anywhere else.
 
-2. **"Deliver to your primary address" button added at checkout.** If a buyer
-   has a saved default address, they'll now see a one-click option to use it,
-   with a "use a different address" link if they want to type one in instead.
+## What's fixed
 
-3. **T&C wording changed at checkout**, from "Read delivery terms to continue"
-   to "Read and accept delivery terms before proceeding" — so it reads as an
-   invitation to read first, not a forced accept.
+1. **A live balance chip now shows at the top of every page**, right next
+   to the "More" menu — tap it to go straight to your full wallet and
+   transaction history. Updates instantly the moment your balance
+   changes anywhere in the app.
+2. **Checkout now shows your balance directly**, right above the total —
+   in red if it's not enough to cover the order, with a direct link to
+   fund your wallet if so.
 
-## How to apply this update
+## Deploy (for the wallet visibility fix)
 
-1. Extract this zip to a normal folder, like you've done before.
-2. Open the extracted `frontend` folder here, and your own project's `frontend`
-   folder side by side.
-3. Copy the two files below from this package into your project, replacing the
-   existing ones at the same location:
-   - `frontend/src/pages/Admin.jsx`
-   - `frontend/src/pages/Cart.jsx`
-4. In GitHub Desktop, you'll see these 2 files listed as changed.
-5. Commit the changes (add a message like "Fix identity photo links, add
-   primary address checkout, T&C wording").
-6. Push to your repository, same as always.
-7. Nothing to do on the Supabase side this round.
+1. Extract this zip → open **`netlify-deploy-this-folder`**.
+2. Netlify → Deploys tab → drag it in → wait for "Published."
+3. Fully close and reopen the app — you'll see the new balance chip at
+   the top of every screen.
 
-## Worth testing after this goes live
+## Update GitHub
 
-- Admin panel → Identity tab and Face Verify tab → the document photos should
-  now actually display instead of being broken/blank.
-- Checkout as a buyer who has a saved address in Settings → you should see the
-  new "Deliver to your primary address" option.
-- Checkout screen → the terms line should now read "Read and accept delivery
-  terms before proceeding."
+`App.jsx` and `Cart.jsx` changed — copy them into your repo and
+commit/push. The new buyer-accounts migration is included under
+`supabase/migrations/` for your records (already applied live).

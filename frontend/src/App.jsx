@@ -67,6 +67,31 @@ function ProtectedLayout({ children }) {
   const { profile } = useProfile(session)
   const [moreOpen, setMoreOpen] = useState(false)
   const [cartCount, setCartCount] = useState(0)
+  const [walletBalance, setWalletBalance] = useState(null)
+
+  useEffect(() => {
+    if (!session?.user?.id) return
+    let cancelled = false
+
+    async function loadBalance() {
+      const { data } = await supabase.from('wallets').select('balance').eq('user_id', session.user.id).maybeSingle()
+      if (!cancelled) setWalletBalance(data?.balance ?? null)
+    }
+    loadBalance()
+
+    // Real-time — the header balance updates the instant a real order,
+    // top-up, or refund changes it, anywhere in the app, without needing
+    // to open Wallet to see the current real number.
+    const channel = supabase
+      .channel('header-wallet-balance')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `user_id=eq.${session.user.id}` }, loadBalance)
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
+  }, [session?.user?.id])
 
   useEffect(() => {
     if (!session?.user?.id) return
@@ -112,7 +137,10 @@ function ProtectedLayout({ children }) {
     <div className="min-h-screen pb-16">
       <HubRail />
 
-      <div className="flex justify-end px-3 pt-2 relative">
+      <div className="flex justify-between items-center px-3 pt-2 relative">
+        <Link to="/wallet" className="text-xs font-medium text-market-green bg-market-green/10 rounded-full px-3 py-1.5">
+          💰 {walletBalance != null ? `₦${Number(walletBalance).toLocaleString()}` : '—'}
+        </Link>
         <button
           onClick={() => setMoreOpen((v) => !v)}
           className="text-xs font-medium text-ink/60 hover:text-indigo flex items-center gap-1"

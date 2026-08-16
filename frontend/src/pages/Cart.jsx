@@ -101,10 +101,22 @@ export default function Cart() {
     setLoading(false)
   }
 
+  const [walletBalance, setWalletBalance] = useState(null)
+
+  async function loadWalletBalance() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase.from('wallets').select('balance').eq('user_id', user.id).maybeSingle()
+    setWalletBalance(data?.balance ?? null)
+  }
+
   useEffect(() => {
     loadCart()
     loadLgasAndFees()
     loadPrimaryAddress()
+    loadWalletBalance()
   }, [])
 
   async function updateQuantity(cartItemId, newQty) {
@@ -214,7 +226,13 @@ export default function Cart() {
             <p className="text-xs text-ink/50">Order reference</p>
             <p className="font-mono text-sm">{orderPlaced}</p>
           </div>
-          <button onClick={() => navigate('/marketplace')} className="text-sm bg-indigo text-white rounded px-6 py-2.5">
+          <button
+            onClick={() => navigate('/orders')}
+            className="w-full max-w-xs text-sm bg-indigo text-white rounded px-6 py-2.5 mb-2 font-medium"
+          >
+            Track your order
+          </button>
+          <button onClick={() => navigate('/marketplace')} className="text-sm text-ink/60 underline">
             Back to marketplace
           </button>
         </div>
@@ -328,11 +346,26 @@ export default function Cart() {
 
             {deliveryType === 'home_delivery' && (
               <>
-                {primaryAddress && !useManualAddress ? (
+                {primaryAddress && !useManualAddress && primaryAddress.lga_id ? (
                   <div className="rounded border border-market-green/30 bg-market-green/5 p-3 space-y-1">
                     <p className="text-xs font-semibold text-market-green">✓ Deliver to your primary address</p>
                     <p className="text-sm">{primaryAddress.label}</p>
                     <p className="text-xs text-ink/60">{primaryAddress.full_address}</p>
+                    <button
+                      type="button"
+                      onClick={switchToManualAddress}
+                      className="text-xs text-indigo underline"
+                    >
+                      Use a different address instead
+                    </button>
+                  </div>
+                ) : primaryAddress && !useManualAddress && !primaryAddress.lga_id ? (
+                  <div className="rounded border border-gold/40 bg-gold/10 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-gold-dark">⚠️ Your primary address is missing its LGA</p>
+                    <p className="text-xs text-ink/60">
+                      Delivery fees are calculated by LGA, so this is needed before we can deliver here. Add it once in{' '}
+                      <Link to="/settings" className="underline text-indigo">Settings</Link>, or use a different address for now.
+                    </p>
                     <button
                       type="button"
                       onClick={switchToManualAddress}
@@ -436,6 +469,19 @@ export default function Cart() {
               ) : (
                 <>⚠️ {error}</>
               )}
+            </p>
+          )}
+
+          <div className="mt-3 rounded bg-surface px-3 py-2 flex items-center justify-between text-xs">
+            <span className="text-ink/50">Your wallet balance</span>
+            <span className={`font-mono font-medium ${walletBalance != null && walletBalance < grandTotal ? 'text-market-red' : 'text-market-green'}`}>
+              {walletBalance != null ? `₦${Number(walletBalance).toLocaleString()}` : 'Loading…'}
+            </span>
+          </div>
+          {walletBalance != null && walletBalance < grandTotal && (
+            <p className="text-xs text-market-red mt-1">
+              ⚠️ Insufficient balance for this order — you need ₦{(grandTotal - walletBalance).toLocaleString()} more.{' '}
+              <Link to="/wallet" className="underline font-medium">Fund your wallet</Link>
             </p>
           )}
 
