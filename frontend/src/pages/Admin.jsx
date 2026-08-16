@@ -164,16 +164,18 @@ function TeamAndAccess() {
   const [loading, setLoading] = useState(true)
 
   async function load() {
-    const [{ data: pendingData }, { data: adminData }] = await Promise.all([
+    const [{ data: pendingData, error: pendingError }, { data: adminData, error: adminError }] = await Promise.all([
       supabase
         .from('admin_login_requests')
-        .select('id, user_id, requested_at, profiles(full_name, phone)')
+        .select('id, user_id, requested_at, profiles!admin_login_requests_user_id_profiles_fkey(full_name, phone)')
         .eq('status', 'pending')
         .order('requested_at', { ascending: true }),
       supabase
         .from('admin_department_assignments')
-        .select('user_id, department, assigned_at, profiles(full_name, phone)'),
+        .select('user_id, department, assigned_at, profiles!admin_department_assignments_user_id_profiles_fkey(full_name, phone)'),
     ])
+    if (pendingError) console.error('Failed to load pending admin logins:', pendingError)
+    if (adminError) console.error('Failed to load admin department assignments:', adminError)
     setPending(pendingData || [])
     setAdmins(adminData || [])
     setLoading(false)
@@ -2029,11 +2031,14 @@ function IdentityVerifications() {
   const [signedUrls, setSignedUrls] = useState({})
 
   async function load() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('identity_verifications')
-      .select('id, id_type, id_number, id_photo_url, created_at, profiles(full_name, phone)')
+      .select('id, id_type, id_number, id_photo_url, created_at, profiles!identity_verifications_user_id_fkey(full_name, phone)')
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
+    if (error) {
+      console.error('Failed to load pending identity verifications:', error)
+    }
     const rows = data || []
     setItems(rows)
     setLoading(false)
