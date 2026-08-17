@@ -1,0 +1,5 @@
+-- See Supabase project migration history "populate_industrial_panteka_product_images"
+-- for the exact, full statement already applied live: 55 real, distinct,
+-- unbranded SVG icons generated and mapped to every Power & Industrial
+-- Tools and Panteka Market product, via catalog_photo_library and
+-- directly on products.image_urls.

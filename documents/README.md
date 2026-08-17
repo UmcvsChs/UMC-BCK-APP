@@ -1,56 +1,45 @@
-# UMC-BCK — New hub: Power & Industrial Tools
+# UMC-BCK — Real images for Power & Industrial Tools + Panteka, splash reduced
 
-## Agreed — built as its own real hub, exactly like Phones & Tech,
-## Automobile, and the others
+## 1. Product images — confirmed the gap, then fixed it
 
-Not a subcategory buried inside General Marketplace — a genuine,
-separate market with its own tab, its own color, its own seller
-registration option, and its own real, stocked catalog.
+Checked directly: 55 of the 64 products across Power & Industrial Tools
+and Panteka Market had zero images. Fixed properly, matching your
+instruction exactly — real, clean, **unbranded** images, no product
+names or logos on them, same style your app already uses for its
+existing generic category icons (rice, oil, detergent, etc.).
 
-## 10 real categories, matching your field feedback
+Built **55 distinct icons** — every single product now has its own,
+genuinely different from every other one (a spanner doesn't look like a
+hammer, an electric motor doesn't look like a fan, a used engine doesn't
+look like a car door). Same house colors and clean flat-icon style as
+your existing generic photos, wired in the same real way sellers'
+"choose from our real photo library" picker already works — future
+sellers listing similar items will find these too.
 
-Hand Tools & Wrenches · Power Tools · Welding & Cutting Equipment ·
-Lifting & Rigging Equipment · Motors, Generators & Pumps · Industrial
-Fans & Ventilation · Measuring & Surveying Equipment · Site &
-Construction Equipment · Chains, Ropes & Fasteners · Safety & PPE
+**Verified directly against the database: all 64 of 64 products now
+have images**, zero gaps.
 
-## The catalog — genuinely populated, not a placeholder
+## 2. Splash screen — reduced by exactly 8 seconds, as asked
 
-**3 real, dedicated stores, 41 products, 104 real brand/size variants**,
-covering every example you named — winches, spanners, sledgehammers,
-chains, electric motors, industrial ventilating fans, survey equipment,
-wheelbarrows — plus a genuinely broad real market around them: welding
-machines, generators, water pumps, concrete mixers, scaffolding, safety
-boots and helmets, and more.
-
-| Store | Carries |
-|---|---|
-| Kaduna Industrial Supplies | Hand tools, power tools, chains/fasteners, safety & PPE |
-| Sabon Gari Tools & Machinery | Welding equipment, motors/generators/pumps, industrial fans |
-| Trans-Sahara Heavy Duty Equipment | Lifting/rigging, surveying equipment, site/construction gear |
-
-Every product has real size/capacity variants — e.g. Sledge Hammer in
-4lb/8lb/12lb/14lb, Industrial Ventilating Fan in 18"/24"/36", Electric
-Motor in 1HP/3HP/5HP/10HP — not flat single-price listings.
-
-All of this is **already live** in your database — verified directly:
-sign-in works for all 3 new stores, every category has real stock, and
-the exact query the browse page uses returns correct results.
-
-## Where sellers register for this hub
-
-"Power & Industrial Tools" is now a real option in seller registration,
-right alongside every other market.
+Found the real cause: a hardcoded 18.5-second delay in the app's
+`index.html`, completely independent of whether the app had actually
+finished loading. Reduced to **10.5 seconds** — an 8-second cut, exactly
+as requested, so you can see the result and tell me if it needs further
+adjustment.
 
 ## Deploy
 
 1. Extract this zip → open **`netlify-deploy-this-folder`**.
 2. Netlify → Deploys tab → drag it in → wait for "Published."
-3. Fully close and reopen the app.
-4. Find it under **More Markets → Power & Industrial Tools**.
+3. Fully close and reopen the app — check both the new images (browse
+   Power & Industrial Tools or Panteka Market) and the shorter splash
+   time.
 
 ## Update GitHub
 
-New file: `frontend/src/pages/PowerIndustrialTools.jsx`. Changed:
-`App.jsx`, `HubRail.jsx`, `SellerRegister.jsx`, `SellerDashboard.jsx`,
-`tailwind.config.js`. Copy all into your repo and commit/push.
+- `frontend/index.html` changed (splash timing)
+- New folder: `frontend/public/catalog-photos/industrial/` — copy the
+  55 SVG files from `frontend/catalog-photos-industrial/` in this zip
+  into that exact path in your repo
+- Migration included under `supabase/migrations/` (already applied
+  live)
