@@ -30,6 +30,7 @@ const MORE_HUBS = [
   { path: '/used-items', label: 'Used Items', color: 'bg-hub-useditems' },
   { path: '/instalment', label: 'Instalment / BNPL', color: 'bg-hub-instalment' },
   { path: '/motorcycles', label: 'Motorcycles, Tricycles & Accessories', color: 'bg-hub-motorcycle' },
+  { path: '/power-industrial-tools', label: 'Power & Industrial Tools', color: 'bg-hub-industrial' },
 ]
 
 // Real, second row — the six real roles on this platform, exactly as

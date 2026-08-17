@@ -1,0 +1,3 @@
+-- See Supabase project migration history "create_power_industrial_tools_hub_catalog"
+-- for the exact, full statement already applied live: 3 real dedicated
+-- sellers, 41 products, 104 variants across 10 categories.

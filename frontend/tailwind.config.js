@@ -40,6 +40,7 @@ export default {
           useditems: '#6B7280',
           instalment: '#B8860B',
           motorcycle: '#B5651D',
+          industrial: '#4A5568',
         },
       },
       fontFamily: {

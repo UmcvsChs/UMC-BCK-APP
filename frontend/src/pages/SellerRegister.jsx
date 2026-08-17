@@ -29,6 +29,7 @@ const HUBS = [
   { value: 'plastic_utensils', label: 'Plastic & Kitchen Utensils' },
   { value: 'office_equipment', label: 'Office Equipment & Stationery' },
   { value: 'motorcycles_tricycles', label: 'Motorcycles, Tricycles & Accessories' },
+  { value: 'power_industrial_tools', label: 'Power & Industrial Tools' },
 ]
 
 export default function SellerRegister() {

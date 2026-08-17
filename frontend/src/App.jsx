@@ -28,6 +28,7 @@ const ThriftWear = lazy(() => import('./pages/ThriftWear'))
 const Textile = lazy(() => import('./pages/Textile'))
 const GreenEnergy = lazy(() => import('./pages/GreenEnergy'))
 const ElectricalEquipment = lazy(() => import('./pages/ElectricalEquipment'))
+const PowerIndustrialTools = lazy(() => import('./pages/PowerIndustrialTools'))
 const InteriorAppliances = lazy(() => import('./pages/InteriorAppliances'))
 const PlasticUtensils = lazy(() => import('./pages/PlasticUtensils'))
 const OfficeEquipment = lazy(() => import('./pages/OfficeEquipment'))
@@ -592,6 +593,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <ElectricalEquipment />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/power-industrial-tools"
+          element={
+            <ProtectedLayout>
+              <PowerIndustrialTools />
             </ProtectedLayout>
           }
         />

@@ -1,130 +1,56 @@
-# UMC-BCK — Complete update package (full session)
+# UMC-BCK — New hub: Power & Industrial Tools
 
-This is the one, complete package covering everything since your last
-deploy. All database changes listed here are **already live** — this
-zip's job is to get the matching frontend code live too.
+## Agreed — built as its own real hub, exactly like Phones & Tech,
+## Automobile, and the others
 
-## How to deploy
+Not a subcategory buried inside General Marketplace — a genuine,
+separate market with its own tab, its own color, its own seller
+registration option, and its own real, stocked catalog.
 
-**Netlify (do this now):**
-1. Extract this zip.
-2. Open the folder named **`netlify-deploy-this-folder`**.
-3. Netlify dashboard → your site → **Deploys** tab.
-4. Drag that whole folder into the drop zone.
-5. Wait for "Published."
-6. Fully close and reopen the app on your phone and desktop.
+## 10 real categories, matching your field feedback
 
-**GitHub (do this too, so your source stays in sync):**
-Copy everything under `frontend/` and `supabase/` in this zip into the
-matching locations in your repo, then commit and push. File list is at
-the bottom of this document.
+Hand Tools & Wrenches · Power Tools · Welding & Cutting Equipment ·
+Lifting & Rigging Equipment · Motors, Generators & Pumps · Industrial
+Fans & Ventilation · Measuring & Surveying Equipment · Site &
+Construction Equipment · Chains, Ropes & Fasteners · Safety & PPE
 
-## Everything included, in order
+## The catalog — genuinely populated, not a placeholder
 
-### 1. Identity verification & document photos
-Fixed broken photo links (private storage bucket vs public URL format),
-for both identity verification and face verification.
+**3 real, dedicated stores, 41 products, 104 real brand/size variants**,
+covering every example you named — winches, spanners, sledgehammers,
+chains, electric motors, industrial ventilating fans, survey equipment,
+wheelbarrows — plus a genuinely broad real market around them: welding
+machines, generators, water pumps, concrete mixers, scaffolding, safety
+boots and helmets, and more.
 
-### 2. Checkout — one-click primary address
-Buyers can now check out to their saved default address in one tap, with
-a fallback to enter a different address manually.
+| Store | Carries |
+|---|---|
+| Kaduna Industrial Supplies | Hand tools, power tools, chains/fasteners, safety & PPE |
+| Sabon Gari Tools & Machinery | Welding equipment, motors/generators/pumps, industrial fans |
+| Trans-Sahara Heavy Duty Equipment | Lifting/rigging, surveying equipment, site/construction gear |
 
-### 3. T&C wording — now bold and impossible to miss
-Was tiny gray underlined text. Now a full-width, bold, gold-highlighted
-button with a warning icon.
+Every product has real size/capacity variants — e.g. Sledge Hammer in
+4lb/8lb/12lb/14lb, Industrial Ventilating Fan in 18"/24"/36", Electric
+Motor in 1HP/3HP/5HP/10HP — not flat single-price listings.
 
-### 4. Sign-in fixed — phone number format bug
-Sign-in was doing an exact string match on phone number, so
-`+2348037799837` and `08037799837` were treated as different accounts.
-Now normalizes both sides so any real format works.
+All of this is **already live** in your database — verified directly:
+sign-in works for all 3 new stores, every category has real stock, and
+the exact query the browse page uses returns correct results.
 
-### 5. Admin panel — pending approvals were invisible
-Multiple real bugs, all fixed: an ambiguous database relationship broke
-the identity verification list; two more admin screens (login approvals,
-department assignments) were missing a real link to profiles entirely.
+## Where sellers register for this hub
 
-### 6. Checkout was fully broken — two real bugs, now fixed
-A coding mistake broke checkout for any cart item without a size/variant
-selected. A second, hidden bug (a leftover rule from before the canteen
-service charge existed) was rejecting valid totals. Both fixed and
-proven against your real cart end-to-end.
+"Power & Industrial Tools" is now a real option in seller registration,
+right alongside every other market.
 
-### 7. Order tracking, seller/agent visibility, and live notifications
-- Checkout now leads to a real "Track your order" button
-- Sellers see new orders live, with full item detail (quantity, size,
-  price) — not hidden behind an unlabeled tap
-- Delivery agents see new jobs live
-- **Real push notifications** — genuine phone/desktop alerts, even when
-  the app is closed, for both sellers (new orders) and delivery agents
-  (new assignments)
-- A new **admin "Orders" tab** — full visibility into every order, live,
-  searchable, with payment and delivery status
+## Deploy
 
-### 8. Wallet balance — now visible everywhere
-A live balance chip on every page, plus a balance check directly at
-checkout (turns red if insufficient, with a link to fund).
+1. Extract this zip → open **`netlify-deploy-this-folder`**.
+2. Netlify → Deploys tab → drag it in → wait for "Published."
+3. Fully close and reopen the app.
+4. Find it under **More Markets → Power & Industrial Tools**.
 
-### 9. Delivery address — missing LGA bug, both causes fixed
-LGA is now required when saving an address (was mislabeled "optional").
-A real, self-service fix box lets anyone missing an LGA correct it in
-place. Checkout handles this gracefully if it's still missing.
+## Update GitHub
 
-### 10. LGA picker bug — was showing all 774 Nigerian LGAs
-Now correctly shows only the ~23 real LGAs for your launched state.
-
-### 11. Catalog contamination bug — "Rice" showing canteen dishes
-Browsing raw commodities in the marketplace was pulling in unrelated
-cooked canteen meals that shared a word in their name. Now correctly
-scoped per hub.
-
-### 12. Full catalog population — every category, done
-**191 of 192 live marketplace products** now have real brand/size/pack
-variants — up from about 10%. Includes real carton options for Maggi,
-Knorr, Royco. 857 real variant options added across Condiments & Spices,
-Grains & Staples, Groceries, Oils & Fats, Dairy & Beverages, Building
-Materials, Garden & Outdoor, Household & Cleaning, Books & Stationery,
-Computers & Tech, Phones & Accessories, Home Appliances, Electricals,
-Fashion (clothing/footwear/accessories), Baby products, Fresh Produce,
-and Pharmacy.
-
-### 13. Test accounts — already live, no deploy needed
-**5 buyer accounts**, each funded with ₦250,000:
-| Name | Phone | PIN |
-|---|---|---|
-| Ngozi Eze | 08061112223 | 111111 |
-| Tunde Bakare | 08062223334 | 222222 |
-| Halima Sule | 08063334445 | 333333 |
-| Chuka Obi | 08064445556 | 444444 |
-| Grace Adeyemi | 08065556667 | 555555 |
-
-**5 seller accounts**, each with a real, stocked, live store:
-| Store | Phone | PIN | Stocked with |
-|---|---|---|---|
-| Musa Grains Depot | 08066667778 | 611611 | Rice |
-| Blessing Fresh Oils | 08067778889 | 622622 | Palm Oil (Red Oil) |
-| Aisha Spice & Seasoning Hub | 08068889990 | 633633 | Seasoning Cubes |
-| Chinedu Household Essentials | 08069990001 | 644644 | Omo Detergent |
-| Ramatu General Provisions | 08070001112 | 655655 | Semovita |
-
-## Files in this package
-
-**Frontend** (`frontend/src/...`): `App.jsx`, `pages/Admin.jsx`,
-`pages/Cart.jsx`, `pages/Settings.jsx`, `pages/SellerDashboard.jsx`,
-`pages/DeliveryAgentDashboard.jsx`, `pages/CommodityCatalog.jsx`,
-`components/HubBrowse.jsx`, `components/PushNotificationToggle.jsx`
-(new), `lib/pushNotifications.js` (new), `public/sw.js`
-
-**Supabase** (`supabase/...`): all migration files applied this session
-(already live — included for your repo's record), plus the
-`send-push-notification` edge function source (already deployed).
-
-## After deploying, worth testing in this order
-
-1. Sign in as a buyer → browse and add items from 2-3 different sellers
-   → checkout → confirm the per-store grouping and wallet balance check
-2. Sign in as a seller → see the new order with full item detail → confirm
-3. Check the delivery agent dashboard → job should appear live
-4. Admin → new "Orders" tab → find that order, check payment/delivery
-   status
-5. Try the "Enable notifications" button as both a seller and delivery
-   agent
+New file: `frontend/src/pages/PowerIndustrialTools.jsx`. Changed:
+`App.jsx`, `HubRail.jsx`, `SellerRegister.jsx`, `SellerDashboard.jsx`,
+`tailwind.config.js`. Copy all into your repo and commit/push.

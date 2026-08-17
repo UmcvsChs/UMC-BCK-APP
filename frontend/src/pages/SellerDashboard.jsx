@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, SUPABASE_URL } from '../lib/supabase'
 import { queueSale, getQueuedSales, removeQueuedSale, markQueuedSaleFailed } from '../lib/offlineQueue'
+import { processImageForUpload } from '../lib/imageProcessing'
 import FeedbackPrompt from '../components/FeedbackPrompt'
 import PushNotificationToggle from '../components/PushNotificationToggle'
 import SalesRegister from '../components/attendant/SalesRegister'
@@ -51,6 +52,11 @@ const CATEGORIES_BY_HUB = {
   plastic_utensils: ['Kitchen utensils', 'Storage containers', 'Buckets & basins', 'Plastic chairs & tables', 'Disposable & party plasticware'],
   office_equipment: ['Office furniture', 'Printers & copiers', 'Binding & laminating equipment', 'Paper & printing supplies', 'Writing & desk supplies', 'Office electronics'],
   motorcycles_tricycles: ['New Motorcycles', 'Used Motorcycles', 'Electric Motorbikes', 'Tricycles (Keke)', 'Spare Parts & Accessories'],
+  power_industrial_tools: [
+    'Hand Tools & Wrenches', 'Power Tools', 'Welding & Cutting Equipment', 'Lifting & Rigging Equipment',
+    'Motors, Generators & Pumps', 'Industrial Fans & Ventilation', 'Measuring & Surveying Equipment',
+    'Site & Construction Equipment', 'Chains, Ropes & Fasteners', 'Safety & PPE',
+  ],
   canteen: ['Nigerian Meals', 'Northern Dishes', 'Fast Food', 'Shawarma', 'Suya & Grills', 'Pizza', 'Cakes & Desserts', 'Drinks'],
   phones_tech: ['New Phones', 'Accessories', 'Laptops & Tablets', 'Internet Gear'],
   gold_jewelry: ['Pure Gold & Precious Metals', 'Fashion & Costume Jewelry'],
@@ -729,7 +735,30 @@ function AddListing({ sellerId, hub, approved }) {
   const isFashion = category?.toLowerCase().includes('fashion') || category?.toLowerCase().includes('footwear')
   const STANDARD_COLOURS = ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Brown', 'Grey', 'Pink', 'Purple', 'Orange', 'Beige', 'Mixed/Multicolour']
   const [imageFile, setImageFile] = useState(null)
+  const [imageProcessing, setImageProcessing] = useState(false)
+  const [imageProcessInfo, setImageProcessInfo] = useState(null)
   const [libraryPhotoUrl, setLibraryPhotoUrl] = useState(null)
+
+  async function handlePhotoSelected(rawFile) {
+    if (!rawFile) {
+      setImageFile(null)
+      setImageProcessInfo(null)
+      return
+    }
+    setImageProcessing(true)
+    try {
+      const result = await processImageForUpload(rawFile)
+      setImageFile(result.file)
+      setImageProcessInfo(result)
+    } catch {
+      // Real fallback — if processing fails for any reason (an unusual
+      // file, an old browser missing canvas support), upload the
+      // original untouched rather than block the seller entirely.
+      setImageFile(rawFile)
+      setImageProcessInfo(null)
+    }
+    setImageProcessing(false)
+  }
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [catalogSearch, setCatalogSearch] = useState('')
@@ -1388,9 +1417,15 @@ function AddListing({ sellerId, hub, approved }) {
           id="image"
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+          onChange={(e) => handlePhotoSelected(e.target.files?.[0] || null)}
           className="w-full text-sm"
         />
+        {imageProcessing && <p className="text-xs text-ink/50 mt-1">Optimizing photo…</p>}
+        {imageProcessInfo?.wasProcessed && (
+          <p className="text-xs text-market-green mt-1">
+            ✓ Photo optimized: {(imageProcessInfo.originalSize / 1024 / 1024).toFixed(1)}MB → {(imageProcessInfo.finalSize / 1024).toFixed(0)}KB
+          </p>
+        )}
       </div>
 
       {error && (
@@ -1410,10 +1445,10 @@ function AddListing({ sellerId, hub, approved }) {
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || imageProcessing}
         className="w-full rounded bg-indigo text-paper font-display font-medium py-2.5 hover:bg-indigo-light transition-colors disabled:opacity-60"
       >
-        {submitting ? 'Submitting…' : 'Submit listing'}
+        {submitting ? 'Submitting…' : imageProcessing ? 'Optimizing photo…' : 'Submit listing'}
       </button>
     </form>
   )
