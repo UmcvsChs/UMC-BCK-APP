@@ -1,45 +1,41 @@
-# UMC-BCK — Real images for Power & Industrial Tools + Panteka, splash reduced
+# UMC-BCK — Power & Industrial Tools + Panteka Market: 100% real photos
 
-## 1. Product images — confirmed the gap, then fixed it
+## Verified against your original list — everything matched
 
-Checked directly: 55 of the 64 products across Power & Industrial Tools
-and Panteka Market had zero images. Fixed properly, matching your
-instruction exactly — real, clean, **unbranded** images, no product
-names or logos on them, same style your app already uses for its
-existing generic category icons (rice, oil, detergent, etc.).
+Checked all 57 new images against the list I handed you: every single
+one accounted for, correctly grouped by category exactly as delivered
+(Power Tools, Welding & Cutting, Motors/Generators/Pumps, Industrial
+Fans, Measuring & Surveying, Site & Construction, Lifting & Rigging,
+Chains/Ropes/Fasteners, Safety & PPE, Old Panteka's building
+materials/fabrication, and New Panteka's used auto parts).
 
-Built **55 distinct icons** — every single product now has its own,
-genuinely different from every other one (a spanner doesn't look like a
-hammer, an electric motor doesn't look like a fan, a used engine doesn't
-look like a car door). Same house colors and clean flat-icon style as
-your existing generic photos, wired in the same real way sellers'
-"choose from our real photo library" picker already works — future
-sellers listing similar items will find these too.
+## What was done
 
-**Verified directly against the database: all 64 of 64 products now
-have images**, zero gaps.
+Extracted all 57 individual product photos from the 6 composite sheets,
+verified each crop was clean, resized and compressed them the same real
+way as the first batch, and wired them into every matching product.
 
-## 2. Splash screen — reduced by exactly 8 seconds, as asked
-
-Found the real cause: a hardcoded 18.5-second delay in the app's
-`index.html`, completely independent of whether the app had actually
-finished loading. Reduced to **10.5 seconds** — an 8-second cut, exactly
-as requested, so you can see the result and tell me if it needs further
-adjustment.
+**Combined with the Hand Tools batch already deployed: both hubs are
+now 100% real photos. 64 of 64 products — zero placeholder icons
+remaining anywhere in Power & Industrial Tools or Panteka Market.**
+Verified directly against the database.
 
 ## Deploy
 
 1. Extract this zip → open **`netlify-deploy-this-folder`**.
 2. Netlify → Deploys tab → drag it in → wait for "Published."
-3. Fully close and reopen the app — check both the new images (browse
-   Power & Industrial Tools or Panteka Market) and the shorter splash
-   time.
+3. Fully close and reopen the app — browse both hubs to see the full,
+   real catalog.
 
 ## Update GitHub
 
-- `frontend/index.html` changed (splash timing)
-- New folder: `frontend/public/catalog-photos/industrial/` — copy the
-  55 SVG files from `frontend/catalog-photos-industrial/` in this zip
-  into that exact path in your repo
-- Migration included under `supabase/migrations/` (already applied
-  live)
+Copy all 57 new JPGs from `branded-photos-industrial-complete/` in this
+zip into `frontend/public/branded-photos/industrial/` in your repo
+(alongside the 7 already there). Migration included under
+`supabase/migrations/` (already applied live).
+
+## Next
+
+See the separate message for the full, app-wide image audit and the
+comprehensive Kitchenware & Food Storage catalog research you asked
+for — that's coming as its own deliverable.

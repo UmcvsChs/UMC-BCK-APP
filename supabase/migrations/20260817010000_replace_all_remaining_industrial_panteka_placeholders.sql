@@ -1,0 +1,6 @@
+-- See Supabase project migration history "replace_all_remaining_industrial_panteka_placeholders"
+-- for the exact, full statement already applied live: replaced all 57
+-- remaining placeholder icons across Power & Industrial Tools and
+-- Panteka Market with real, AI-generated branded photos. Combined with
+-- the earlier Hand Tools batch, both hubs are now 100% real photos,
+-- zero placeholders (64 of 64).
