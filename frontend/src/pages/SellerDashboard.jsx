@@ -5,6 +5,7 @@ import { queueSale, getQueuedSales, removeQueuedSale, markQueuedSaleFailed } fro
 import { processImageForUpload } from '../lib/imageProcessing'
 import FeedbackPrompt from '../components/FeedbackPrompt'
 import PushNotificationToggle from '../components/PushNotificationToggle'
+import StarterTemplatePicker from '../components/StarterTemplatePicker'
 import SalesRegister from '../components/attendant/SalesRegister'
 import RestockRequests from '../components/attendant/RestockRequests'
 import CreditSaleRequests from '../components/attendant/CreditSaleRequests'
@@ -56,6 +57,12 @@ const CATEGORIES_BY_HUB = {
     'Hand Tools & Wrenches', 'Power Tools', 'Welding & Cutting Equipment', 'Lifting & Rigging Equipment',
     'Motors, Generators & Pumps', 'Industrial Fans & Ventilation', 'Measuring & Surveying Equipment',
     'Site & Construction Equipment', 'Chains, Ropes & Fasteners', 'Safety & PPE',
+  ],
+  panteka_market: ['Building materials', 'Automobile & spare parts'],
+  kids_and_baby: [
+    'Apparel (0-13 years)', 'Footwear', 'Baby Feeding & Care Essentials', 'School, Travel & Accessories',
+    'Toys, Games & Books', 'Nursery & Kids Furniture', 'Safety & Baby-Proofing', 'Party Supplies',
+    'Gift Sets & Bundles', 'Maternity & Postpartum',
   ],
   canteen: ['Nigerian Meals', 'Northern Dishes', 'Fast Food', 'Shawarma', 'Suya & Grills', 'Pizza', 'Cakes & Desserts', 'Drinks'],
   phones_tech: ['New Phones', 'Accessories', 'Laptops & Tablets', 'Internet Gear'],
@@ -294,6 +301,15 @@ export default function SellerDashboard() {
         + Register another store
       </Link>
 
+      {store.verification_status === 'approved' && (
+        <StarterTemplatePicker
+          key={store.id}
+          sellerId={store.id}
+          hub={store.primary_hub}
+          onClaimed={() => setTab('listings')}
+        />
+      )}
+
       <div className="flex gap-1 border-b border-ink/10 mb-4 overflow-x-auto">
         {[
           'overview', 'listings', 'add', 'pl', 'orders', 'questions', 'register', 'reports', 'restock', 'creditreqs', 'messages',
@@ -493,7 +509,7 @@ function MyListings({ sellerId }) {
                   </div>
                 </div>
               )}
-              <ManageVariantsAndAddons productId={p.id} />
+              <ManageVariantsAndAddons productId={p.id} category={p.category} />
             </div>
           )}
         </div>
@@ -502,7 +518,7 @@ function MyListings({ sellerId }) {
   )
 }
 
-function ManageVariantsAndAddons({ productId }) {
+function ManageVariantsAndAddons({ productId, category }) {
   const [variants, setVariants] = useState([])
   const [addons, setAddons] = useState([])
   const [variantName, setVariantName] = useState('')
@@ -512,6 +528,11 @@ function ManageVariantsAndAddons({ productId }) {
   const [variantPrice, setVariantPrice] = useState('')
   const [addonName, setAddonName] = useState('')
   const [addonPrice, setAddonPrice] = useState('')
+  const [quickColour, setQuickColour] = useState('')
+  const [quickSize, setQuickSize] = useState('')
+  const [quickPrice, setQuickPrice] = useState('')
+  const APPAREL_KEYWORDS = ['fashion', 'footwear', 'wear', 'clothing', 'apparel', 'shoe', 'thrift', 'boutique']
+  const isApparel = APPAREL_KEYWORDS.some((kw) => category?.toLowerCase().includes(kw))
 
   async function load() {
     const [{ data: v }, { data: a }, costResult] = await Promise.all([
@@ -559,6 +580,22 @@ function ManageVariantsAndAddons({ productId }) {
     load()
   }
 
+  async function quickAddColourSize(e) {
+    e.preventDefault()
+    if (!quickPrice) return
+    const name = quickColour && quickSize ? `${quickColour} — Size ${quickSize}` : quickColour || (quickSize ? `Size ${quickSize}` : '')
+    if (!name) return
+    await supabase.from('product_variants').insert({
+      product_id: productId,
+      name,
+      price: Number(quickPrice),
+    })
+    setQuickColour('')
+    setQuickSize('')
+    setQuickPrice('')
+    load()
+  }
+
   async function addAddon(e) {
     e.preventDefault()
     if (!addonName || !addonPrice) return
@@ -598,6 +635,35 @@ function ManageVariantsAndAddons({ productId }) {
             {v.name} — ₦{Number(v.price).toLocaleString()}
           </p>
         ))}
+        {isApparel && (
+          <form onSubmit={quickAddColourSize} className="rounded bg-paper/50 border border-ink/10 p-2 mt-2 space-y-1">
+            <p className="text-xs text-ink/50">Quick add — colour and/or size</p>
+            <div className="flex gap-2">
+              <input
+                placeholder="Colour (e.g. Blue)"
+                value={quickColour}
+                onChange={(e) => setQuickColour(e.target.value)}
+                className="flex-1 text-xs rounded border border-ink/20 px-2 py-1"
+              />
+              <input
+                placeholder="Size (e.g. 42)"
+                value={quickSize}
+                onChange={(e) => setQuickSize(e.target.value)}
+                className="w-24 text-xs rounded border border-ink/20 px-2 py-1"
+              />
+              <input
+                type="number"
+                placeholder="₦"
+                value={quickPrice}
+                onChange={(e) => setQuickPrice(e.target.value)}
+                className="w-20 text-xs rounded border border-ink/20 px-2 py-1 font-mono"
+              />
+              <button type="submit" className="text-xs bg-indigo text-paper rounded px-3">
+                Add
+              </button>
+            </div>
+          </form>
+        )}
         <form onSubmit={addVariant} className="flex gap-2 mt-2">
           <input
             placeholder="Name"
@@ -732,7 +798,14 @@ function AddListing({ sellerId, hub, approved }) {
   const [sizeType, setSizeType] = useState('')
   const [availableSizes, setAvailableSizes] = useState('')
   const [availableColours, setAvailableColours] = useState([])
-  const isFashion = category?.toLowerCase().includes('fashion') || category?.toLowerCase().includes('footwear')
+  // Real, broad detection — the earlier version only matched categories
+  // containing the literal words "fashion" or "footwear", which silently
+  // never fired for Boutique ("Men's wear"), Thrift Wear ("Clothing
+  // (thrift)"), or Kids & Baby ("Apparel (0-13 years)") — exactly the
+  // real gap reported. This checks the real, actual category strings
+  // used across every hub that sells clothing or shoes.
+  const APPAREL_KEYWORDS = ['fashion', 'footwear', 'wear', 'clothing', 'apparel', 'shoe', 'thrift', 'boutique']
+  const isFashion = APPAREL_KEYWORDS.some((kw) => category?.toLowerCase().includes(kw))
   const STANDARD_COLOURS = ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Brown', 'Grey', 'Pink', 'Purple', 'Orange', 'Beige', 'Mixed/Multicolour']
   const [imageFile, setImageFile] = useState(null)
   const [imageProcessing, setImageProcessing] = useState(false)
@@ -778,6 +851,14 @@ function AddListing({ sellerId, hub, approved }) {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
+
+    // Real self-learning — a name the suggestion engine didn't recognize
+    // at all gets queued for a quick admin review, so it strengthens
+    // future category suggestions and starter kits for this hub. Never
+    // blocks submission if this fails.
+    if (!categorySuggestion && name.trim().length >= 3) {
+      supabase.rpc('learn_catalog_item', { p_item_name: name.trim(), p_category: category, p_hub: hub }).then(() => {})
+    }
 
     let imageUrls = []
     if (libraryPhotoUrl) {
@@ -871,6 +952,31 @@ function AddListing({ sellerId, hub, approved }) {
         full_carton_price: fullCartonPrice ? Number(fullCartonPrice) : null,
         requires_reseller_verification: true,
       })
+    }
+
+    // Real, genuinely orderable variants — not just descriptive text.
+    // Every real size/colour combination a seller selects becomes its
+    // own selectable option at checkout, exactly like every other
+    // variant in this app (Rice by kg, Seasoning Cubes by pack count),
+    // just built from Size x Colour instead. Starts at the listing
+    // price; the seller can raise individual ones afterward (e.g. a
+    // larger size costing more) from My Listings.
+    if (!error && newProduct && isFashion) {
+      const sizes = availableSizes.trim() ? availableSizes.split(',').map((s) => s.trim()).filter(Boolean) : []
+      const colours = availableColours.length ? availableColours : []
+      let combos = []
+      if (sizes.length && colours.length) {
+        combos = colours.flatMap((c) => sizes.map((s) => `${c} — Size ${s}`))
+      } else if (sizes.length) {
+        combos = sizes.map((s) => `Size ${s}`)
+      } else if (colours.length) {
+        combos = colours
+      }
+      if (combos.length) {
+        await supabase.from('product_variants').insert(
+          combos.map((name) => ({ product_id: newProduct.id, name, price: Number(price) }))
+        )
+      }
     }
 
     setSubmitting(false)
@@ -1335,7 +1441,13 @@ function AddListing({ sellerId, hub, approved }) {
 
       {isFashion && (
         <div className="rounded border border-ink/10 bg-paper/50 p-3 space-y-2">
-          <p className="text-xs font-medium">Fashion & footwear sizing</p>
+          <p className="text-xs font-medium">Brand, sizing & colour</p>
+          <input
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            placeholder="Brand (e.g. Nike, Adidas, Zara — leave blank if unbranded)"
+            className="w-full rounded border border-ink/20 px-3 py-2 bg-surface text-sm"
+          />
           <select
             value={sizeType}
             onChange={(e) => setSizeType(e.target.value)}
@@ -1352,7 +1464,7 @@ function AddListing({ sellerId, hub, approved }) {
           <input
             value={availableSizes}
             onChange={(e) => setAvailableSizes(e.target.value)}
-            placeholder="Available sizes, comma-separated (e.g. 38, 40, 42)"
+            placeholder="Available sizes, comma-separated (e.g. 40, 41, 42)"
             className="w-full rounded border border-ink/20 px-3 py-2 bg-surface text-sm"
           />
           <div className="flex flex-wrap gap-1">
@@ -1371,6 +1483,13 @@ function AddListing({ sellerId, hub, approved }) {
               </button>
             ))}
           </div>
+          {(availableSizes.trim() || availableColours.length > 0) && (
+            <p className="text-xs text-ink/50">
+              A real, separately-selectable option will be created for every size/colour combination below, each
+              starting at your listing price — adjust individual ones afterward from My Listings if any should cost
+              more (e.g. a larger size).
+            </p>
+          )}
         </div>
       )}
 
@@ -1812,6 +1931,15 @@ function StoreOverview({ sellerId, setTab }) {
   const [savingPolicy, setSavingPolicy] = useState(false)
   const [policySaved, setPolicySaved] = useState(false)
   const [commissionRate, setCommissionRate] = useState(null)
+  const [sellerCode, setSellerCode] = useState(null)
+
+  useEffect(() => {
+    async function loadCode() {
+      const { data } = await supabase.from('sellers').select('seller_code').eq('id', sellerId).single()
+      setSellerCode(data?.seller_code || null)
+    }
+    loadCode()
+  }, [sellerId])
 
   useEffect(() => {
     async function loadPolicy() {
@@ -1908,6 +2036,23 @@ function StoreOverview({ sellerId, setTab }) {
         <p className="text-xs text-ink/50">Revenue from delivered orders (all time)</p>
         <p className="font-mono text-xl text-indigo">₦{stats.totalRevenue.toLocaleString()}</p>
       </div>
+
+      {sellerCode && (
+        <div className="rounded border border-ink/10 bg-surface px-3 py-3 col-span-2 flex items-center gap-3">
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(`${window.location.origin}/store/${sellerCode}`)}`}
+            alt="Your store's scannable code"
+            className="w-20 h-20 rounded border border-ink/10"
+          />
+          <div>
+            <p className="text-xs text-ink/50">Your real, unique store ID</p>
+            <p className="font-mono text-lg font-semibold text-indigo">{sellerCode}</p>
+            <p className="text-xs text-ink/40 mt-1">
+              Print this code in your store — customers scan it to open your storefront directly.
+            </p>
+          </div>
+        </div>
+      )}
       <p className="text-xs text-ink/40 col-span-2">
         Revenue here is your store's gross total from delivered orders — it doesn't subtract any costs. Use the
         P&L tab to work out actual profit.

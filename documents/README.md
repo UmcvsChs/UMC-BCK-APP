@@ -1,41 +1,64 @@
-# UMC-BCK — Power & Industrial Tools + Panteka Market: 100% real photos
+# UMC-BCK — Brand, Colour & Size: fixed across every relevant category
 
-## Verified against your original list — everything matched
+## What I actually found
 
-Checked all 57 new images against the list I handed you: every single
-one accounted for, correctly grouped by category exactly as delivered
-(Power Tools, Welding & Cutting, Motors/Generators/Pumps, Industrial
-Fans, Measuring & Surveying, Site & Construction, Lifting & Rigging,
-Chains/Ropes/Fasteners, Safety & PPE, Old Panteka's building
-materials/fabrication, and New Panteka's used auto parts).
+This wasn't a from-scratch build — a real, well-built Brand/Colour/Size
+system already existed (a size-type selector, sizes input, a real
+tap-to-toggle colour picker). It just **never fired for Boutique, Thrift
+Wear, or Kids & Baby**, because of one narrow line of code: it only
+checked whether the category name literally contained the word
+"fashion" or "footwear."
 
-## What was done
+- Boutique's real categories ("Men's wear", "Women's wear") — never
+  matched
+- Thrift Wear's "Clothing (thrift)" — never matched
+- Kids & Baby's "Apparel (0-13 years)" — never matched
 
-Extracted all 57 individual product photos from the 6 composite sheets,
-verified each crop was clean, resized and compressed them the same real
-way as the first batch, and wired them into every matching product.
+So the feature existed and worked, but was invisible almost everywhere
+it actually mattered — which is exactly the gap you were describing.
 
-**Combined with the Hand Tools batch already deployed: both hubs are
-now 100% real photos. 64 of 64 products — zero placeholder icons
-remaining anywhere in Power & Industrial Tools or Panteka Market.**
-Verified directly against the database.
+## What's fixed
+
+1. **Real, broad detection** — now checks for wear, clothing, apparel,
+   footwear, shoe, fashion, thrift, boutique — covering every real
+   category across Boutique, Thrift Wear, Kids & Baby, and Fashion,
+   automatically, everywhere it's relevant, not just one category.
+2. **Real Brand field, added** — a plain text input (Nike, Adidas, Zara,
+   or blank if unbranded) for every apparel/footwear category. This
+   saves to a real `brand` column that already existed on products but
+   was essentially unused.
+3. **Size × Colour now creates real, separately-priced, orderable
+   options** — not just descriptive text. Pick 2 colours and 3 sizes,
+   and 6 real, individually selectable variants get created
+   automatically, each starting at your listing price. A seller can
+   raise any individual one afterward (e.g. a bigger size costing more)
+   from My Listings.
+4. **The same structured Colour + Size quick-add** now also appears in
+   My Listings, for adding options to items after they're already
+   created — not just at initial setup.
+
+## Verified
+
+Tested the real database write directly — confirmed `brand` and the
+variant auto-generation both save correctly for a real Boutique
+product, using the exact same insert pattern already proven throughout
+this app.
 
 ## Deploy
 
 1. Extract this zip → open **`netlify-deploy-this-folder`**.
 2. Netlify → Deploys tab → drag it in → wait for "Published."
-3. Fully close and reopen the app — browse both hubs to see the full,
-   real catalog.
+3. Fully close and reopen the app.
 
 ## Update GitHub
 
-Copy all 57 new JPGs from `branded-photos-industrial-complete/` in this
-zip into `frontend/public/branded-photos/industrial/` in your repo
-(alongside the 7 already there). Migration included under
-`supabase/migrations/` (already applied live).
+`SellerDashboard.jsx` changed — copy it into your repo and commit/push.
+No database changes this time — the columns already existed; this was
+a real frontend logic fix.
 
-## Next
+## Worth testing
 
-See the separate message for the full, app-wide image audit and the
-comprehensive Kitchenware & Food Storage catalog research you asked
-for — that's coming as its own deliverable.
+Add a new listing under Boutique → Men's wear (or any Thrift/Kids &
+Baby apparel category) → confirm Brand, size type, sizes, and colours
+all show up, and that submitting creates real, separate variant options
+you can see and edit from My Listings.
