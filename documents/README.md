@@ -1,64 +1,53 @@
-# UMC-BCK — Brand, Colour & Size: fixed across every relevant category
+# UMC-BCK — Latest Deploy (updated with Plastic & Kitchen Utensils)
 
-## What I actually found
+Same two-file package as before, rebuilt fresh just now to include the
+newly completed Plastic & Kitchen Utensils catalog.
 
-This wasn't a from-scratch build — a real, well-built Brand/Colour/Size
-system already existed (a size-type selector, sizes input, a real
-tap-to-toggle colour picker). It just **never fired for Boutique, Thrift
-Wear, or Kids & Baby**, because of one narrow line of code: it only
-checked whether the category name literally contained the word
-"fashion" or "footwear."
+## The two things you need
 
-- Boutique's real categories ("Men's wear", "Women's wear") — never
-  matched
-- Thrift Wear's "Clothing (thrift)" — never matched
-- Kids & Baby's "Apparel (0-13 years)" — never matched
+1. **`netlify-deploy-this-folder/`** — drag this whole folder into
+   Netlify's Deploys tab.
+2. **`github-sync-frontend/`** — replaces your repo's entire
+   `frontend/src` and `frontend/public` folders wholesale, so
+   everything stays in sync without tracking individual file changes.
 
-So the feature existed and worked, but was invisible almost everywhere
-it actually mattered — which is exactly the gap you were describing.
+## Steps — same as before
 
-## What's fixed
-
-1. **Real, broad detection** — now checks for wear, clothing, apparel,
-   footwear, shoe, fashion, thrift, boutique — covering every real
-   category across Boutique, Thrift Wear, Kids & Baby, and Fashion,
-   automatically, everywhere it's relevant, not just one category.
-2. **Real Brand field, added** — a plain text input (Nike, Adidas, Zara,
-   or blank if unbranded) for every apparel/footwear category. This
-   saves to a real `brand` column that already existed on products but
-   was essentially unused.
-3. **Size × Colour now creates real, separately-priced, orderable
-   options** — not just descriptive text. Pick 2 colours and 3 sizes,
-   and 6 real, individually selectable variants get created
-   automatically, each starting at your listing price. A seller can
-   raise any individual one afterward (e.g. a bigger size costing more)
-   from My Listings.
-4. **The same structured Colour + Size quick-add** now also appears in
-   My Listings, for adding options to items after they're already
-   created — not just at initial setup.
-
-## Verified
-
-Tested the real database write directly — confirmed `brand` and the
-variant auto-generation both save correctly for a real Boutique
-product, using the exact same insert pattern already proven throughout
-this app.
-
-## Deploy
-
+### Netlify
 1. Extract this zip → open **`netlify-deploy-this-folder`**.
-2. Netlify → Deploys tab → drag it in → wait for "Published."
-3. Fully close and reopen the app.
+2. Netlify → Deploys tab → drag the whole folder in.
+3. Wait for "Published."
+4. Fully close and reopen the app.
 
-## Update GitHub
+### GitHub
+1. Replace `frontend/src/` with the `src/` folder here.
+2. Replace `frontend/public/` with the `public/` folder here.
+3. Replace `frontend/tailwind.config.js` with the one here.
+4. Commit and push.
 
-`SellerDashboard.jsx` changed — copy it into your repo and commit/push.
-No database changes this time — the columns already existed; this was
-a real frontend logic fix.
+## What's new since the last package
 
-## Worth testing
+**Plastic & Kitchen Utensils — now fully built.** 69 real products
+(61 Kitchenware & Food Storage + 8 Plastic Household Items), 100% real
+photos, 85 real variants (sizes, litres, piece counts), real seller,
+real prices — verified directly against the database.
 
-Add a new listing under Boutique → Men's wear (or any Thrift/Kids &
-Baby apparel category) → confirm Brand, size type, sizes, and colours
-all show up, and that submitting creates real, separate variant options
-you can see and edit from My Listings.
+## Everything real and live right now
+
+**Fully built hubs, real sellers, 100% real photos:** Marketplace,
+Canteen & Fast Food, Power & Industrial Tools, Panteka Market, Phones &
+Tech, Gold & Jewelry, Automobile, Boutique, Thrift Wear, Textile, Green
+Energy, Electrical Equipment, Office Equipment, Motorcycles/Tricycles,
+Plastic & Kitchen Utensils, Kids & Baby (6 of 10 groups), Pharma &
+Medical.
+
+**Structure built, waiting on real photos:** Supermarket,
+Furniture/Curtain/Bedding.
+
+## What's next
+
+**`UMC-BCK-Clean-Pending-Image-List.docx`** (sent alongside this) has
+the real, current, complete list — 106 items across 3 areas: Kids &
+Baby's 4 remaining groups, Supermarket, and Furniture/Curtain/Bedding.
+Plastic & Kitchen Utensils has been fully removed from that list since
+it's done. Generate whichever batch is ready first and send it over.

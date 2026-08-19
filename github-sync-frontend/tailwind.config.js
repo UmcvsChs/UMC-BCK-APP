@@ -1,0 +1,61 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: 'class',
+  content: ['./index.html', './src/**/*.{js,jsx}'],
+  theme: {
+    extend: {
+      colors: {
+        paper: 'rgb(var(--color-paper) / <alpha-value>)',
+        surface: 'rgb(var(--color-surface) / <alpha-value>)',
+        ink: 'rgb(var(--color-ink) / <alpha-value>)',
+        indigo: {
+          DEFAULT: '#0F4C3A',
+          light: '#186B52',
+          dark: '#0A362A',
+        },
+        gold: {
+          DEFAULT: '#C89B3C',
+          light: '#DBB65E',
+          dark: '#A87F2A',
+        },
+        market: {
+          green: '#3F7A5C',
+          red: '#B4432E',
+        },
+        hub: {
+          marketplace: '#35825B',
+          canteen: '#EF9F27',
+          phones: '#355B82',
+          gold: '#826B35',
+          automobile: '#553582',
+          pharma: '#35827F',
+          boutique: '#82355B',
+          thrift: '#353582',
+          textile: '#753582',
+          greenenergy: '#4E8235',
+          electrical: '#788235',
+          interior: '#82353B',
+          plastic: '#356F82',
+          office: '#354882',
+          useditems: '#6B7280',
+          instalment: '#B8860B',
+          motorcycle: '#B5651D',
+          industrial: '#4A5568',
+          panteka: '#8B5A2B',
+          kidsbaby: '#D97A9C',
+          supermarket: '#2E7D32',
+          interiordecor: '#8B6F47',
+        },
+      },
+      fontFamily: {
+        display: ['"Space Grotesk"', 'sans-serif'],
+        body: ['Inter', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
+      },
+      borderRadius: {
+        DEFAULT: '8px',
+      },
+    },
+  },
+  plugins: [],
+}
