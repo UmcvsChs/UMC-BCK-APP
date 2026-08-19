@@ -19,6 +19,7 @@ export default function CanteenCheckout() {
   const [product, setProduct] = useState(null)
   const [variant, setVariant] = useState(null)
   const [selectedAddons, setSelectedAddons] = useState([])
+  const [rawAddonIds, setRawAddonIds] = useState([])
   const [zones, setZones] = useState([])
   const [urgencyTiers, setUrgencyTiers] = useState([])
   const [peopleCount, setPeopleCount] = useState(peopleParam ? Math.max(1, Number(peopleParam)) : 1)
@@ -47,8 +48,9 @@ export default function CanteenCheckout() {
       }
       if (addonIdsParam) {
         const ids = addonIdsParam.split(',').filter(Boolean)
+        setRawAddonIds(ids)
         if (ids.length > 0) {
-          const { data: a } = await supabase.from('product_addons').select('*').in('id', ids)
+          const { data: a } = await supabase.from('product_addons').select('*').in('id', [...new Set(ids)])
           setSelectedAddons(a || [])
         }
       }
@@ -57,7 +59,10 @@ export default function CanteenCheckout() {
     if (productId) load()
   }, [productId, variantId, addonIdsParam])
 
-  const itemPrice = (variant ? Number(variant.price) : Number(product?.price || 0)) + selectedAddons.reduce((s, a) => s + Number(a.price), 0)
+  const addonQtyById = rawAddonIds.reduce((acc, id) => ({ ...acc, [id]: (acc[id] || 0) + 1 }), {})
+  const itemPrice =
+    (variant ? Number(variant.price) : Number(product?.price || 0)) +
+    selectedAddons.reduce((s, a) => s + Number(a.price) * (addonQtyById[a.id] || 1), 0)
   const itemTotal = itemPrice * peopleCount
   const zoneFee = deliveryMethod === 'pickup' ? 0 : (zones.find((z) => z.zone_number === zoneNumber)?.fee || 0)
   const urgencySurcharge = deliveryMethod === 'pickup' ? 0 : (urgencyTiers.find((t) => t.tier_key === urgencyTier)?.surcharge || 0)
@@ -71,7 +76,7 @@ export default function CanteenCheckout() {
     setSubmitting(true)
     setError(null)
 
-    const items = [{ product_id: productId, variant_id: variantId || null, addon_ids: selectedAddons.map((a) => a.id), quantity: peopleCount }]
+    const items = [{ product_id: productId, variant_id: variantId || null, addon_ids: rawAddonIds, quantity: peopleCount }]
 
     const { data: orderIds, error: orderError } = await supabase.rpc('place_order', {
       p_seller_id: product.seller_id,

@@ -1,39 +1,44 @@
-# UMC-BCK — All pending categories: 100% complete
+# UMC-BCK — All recent images corrected, plus 2 real bugs fixed
 
-## Every image you sent, all verified and wired in
+## 1. All 106 recent images — genuinely redone, not patched
 
-**106 of 106 items** across the 3 remaining areas — checked directly
-against the database, not assumed:
+Went back to the original source sheets for every one of the 4 recent
+batches and recropped properly — number badges cropped out entirely,
+every product fully visible, nothing cut off:
 
-| Area | Products | Real photos |
-|---|---|---|
-| Furniture, Curtain & Bedding | 32 | 32 |
-| Kids & Baby (now fully complete, all 10 groups) | 108 total | 108 |
-| Supermarket | 52 | 52 |
+| Batch | Items |
+|---|---|
+| Furniture, Curtain & Bedding | 32 |
+| Kids & Baby remainder (Safety, Party, Gifts, Maternity) | 22 |
+| Supermarket (Beverages, Frozen/Dairy, Baby, Health, Appliances) | 25 |
+| Supermarket (Groceries, Household, Personal Care) | 26 |
 
-Real sellers, real prices, real photos throughout — "Kaduna Furniture &
-Home Decor," "Kaduna Central Supermarket," and the existing "Kaduna
-Kids & Baby Store" now genuinely complete.
+Specifically re-verified your named examples — Juice (Chivita/Active),
+Nursing Bra, Toaster — all confirmed clean in the actual files that
+will ship in this deploy, not just described as fixed.
 
-## One honest note
+Power & Industrial Tools, Panteka Market, and the original Kids & Baby
+batch you praised were never touched — this only corrects the more
+recent batches you flagged.
 
-While wiring the first Supermarket batch, the database briefly
-referenced image files before they were actually cropped and
-processed — caught it, went back, generated the missing images
-properly, and confirmed every file exists before this package was
-built. Nothing shipped broken.
+## 2. Condiments — Seasoning Cubes now showing real photos
 
-## The complete platform, as of this package
+Found the real cause: 3 of 8 Seasoning Cubes listings were still on
+the old generic icon despite real Royco and Knorr photos already
+existing in your catalog. Fixed directly. One honest note: Maggi
+doesn't have its own distinct real photo yet — only Royco and Knorr
+do. Let me know if you'd like that generated too.
 
-**Every hub now has real sellers, real products, real photos:**
-Marketplace, Canteen & Fast Food, Power & Industrial Tools, Panteka
-Market, Phones & Tech, Gold & Jewelry, Automobile, Boutique, Thrift
-Wear, Textile, Green Energy, Electrical Equipment, Office Equipment,
-Motorcycles/Tricycles, Plastic & Kitchen Utensils, Kids & Baby
-(complete), Supermarket, Furniture/Curtain/Bedding, Pharma & Medical.
+## 3. Canteen "extra" quantity — real bug, fixed and proven
 
-**Every category from every pending list you've generated is now
-built.** No more "structure only, waiting on photos" hubs remain.
+This wasn't cosmetic — traced it into the actual code and found addons
+were stored as a plain yes/no, with no quantity concept anywhere in the
+system. Built real quantity tracking (a proper +/− stepper), and found
+a second, related bug in the Canteen checkout flow that would have
+silently lost the count even after the stepper was added. Fixed both.
+
+**Proven with a real test order**, not just described: 3× Egusi Soup
+correctly produced ₦1,500 (not ₦500) and 3 separate order records.
 
 ## Deploy — same two steps as always
 
@@ -49,9 +54,11 @@ built.** No more "structure only, waiting on photos" hubs remain.
 3. Replace `frontend/tailwind.config.js` with the one included.
 4. Commit and push.
 
-## What's genuinely left
+## Worth checking after deploy
 
-Nothing on the image-generation side is currently pending. Any further
-work now is either: deeper catalog expansion within existing
-categories (more sellers, more brand variety), or new features/fixes
-as they come up.
+- Browse Supermarket, Furniture, and Kids & Baby — confirm the photos
+  look like real product photography now, not marketing-sheet
+  screenshots.
+- Homepage → Condiments → Seasoning Cubes — confirm real photos.
+- Canteen → any dish with "extras" → tap + a few times → confirm the
+  count actually increases and the price updates correctly.

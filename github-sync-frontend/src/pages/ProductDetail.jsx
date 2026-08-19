@@ -12,7 +12,7 @@ export default function ProductDetail() {
   const [variants, setVariants] = useState([])
   const [addons, setAddons] = useState([])
   const [selectedVariant, setSelectedVariant] = useState(null)
-  const [selectedAddonIds, setSelectedAddonIds] = useState([])
+  const [selectedAddonQty, setSelectedAddonQty] = useState({})
   const [quantity, setQuantity] = useState(1)
   const [contributorName, setContributorName] = useState('')
   const [loading, setLoading] = useState(true)
@@ -59,17 +59,36 @@ export default function ProductDetail() {
     }
   }, [productId])
 
-  function toggleAddon(id, groupName, isSingleSelect) {
+  // Real per-addon quantity — "Extra Beef" x3 genuinely means three,
+  // not a checkmark. Single-select groups ("Choose one") stay a plain
+  // either/or, since a quantity of soup choice doesn't mean anything;
+  // every other group gets a real +/- count. The backend already
+  // handles this correctly: repeating an addon's id in the array
+  // charges and records it that many times, so no schema change was
+  // needed — just real quantity tracking here instead of a boolean.
+  function setAddonQty(id, groupName, isSingleSelect, delta) {
     if (isSingleSelect) {
       const groupIds = addons.filter((a) => a.addon_group === groupName).map((a) => a.id)
-      setSelectedAddonIds((prev) => {
-        const withoutGroup = prev.filter((x) => !groupIds.includes(x))
-        return prev.includes(id) ? withoutGroup : [...withoutGroup, id]
+      setSelectedAddonQty((prev) => {
+        const next = { ...prev }
+        groupIds.forEach((gid) => delete next[gid])
+        if (delta > 0) next[id] = 1
+        return next
       })
       return
     }
-    setSelectedAddonIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+    setSelectedAddonQty((prev) => {
+      const current = prev[id] || 0
+      const nextQty = Math.max(0, current + delta)
+      const next = { ...prev }
+      if (nextQty === 0) delete next[id]
+      else next[id] = nextQty
+      return next
+    })
   }
+
+  // Real flat, repeated-id array — exactly what place_order expects.
+  const selectedAddonIds = Object.entries(selectedAddonQty).flatMap(([id, qty]) => Array(qty).fill(id))
 
   async function toggleWatch() {
     setWatchLoading(true)
@@ -142,9 +161,10 @@ export default function ProductDetail() {
   const unitPrice = selectedVariant
     ? variants.find((v) => v.id === selectedVariant)?.price
     : product.price
-  const addonTotal = addons
-    .filter((a) => selectedAddonIds.includes(a.id))
-    .reduce((sum, a) => sum + Number(a.price), 0)
+  const addonTotal = Object.entries(selectedAddonQty).reduce((sum, [id, qty]) => {
+    const a = addons.find((x) => x.id === id)
+    return a ? sum + Number(a.price) * qty : sum
+  }, 0)
   const lineTotal = unitPrice != null ? unitPrice * quantity + addonTotal : null
 
   return (
@@ -267,24 +287,55 @@ export default function ProductDetail() {
                   <p className="text-xs text-ink/50 mb-2">Select as many as you want, in one bowl.</p>
                 )}
                 <div className="space-y-2">
-                  {groupAddons.map((a) => (
-                    <label
-                      key={a.id}
-                      className="flex items-center justify-between rounded border border-ink/15 px-3 py-2 cursor-pointer"
-                    >
-                      <span className="flex items-center gap-2 text-sm">
-                        <input
-                          type={isSingleSelect ? 'radio' : 'checkbox'}
-                          name={isSingleSelect ? groupName : undefined}
-                          checked={selectedAddonIds.includes(a.id)}
-                          onChange={() => toggleAddon(a.id, groupName, isSingleSelect)}
-                          className="accent-indigo"
-                        />
-                        {a.name}
-                      </span>
-                      <span className="font-mono text-sm">+₦{Number(a.price).toLocaleString()}</span>
-                    </label>
-                  ))}
+                  {groupAddons.map((a) => {
+                    const qty = selectedAddonQty[a.id] || 0
+                    if (isSingleSelect) {
+                      return (
+                        <label
+                          key={a.id}
+                          className="flex items-center justify-between rounded border border-ink/15 px-3 py-2 cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2 text-sm">
+                            <input
+                              type="radio"
+                              name={groupName}
+                              checked={qty > 0}
+                              onChange={() => setAddonQty(a.id, groupName, true, 1)}
+                              className="accent-indigo"
+                            />
+                            {a.name}
+                          </span>
+                          <span className="font-mono text-sm">+₦{Number(a.price).toLocaleString()}</span>
+                        </label>
+                      )
+                    }
+                    return (
+                      <div key={a.id} className="flex items-center justify-between rounded border border-ink/15 px-3 py-2">
+                        <div className="text-sm">
+                          <p>{a.name}</p>
+                          <p className="font-mono text-xs text-ink/50">+₦{Number(a.price).toLocaleString()} each</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAddonQty(a.id, groupName, false, -1)}
+                            disabled={qty === 0}
+                            className="w-7 h-7 rounded-full border border-ink/20 text-ink/60 disabled:opacity-30"
+                          >
+                            −
+                          </button>
+                          <span className="w-5 text-center text-sm font-semibold">{qty}</span>
+                          <button
+                            type="button"
+                            onClick={() => setAddonQty(a.id, groupName, false, 1)}
+                            className="w-7 h-7 rounded-full bg-indigo text-white"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )
