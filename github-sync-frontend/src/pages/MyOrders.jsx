@@ -16,7 +16,7 @@ export default function MyOrders() {
   async function load() {
     const { data } = await supabase
       .from('orders')
-      .select('id, status, total_amount, delivery_type, created_at, sellers(store_name), disputes(id, status), delivery_ratings(id, rating)')
+      .select('id, status, total_amount, delivery_type, created_at, packaging_ready_at, sellers(store_name), disputes(id, status), delivery_ratings(id, rating)')
       .order('created_at', { ascending: false })
     setOrders(data || [])
     setLoading(false)
@@ -74,18 +74,22 @@ export default function MyOrders() {
           <div key={o.id} className="rounded border border-ink/10 bg-surface px-3 py-2">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">{o.sellers?.store_name}</p>
+                <p className="text-base font-bold">{o.sellers?.store_name}</p>
                 <p className="font-mono text-xs text-ink/50">{o.id.slice(0, 8)}</p>
               </div>
               <div className="text-right">
                 <p className="font-mono text-sm">₦{Number(o.total_amount).toLocaleString()}</p>
-                <span className="text-xs font-medium text-indigo capitalize">{o.status}</span>
+                <span className="text-sm font-bold text-indigo capitalize">{o.status}</span>
               </div>
             </div>
 
-            <Link to={`/orders/${o.id}`} className="text-xs text-indigo underline">
+            <Link to={`/orders/${o.id}`} className="text-sm font-medium text-indigo underline">
               View receipt
             </Link>
+
+            {o.packaging_ready_at && o.status !== 'delivered' && (
+              <p className="text-sm font-bold text-market-green mt-1">📦 Packaged and ready — your delivery agent is on it</p>
+            )}
 
             {o.status === 'delivered' && (!o.delivery_ratings || o.delivery_ratings.length === 0) && (
               <div className="mt-2">

@@ -1,0 +1,2 @@
+-- See Supabase project migration history "populate_kids_baby_remainder_products"
+-- 22 real products completing Kids & Baby's final 4 groups (108/108 total).

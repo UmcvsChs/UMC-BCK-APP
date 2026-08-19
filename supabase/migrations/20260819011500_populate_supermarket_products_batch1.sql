@@ -1,0 +1,1 @@
+-- See Supabase project migration history "populate_supermarket_products_batch1"

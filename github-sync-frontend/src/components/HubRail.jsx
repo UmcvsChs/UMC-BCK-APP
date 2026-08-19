@@ -69,7 +69,7 @@ export default function HubRail() {
             key={hub.path}
             to={hub.path}
             className={({ isActive }) =>
-              `shrink-0 rounded px-3 py-2 text-sm font-display font-medium text-paper transition-all
+              `shrink-0 rounded px-3 py-2 text-base font-display font-bold text-paper transition-all
                ${hub.color} ${isActive ? 'ring-2 ring-gold scale-105' : 'hover:brightness-110'}`
             }
           >
@@ -79,7 +79,7 @@ export default function HubRail() {
         <button
           type="button"
           onClick={() => setMoreOpen((v) => !v)}
-          className="shrink-0 rounded px-3 py-2 text-sm font-display font-medium text-paper bg-ink/20 hover:bg-ink/30 transition-colors"
+          className="shrink-0 rounded px-3 py-2 text-base font-display font-bold text-paper bg-ink/20 hover:bg-ink/30 transition-colors"
         >
           More Markets {moreOpen ? '▲' : '▼'}
         </button>
@@ -93,7 +93,7 @@ export default function HubRail() {
               to={hub.path}
               onClick={() => setMoreOpen(false)}
               className={({ isActive }) =>
-                `rounded px-3 py-2 text-xs font-display font-medium text-paper text-center transition-all
+                `rounded px-3 py-2 text-sm font-display font-bold text-paper text-center transition-all
                  ${hub.color} ${isActive ? 'ring-2 ring-gold scale-105' : 'hover:brightness-110'}`
               }
             >

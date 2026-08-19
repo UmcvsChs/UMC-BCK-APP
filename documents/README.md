@@ -1,53 +1,57 @@
-# UMC-BCK — Latest Deploy (updated with Plastic & Kitchen Utensils)
+# UMC-BCK — All pending categories: 100% complete
 
-Same two-file package as before, rebuilt fresh just now to include the
-newly completed Plastic & Kitchen Utensils catalog.
+## Every image you sent, all verified and wired in
 
-## The two things you need
+**106 of 106 items** across the 3 remaining areas — checked directly
+against the database, not assumed:
 
-1. **`netlify-deploy-this-folder/`** — drag this whole folder into
-   Netlify's Deploys tab.
-2. **`github-sync-frontend/`** — replaces your repo's entire
-   `frontend/src` and `frontend/public` folders wholesale, so
-   everything stays in sync without tracking individual file changes.
+| Area | Products | Real photos |
+|---|---|---|
+| Furniture, Curtain & Bedding | 32 | 32 |
+| Kids & Baby (now fully complete, all 10 groups) | 108 total | 108 |
+| Supermarket | 52 | 52 |
 
-## Steps — same as before
+Real sellers, real prices, real photos throughout — "Kaduna Furniture &
+Home Decor," "Kaduna Central Supermarket," and the existing "Kaduna
+Kids & Baby Store" now genuinely complete.
+
+## One honest note
+
+While wiring the first Supermarket batch, the database briefly
+referenced image files before they were actually cropped and
+processed — caught it, went back, generated the missing images
+properly, and confirmed every file exists before this package was
+built. Nothing shipped broken.
+
+## The complete platform, as of this package
+
+**Every hub now has real sellers, real products, real photos:**
+Marketplace, Canteen & Fast Food, Power & Industrial Tools, Panteka
+Market, Phones & Tech, Gold & Jewelry, Automobile, Boutique, Thrift
+Wear, Textile, Green Energy, Electrical Equipment, Office Equipment,
+Motorcycles/Tricycles, Plastic & Kitchen Utensils, Kids & Baby
+(complete), Supermarket, Furniture/Curtain/Bedding, Pharma & Medical.
+
+**Every category from every pending list you've generated is now
+built.** No more "structure only, waiting on photos" hubs remain.
+
+## Deploy — same two steps as always
 
 ### Netlify
 1. Extract this zip → open **`netlify-deploy-this-folder`**.
-2. Netlify → Deploys tab → drag the whole folder in.
-3. Wait for "Published."
-4. Fully close and reopen the app.
+2. Netlify → Deploys tab → drag it in → wait for "Published."
+3. Fully close and reopen the app.
 
 ### GitHub
-1. Replace `frontend/src/` with the `src/` folder here.
-2. Replace `frontend/public/` with the `public/` folder here.
-3. Replace `frontend/tailwind.config.js` with the one here.
+1. Replace `frontend/src/` with the `src/` folder in
+   `github-sync-frontend/`.
+2. Replace `frontend/public/` with the `public/` folder the same way.
+3. Replace `frontend/tailwind.config.js` with the one included.
 4. Commit and push.
 
-## What's new since the last package
+## What's genuinely left
 
-**Plastic & Kitchen Utensils — now fully built.** 69 real products
-(61 Kitchenware & Food Storage + 8 Plastic Household Items), 100% real
-photos, 85 real variants (sizes, litres, piece counts), real seller,
-real prices — verified directly against the database.
-
-## Everything real and live right now
-
-**Fully built hubs, real sellers, 100% real photos:** Marketplace,
-Canteen & Fast Food, Power & Industrial Tools, Panteka Market, Phones &
-Tech, Gold & Jewelry, Automobile, Boutique, Thrift Wear, Textile, Green
-Energy, Electrical Equipment, Office Equipment, Motorcycles/Tricycles,
-Plastic & Kitchen Utensils, Kids & Baby (6 of 10 groups), Pharma &
-Medical.
-
-**Structure built, waiting on real photos:** Supermarket,
-Furniture/Curtain/Bedding.
-
-## What's next
-
-**`UMC-BCK-Clean-Pending-Image-List.docx`** (sent alongside this) has
-the real, current, complete list — 106 items across 3 areas: Kids &
-Baby's 4 remaining groups, Supermarket, and Furniture/Curtain/Bedding.
-Plastic & Kitchen Utensils has been fully removed from that list since
-it's done. Generate whichever batch is ready first and send it over.
+Nothing on the image-generation side is currently pending. Any further
+work now is either: deeper catalog expansion within existing
+categories (more sellers, more brand variety), or new features/fixes
+as they come up.

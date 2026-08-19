@@ -1594,7 +1594,7 @@ function IncomingOrders({ sellerId }) {
     const { data } = await supabase
       .from('orders')
       .select(
-        `id, status, total_amount, delivery_type, created_at,
+        `id, status, total_amount, delivery_type, created_at, packaging_ready_at,
          order_items(id, product_id, product_variant_id, quantity, unit_price, line_total, imei,
            products(name, category), product_variants(name), order_item_addons(name, price))`
       )
@@ -1642,8 +1642,10 @@ function IncomingOrders({ sellerId }) {
   }
 
   async function handleReject(orderId) {
+    const reason = window.prompt('Real reason for the buyer — e.g. "Out of stock", "Wrong size unavailable"')
+    if (reason === null) return
     setActioning(orderId)
-    const { error } = await supabase.rpc('reject_order', { p_order_id: orderId, p_reason: 'Declined by seller' })
+    const { error } = await supabase.rpc('reject_order', { p_order_id: orderId, p_reason: reason || 'Declined by seller' })
     setActioning(null)
     if (error) {
       alert(error.message)
@@ -1668,6 +1670,17 @@ function IncomingOrders({ sellerId }) {
     const estReadyTime = minutes ? new Date(Date.now() + Number(minutes) * 60000).toISOString() : null
     setActioning(orderId)
     const { error } = await supabase.rpc('mark_order_preparing', { p_order_id: orderId, p_est_ready_time: estReadyTime })
+    setActioning(null)
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
+  async function handleMarkReady(orderId) {
+    setActioning(orderId)
+    const { error } = await supabase.rpc('mark_order_ready_for_pickup', { p_order_id: orderId })
     setActioning(null)
     if (error) {
       alert(error.message)
@@ -1753,6 +1766,19 @@ function IncomingOrders({ sellerId }) {
             >
               🍳 Mark as preparing
             </button>
+          )}
+
+          {(o.status === 'confirmed' || o.status === 'preparing') && !o.packaging_ready_at && (
+            <button
+              onClick={() => handleMarkReady(o.id)}
+              disabled={actioning === o.id}
+              className="w-full mt-2 text-sm font-bold bg-market-green text-white rounded py-2 disabled:opacity-60"
+            >
+              📦 Packaged — ready for pickup now
+            </button>
+          )}
+          {o.packaging_ready_at && o.status !== 'delivered' && (
+            <p className="text-sm font-bold text-market-green mt-2">✓ Ready for pickup — waiting on the delivery agent</p>
           )}
 
           {o.delivery_type === 'proxy_pickup' && (o.status === 'confirmed' || o.status === 'preparing') && (

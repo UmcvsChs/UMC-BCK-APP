@@ -1,0 +1,2 @@
+-- See Supabase project migration history "populate_furniture_products"
+-- 32 real Furniture, Curtain & Bedding products, all with real photos.

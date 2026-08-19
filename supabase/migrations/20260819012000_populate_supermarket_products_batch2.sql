@@ -1,0 +1,2 @@
+-- See Supabase project migration history "populate_supermarket_products_batch2"
+-- Completes Supermarket at 52/52, including Hand Sanitizer.

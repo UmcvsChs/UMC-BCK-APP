@@ -1,0 +1,1 @@
+-- See Supabase project migration history "create_furniture_supermarket_sellers"
