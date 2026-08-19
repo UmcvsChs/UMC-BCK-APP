@@ -6,7 +6,7 @@ import HubBrowse from '../components/HubBrowse'
 // significant real markets in Northern Nigeria (the fastest, most
 // widely used form of transportation), with a real, growing electric
 // motorbike segment on top of it.
-const MOTORCYCLE_CATEGORIES = ['New Motorcycles', 'Used Motorcycles', 'Electric Motorbikes', 'Tricycles (Keke)', 'Spare Parts & Accessories']
+const MOTORCYCLE_CATEGORIES = ['New Motorcycles', 'Electric Motorbikes', 'Tricycles (Keke)', 'Spare Parts & Accessories']
 
 export default function Motorcycles() {
   return (

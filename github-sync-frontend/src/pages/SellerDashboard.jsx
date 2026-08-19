@@ -50,7 +50,10 @@ const CATEGORIES_BY_HUB = {
   green_energy: ['Solar panels', 'Inverters', 'Deep cycle batteries', 'Solar accessories (cables, charge controllers)', 'Wind & other renewable'],
   electrical_equipment: ['Cables & wiring', 'Switches & sockets', 'Circuit breakers', 'Transformers', 'Industrial installation equipment', 'Generators'],
   interior_appliances: ['Furniture', 'Curtains & rugs', 'Kitchen appliances', 'Cooling & heating', 'Refrigeration', 'TVs & entertainment'],
-  plastic_utensils: ['Kitchen utensils', 'Storage containers', 'Buckets & basins', 'Plastic chairs & tables', 'Disposable & party plasticware'],
+  plastic_utensils: [
+    'Cookware', 'Food Storage & Containers', 'Cutlery & Utensils', 'Dinnerware & Servingware',
+    'Drinkware', 'Baking & Prep Tools', 'Kitchen Gadgets & Small Tools', 'Plastic Household Items',
+  ],
   office_equipment: ['Office furniture', 'Printers & copiers', 'Binding & laminating equipment', 'Paper & printing supplies', 'Writing & desk supplies', 'Office electronics'],
   motorcycles_tricycles: ['New Motorcycles', 'Used Motorcycles', 'Electric Motorbikes', 'Tricycles (Keke)', 'Spare Parts & Accessories'],
   power_industrial_tools: [

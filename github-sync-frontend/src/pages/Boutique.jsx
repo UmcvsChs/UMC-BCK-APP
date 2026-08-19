@@ -1,6 +1,6 @@
 import HubBrowse from '../components/HubBrowse'
 
-const BOUTIQUE_CATEGORIES = ["Men's wear", "Women's wear", "Children's wear", 'Native & traditional wear', 'Accessories']
+const BOUTIQUE_CATEGORIES = ["Men's wear", "Women's wear", 'Native & traditional wear', 'Accessories']
 
 export default function Boutique() {
   return (

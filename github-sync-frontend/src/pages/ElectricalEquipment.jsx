@@ -1,6 +1,6 @@
 import HubBrowse from '../components/HubBrowse'
 
-const ELECTRICAL_CATEGORIES = ['Cables & wiring', 'Switches & sockets', 'Circuit breakers', 'Transformers', 'Industrial installation equipment', 'Generators']
+const ELECTRICAL_CATEGORIES = ['Cables & wiring', 'Switches & sockets', 'Circuit breakers', 'Transformers', 'Industrial installation equipment', 'Generators', 'Electricals, lighting & fittings']
 
 export default function ElectricalEquipment() {
   return (

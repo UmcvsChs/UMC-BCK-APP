@@ -5,7 +5,7 @@ import HubBrowse from '../components/HubBrowse'
 // Thrift Wear is dedicated bale/wholesale secondhand clothing traders;
 // Used Items is ordinary people reselling their own individual
 // belongings across any category.
-const THRIFT_CATEGORIES = ['Clothing (thrift)', 'Beddings & curtains', 'Footwear (thrift)', 'Bags (thrift)']
+const THRIFT_CATEGORIES = ['Clothing (thrift)', 'Footwear (thrift)', 'Bags (thrift)']
 
 export default function ThriftWear() {
   return (

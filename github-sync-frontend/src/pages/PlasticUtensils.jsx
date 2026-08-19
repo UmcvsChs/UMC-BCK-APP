@@ -1,6 +1,9 @@
 import HubBrowse from '../components/HubBrowse'
 
-const PLASTIC_CATEGORIES = ['Kitchen utensils', 'Storage containers', 'Buckets & basins', 'Plastic chairs & tables', 'Disposable & party plasticware']
+const PLASTIC_CATEGORIES = [
+  'Cookware', 'Food Storage & Containers', 'Cutlery & Utensils', 'Dinnerware & Servingware',
+  'Drinkware', 'Baking & Prep Tools', 'Kitchen Gadgets & Small Tools', 'Plastic Household Items',
+]
 
 export default function PlasticUtensils() {
   return (
