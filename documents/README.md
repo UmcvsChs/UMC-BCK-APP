@@ -1,64 +1,54 @@
-# UMC-BCK — All recent images corrected, plus 2 real bugs fixed
+# UMC-BCK — The real root cause found and fixed: aspect ratio, not crop quality
 
-## 1. All 106 recent images — genuinely redone, not patched
+## What was actually wrong
 
-Went back to the original source sheets for every one of the 4 recent
-batches and recropped properly — number badges cropped out entirely,
-every product fully visible, nothing cut off:
+You were right that something was seriously off, and it wasn't a
+matter of "try cropping more carefully" — I found the real, precise
+cause: **every product thumbnail in the app is forced into a perfect
+square** (`aspect-square object-cover` in the code). My recent crops
+were wide rectangles — roughly 2:1 to 2.35:1 — so the browser had to
+zoom in hard and cut away most of each image just to force it into a
+square box. That's the blur, the over-zoom, the cut-off products you
+were seeing.
 
-| Batch | Items |
-|---|---|
-| Furniture, Curtain & Bedding | 32 |
-| Kids & Baby remainder (Safety, Party, Gifts, Maternity) | 22 |
-| Supermarket (Beverages, Frozen/Dairy, Baby, Health, Appliances) | 25 |
-| Supermarket (Groceries, Household, Personal Care) | 26 |
+Checked this precisely: **104 of the 106 recent images were
+significantly non-square.** Compared against the Green Energy photo
+you praised — it's already nearly square (1.15:1), which is exactly
+why it barely needed to crop and looked right.
 
-Specifically re-verified your named examples — Juice (Chivita/Active),
-Nursing Bra, Toaster — all confirmed clean in the actual files that
-will ship in this deploy, not just described as fixed.
+## The real fix
 
-Power & Industrial Tools, Panteka Market, and the original Kids & Baby
-batch you praised were never touched — this only corrects the more
-recent batches you flagged.
+Padded every one of those 104 images onto a proper square canvas,
+centered, using a background colour sampled from each image's own
+edge so the padding blends in naturally rather than showing a visible
+box. **Verified directly: 0 of 106 images remain non-square.**
 
-## 2. Condiments — Seasoning Cubes now showing real photos
+This is a fix to the images themselves, at their real file paths — no
+new cropping, no database changes, nothing else touched.
 
-Found the real cause: 3 of 8 Seasoning Cubes listings were still on
-the old generic icon despite real Royco and Knorr photos already
-existing in your catalog. Fixed directly. One honest note: Maggi
-doesn't have its own distinct real photo yet — only Royco and Knorr
-do. Let me know if you'd like that generated too.
+## On "Iyaoba Rice" losing its image
 
-## 3. Canteen "extra" quantity — real bug, fixed and proven
+Checked this specifically and directly: both the database record and
+the actual image file in Supabase Storage are fully intact and
+untouched — the file has been sitting there correctly since it was
+first uploaded. This looks like it was a temporary loading glitch in
+the browser at that moment, not a real backend problem. Worth
+checking again after this deploy with a hard refresh.
 
-This wasn't cosmetic — traced it into the actual code and found addons
-were stored as a plain yes/no, with no quantity concept anywhere in the
-system. Built real quantity tracking (a proper +/− stepper), and found
-a second, related bug in the Canteen checkout flow that would have
-silently lost the count even after the stepper was added. Fixed both.
+## Deploy
 
-**Proven with a real test order**, not just described: 3× Egusi Soup
-correctly produced ₦1,500 (not ₦500) and 3 separate order records.
-
-## Deploy — same two steps as always
-
-### Netlify
 1. Extract this zip → open **`netlify-deploy-this-folder`**.
 2. Netlify → Deploys tab → drag it in → wait for "Published."
-3. Fully close and reopen the app.
+3. Fully close and reopen the app — hard refresh if needed to clear
+   any cached images.
 
-### GitHub
-1. Replace `frontend/src/` with the `src/` folder in
-   `github-sync-frontend/`.
-2. Replace `frontend/public/` with the `public/` folder the same way.
-3. Replace `frontend/tailwind.config.js` with the one included.
-4. Commit and push.
+## Update GitHub
+
+Replace `frontend/public/` with the `public/` folder in
+`github-sync-frontend/` — this contains the corrected images plus
+everything else already in your public folder.
 
 ## Worth checking after deploy
 
-- Browse Supermarket, Furniture, and Kids & Baby — confirm the photos
-  look like real product photography now, not marketing-sheet
-  screenshots.
-- Homepage → Condiments → Seasoning Cubes — confirm real photos.
-- Canteen → any dish with "extras" → tap + a few times → confirm the
-  count actually increases and the price updates correctly.
+Supermarket → any item — confirm the full product is visible, not
+zoomed past recognition. Furniture and Kids & Baby the same way.
