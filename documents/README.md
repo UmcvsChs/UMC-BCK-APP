@@ -1,51 +1,43 @@
-# UMC-BCK — Measuring Tape, real Kitchenware bleed, category bug, Canteen stepper
+# UMC-BCK — Real Canteen fix, Plastic items, fabric overlap, and the blur diagnosis
 
-## 1. Measuring Tape — fixed
-Real cause: the source sheet left a large blank margin next to this
-one item. Recropped tightly around just the tape measure — no more
-blank space.
+## Where we are — nothing lost
 
-## 2. Kitchen Knife Set, Chef's Knife, Ladle — genuinely re-fixed
-You were right that these weren't actually fixed before — checked
-directly and found real bleed I'd missed. Redone individually:
-Ladle and Chef's Knife no longer show fragments of neighbouring
-tools, and Kitchen Knife Set no longer shows the scissors from its
-own set bleeding into frame.
+Before this deploy: Textile (20/20), Kitchenware (61/61), Furniture
+(32/32) fully verified. Still ahead: Kids & Baby (108), Supermarket
+(52), plus verification of the remaining hubs. This deploy adds real
+fixes on top of that, doesn't reset anything.
 
-## 3. Plastic & Kitchen Utensils — the real cause of "every category
-is blank"
+## 1. The real Canteen bug — found at its true source, fixed
 
-Found it precisely: the category filter buttons ("Kitchen utensils,"
-"Storage containers," "Buckets & basins," etc.) were a **stale,
-pre-existing list that never matched any real product** — every real
-product uses categories like "Cookware," "Cutlery & Utensils," "Food
-Storage & Containers." Clicking any category button except "All"
-searched for products under names that don't exist, so it looked
-completely empty — exactly what you saw, and for exactly that reason.
+Pizza, Shawarma, Fast Food, and Suya run through a genuinely separate
+component (`FastFoodOrderBuilder.jsx`) that the earlier fix never
+touched — it had its own boolean checkmark toggle sitting right next
+to a *different* addon type that already had a real, working stepper.
+That's exactly why Nigerian Meals and Northern Dishes worked and
+nothing else did. Fixed to use the same real +/− logic everywhere.
 
-**Fixed** — the category buttons now show the real, actually-populated
-categories: Cookware, Food Storage & Containers, Cutlery & Utensils,
-Dinnerware & Servingware, Drinkware, Baking & Prep Tools, Kitchen
-Gadgets & Small Tools, Plastic Household Items.
+## 2. Plastic Household Items — all 8 fixed
+Bucket, basin, storage box, chair, table, laundry basket, waste bin,
+stool — these were never part of the earlier individual re-audit.
+All 8 now confirmed clean, no numbers.
 
-While checking this, I found the same bug in smaller form in four
-other hubs (an empty category button sitting alongside working ones)
-and fixed those too: Boutique, Motorcycles, Thrift Wear, Electrical
-Equipment.
+## 3. Sewing Thread, Fabric Buttons, Fabric Scissors — fixed
+Real column-boundary drift, same as the earlier fabric row. All 3
+recropped and individually verified.
 
-## 4. Canteen "extra" quantity stepper
+## 4. The "bold, blurry, over-zoomed" text — real cause found
 
-Checked the actual compiled build directly — the real +/− stepper
-*is* correctly built and present (confirmed in the compiled
-`ProductDetail` and `CanteenCheckout` code, not just the source).
-This fix was built in an earlier package focused on behaviour/logic
-changes, separate from the more recent image-only packages — it's
-very likely that specific package was never deployed. This build
-includes it fresh, guaranteed.
+This wasn't a new bug — it's something the earlier fixes didn't fully
+solve. Many of the corrected images still had the product's bullet
+points (four short lines like "Non-stick Coating," "Easy to Clean")
+baked into the photo itself. At the small size the app actually
+displays thumbnails, that text becomes cramped and blurry — that's
+what you were seeing as "over-zoomed."
 
-**Please test directly after deploying**: open any Canteen item with
-"extras," tap + a few times on something like Extra Beef, and confirm
-the number climbs instead of just showing a checkmark.
+**Fixed across all 3 completed hubs** — 122 images had the bullet text
+trimmed out entirely, keeping just the title and the clean product
+photo, then re-squared. Verified at actual thumbnail size before
+shipping this.
 
 ## Deploy
 
@@ -58,9 +50,14 @@ the number climbs instead of just showing a checkmark.
 Replace `frontend/src/` and `frontend/public/` with the folders in
 `github-sync-frontend/`, commit, push.
 
+## Please test directly
+
+- Canteen → Pizza or Shawarma → tap + on an extra a few times → confirm
+  the count climbs, not just a checkmark.
+- Textile, Kitchenware, Furniture → confirm photos look clean and
+  sharp, no cramped text.
+
 ## Still ahead
 
-Kids & Baby (108) and Supermarket (52) are still being worked through
-the same careful, one-image-at-a-time way. Given what surfaced today,
-I'll also do a quick category-button check on every remaining hub as
-part of that work, not just images.
+Kids & Baby, Supermarket, and verification of the remaining hubs —
+continuing the same careful way.

@@ -17,7 +17,7 @@ export default function FastFoodOrderBuilder({ sellerId = null, category }) {
   const [multiGroups, setMultiGroups] = useState({})
   const [simpleAddons, setSimpleAddons] = useState([])
   const [selectedSizeId, setSelectedSizeId] = useState('')
-  const [selectedAddonIds, setSelectedAddonIds] = useState([])
+  const [simpleAddonQty, setSimpleAddonQty] = useState({})
   const [multiQuantities, setMultiQuantities] = useState({})
   const [peopleCount, setPeopleCount] = useState(1)
   const [designFile, setDesignFile] = useState(null)
@@ -65,7 +65,7 @@ export default function FastFoodOrderBuilder({ sellerId = null, category }) {
       setMultiGroups(groups)
 
       setSelectedSizeId('')
-      setSelectedAddonIds([])
+      setSimpleAddonQty({})
       setMultiQuantities({})
       setDesignFile(null)
     }
@@ -74,7 +74,10 @@ export default function FastFoodOrderBuilder({ sellerId = null, category }) {
 
   const selectedItem = items.find((i) => i.id === selectedItemId)
   const sizeExtra = sizes.find((s) => s.id === selectedSizeId)?.price || 0
-  const simpleAddonTotal = simpleAddons.filter((a) => selectedAddonIds.includes(a.id)).reduce((sum, a) => sum + Number(a.price), 0)
+  const simpleAddonTotal = Object.entries(simpleAddonQty).reduce((sum, [id, qty]) => {
+    const a = simpleAddons.find((x) => x.id === id)
+    return a ? sum + Number(a.price) * qty : sum
+  }, 0)
   const multiAddonTotal = Object.entries(multiQuantities).reduce((sum, [id, qty]) => {
     const allMulti = Object.values(multiGroups).flatMap((g) => g.items)
     const item = allMulti.find((m) => m.id === id)
@@ -82,8 +85,11 @@ export default function FastFoodOrderBuilder({ sellerId = null, category }) {
   }, 0)
   const itemTotal = (Number(selectedItem?.price || 0) + Number(sizeExtra) + simpleAddonTotal + multiAddonTotal) * peopleCount
 
-  function toggleAddon(id) {
-    setSelectedAddonIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  function setSimpleQty(id, delta) {
+    setSimpleAddonQty((prev) => {
+      const next = Math.max(0, (prev[id] || 0) + delta)
+      return { ...prev, [id]: next }
+    })
   }
 
   function setMultiQty(id, delta) {
@@ -94,8 +100,9 @@ export default function FastFoodOrderBuilder({ sellerId = null, category }) {
   }
 
   function goToCheckout() {
-    const multiIds = Object.entries(multiQuantities).filter(([, qty]) => qty > 0).map(([id]) => id)
-    const allRealSelectedIds = [selectedSizeId, ...selectedAddonIds, ...multiIds].filter(Boolean)
+    const multiIds = Object.entries(multiQuantities).flatMap(([id, qty]) => Array(qty).fill(id))
+    const simpleIds = Object.entries(simpleAddonQty).flatMap(([id, qty]) => Array(qty).fill(id))
+    const allRealSelectedIds = [selectedSizeId, ...simpleIds, ...multiIds].filter(Boolean)
     const params = new URLSearchParams({ product: selectedItemId, people: String(peopleCount) })
     if (allRealSelectedIds.length > 0) params.set('addons', allRealSelectedIds.join(','))
     navigate(`/canteen-checkout?${params.toString()}`)
@@ -190,14 +197,21 @@ export default function FastFoodOrderBuilder({ sellerId = null, category }) {
                   <p className="text-sm">{a.name}</p>
                   <p className="text-xs text-ink/40">+₦{Number(a.price).toLocaleString()} per portion</p>
                 </div>
-                <button
-                  onClick={() => toggleAddon(a.id)}
-                  className={`w-9 h-9 rounded-full text-lg font-bold ${
-                    selectedAddonIds.includes(a.id) ? 'bg-hub-canteen text-white' : 'bg-ink/5 text-ink/40'
-                  }`}
-                >
-                  {selectedAddonIds.includes(a.id) ? '✓' : '+'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSimpleQty(a.id, -1)}
+                    className="w-7 h-7 rounded-full bg-ink/5 text-ink/60 font-bold"
+                  >
+                    −
+                  </button>
+                  <span className="font-mono text-sm w-4 text-center">{simpleAddonQty[a.id] || 0}</span>
+                  <button
+                    onClick={() => setSimpleQty(a.id, 1)}
+                    className="w-7 h-7 rounded-full bg-hub-canteen text-white font-bold"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             ))}
           </div>
